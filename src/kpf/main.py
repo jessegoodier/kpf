@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
 
-# kpf.py
-# A Python utility to run kubectl port-forward and automatically restart it
-# when a change to the corresponding endpoint is detected.
-
 import re
 import subprocess
 import sys
 import threading
 import time
 
-# Use a shared event to signal the port-forward thread to restart
 restart_event = threading.Event()
-# Use a shared event to signal all threads to shut down gracefully
 shutdown_event = threading.Event()
 
 
@@ -151,14 +145,11 @@ def endpoint_watcher_thread(namespace, resource_name):
         proc.kill()
 
 
-def main():
+def run_port_forward(port_forward_args):
     """
     The main function to orchestrate the two threads.
     """
     print("kpf: Kubectl Port-Forward Restarter Utility")
-
-    # Get port-forwarding arguments from the command line
-    port_forward_args = get_port_forward_args(sys.argv[1:])
 
     # Get watcher arguments from the port-forwarding args
     namespace, resource_name = get_watcher_args(port_forward_args)
@@ -197,6 +188,12 @@ def main():
         pf_t.join()
         ew_t.join()
         print("[Main] All threads have shut down. Exiting.")
+
+
+def main():
+    """Legacy main function for backward compatibility."""
+    port_forward_args = get_port_forward_args(sys.argv[1:])
+    run_port_forward(port_forward_args)
 
 
 if __name__ == "__main__":
