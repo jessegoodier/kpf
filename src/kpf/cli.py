@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 
 import argparse
+import subprocess
 import sys
 from typing import List, Optional
 
+from rich import print as rich_print
+from rich.console import Console
+
 from . import __version__
-from .kubernetes import KubernetesClient
 from .display import ServiceSelector
+from .kubernetes import KubernetesClient
 from .main import run_port_forward
+
+# Initialize Rich console
+console = Console()
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -23,96 +30,127 @@ Examples:
   kpf --prompt -n production                    # Interactive selection in specific namespace
   kpf --all                                     # Show all services across all namespaces
   kpf --all-ports                              # Show all services with their ports
-        """
+  kpf --prompt --check -n production           # Interactive selection with endpoint status
+        """,
     )
-    
+
     parser.add_argument(
-        "--version", "-v",
-        action="version",
-        version=f"kpf {__version__}"
+        "--version", "-v", action="version", version=f"kpf {__version__}"
     )
-    
+
     parser.add_argument(
-        "--prompt", "-p",
+        "--prompt",
+        "-p",
         action="store_true",
-        help="Interactive service selection with colored table (green=has endpoints, red=no endpoints)"
+        help="Interactive service selection with colored table",
     )
-    
+
     parser.add_argument(
-        "--namespace", "-n",
+        "--namespace",
+        "-n",
         type=str,
-        help="Kubernetes namespace to use (default: current context namespace)"
+        help="Kubernetes namespace to use (default: current context namespace)",
     )
-    
+
     parser.add_argument(
-        "--all", "-A",
+        "--all",
+        "-A",
         action="store_true",
-        help="Show all services across all namespaces in a sorted table"
+        help="Show all services across all namespaces in a sorted table",
     )
-    
+
     parser.add_argument(
-        "--all-ports", "-l",
+        "--all-ports",
+        "-l",
         action="store_true",
-        help="Include ports from pods, deployments, daemonsets, etc."
+        help="Include ports from pods, deployments, daemonsets, etc.",
     )
-    
+
+    parser.add_argument(
+        "--check",
+        "-c",
+        action="store_true",
+        help="Check and display endpoint status in service selection table",
+    )
+
+    parser.add_argument(
+        "--debug",
+        "-d",
+        action="store_true",
+        help="Enable debug output for troubleshooting",
+    )
+
     # Positional arguments for legacy port-forward syntax
     parser.add_argument(
-        "args",
-        nargs="*",
-        help="kubectl port-forward arguments (legacy mode)"
+        "args", nargs="*", help="kubectl port-forward arguments (legacy mode)"
     )
-    
+
     return parser
 
 
-def handle_prompt_mode(namespace: Optional[str] = None, show_all: bool = False, show_all_ports: bool = False) -> List[str]:
+def handle_prompt_mode(
+    namespace: Optional[str] = None,
+    show_all: bool = False,
+    show_all_ports: bool = False,
+    check_endpoints: bool = False,
+) -> List[str]:
     """Handle interactive service selection."""
     k8s_client = KubernetesClient()
     selector = ServiceSelector(k8s_client)
-    
+
     if show_all:
-        return selector.select_service_all_namespaces(show_all_ports)
+        return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
     else:
-        return selector.select_service_in_namespace(namespace, show_all_ports)
+        return selector.select_service_in_namespace(
+            namespace, show_all_ports, check_endpoints
+        )
+
+
+def check_kubectl():
+    """Check if kubectl is available."""
+    try:
+        subprocess.run(["kubectl", "version"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        raise RuntimeError("kubectl is not available or not configured properly")
 
 
 def main():
     """Main CLI entry point."""
     parser = create_parser()
     args = parser.parse_args()
-    
+
     try:
         # Handle interactive modes
-        if args.prompt or args.all or args.all_ports:
+        if args.prompt or args.all or args.all_ports or args.check:
             port_forward_args = handle_prompt_mode(
                 namespace=args.namespace,
                 show_all=args.all,
-                show_all_ports=args.all_ports
+                show_all_ports=args.all_ports,
+                check_endpoints=args.check,
             )
             if not port_forward_args:
-                print("No service selected. Exiting.")
+                console.print("No service selected. Exiting.", style="dim")
                 sys.exit(0)
-        
+
         # Handle legacy mode
         elif args.args:
             port_forward_args = args.args
             # Add namespace if specified
             if args.namespace and "-n" not in port_forward_args:
                 port_forward_args.extend(["-n", args.namespace])
-        
+
         else:
             parser.print_help()
             sys.exit(1)
-        
+
         # Run the port-forward utility
-        run_port_forward(port_forward_args)
-        
+        run_port_forward(port_forward_args, debug_mode=args.debug)
+
     except KeyboardInterrupt:
-        print("\nOperation cancelled by user.")
+        console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")
         sys.exit(0)
     except Exception as e:
-        print(f"Error: {e}")
+        console.print(f"Error: {e}", style="red")
         sys.exit(1)
 
 

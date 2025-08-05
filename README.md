@@ -13,20 +13,16 @@ A Python utility that automatically restarts kubectl port-forward when endpoint 
 
 ## Installation
 
-### Using uv (recommended)
+**Note**: `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. If you prefer this tool, you can alias at the bottom of your `~/.zshrc` file or use a different alias.
 
 ```bash
-git clone https://github.com/jessegoodier/kpf.git
-cd kpf
-uv pip install -e .
+alias kpf="uvx kpf"
 ```
 
-### Using pip
+or:
 
 ```bash
-git clone https://github.com/jessegoodier/kpf.git
-cd kpf
-pip install -e .
+pipx install kpf
 ```
 
 ## Usage
@@ -49,6 +45,21 @@ kpf --all
 kpf --all-ports
 ```
 
+### Check Mode
+
+Add endpoint status checking to service selection (slower but shows endpoint health):
+
+```bash
+# Interactive selection with endpoint status
+kpf --prompt --check
+
+# Show all services with endpoint status
+kpf --all --check
+
+# Include pods and deployments with status
+kpf --all-ports --check
+```
+
 ### Legacy Mode
 
 Direct port-forward (backward compatible):
@@ -67,6 +78,7 @@ Options:
   -n, --namespace       Specify kubernetes namespace
   -A, --all            Show all services across all namespaces
   -l, --all-ports      Include ports from pods, deployments, etc.
+  -c, --check          Include endpoint status in service selection table
   -h, --help           Show help message
   -v, --version        Show version
 ```
@@ -75,8 +87,26 @@ Options:
 
 ### Interactive Service Selection
 
+Fast mode (without endpoint checking):
+
 ```bash
 $ kpf --prompt -n kube-system
+
+Services in namespace: kube-system
+
+#    Type     Name                    Ports    
+1    SERVICE  kube-dns               53, 9153
+2    SERVICE  metrics-server         443     
+3    SERVICE  kubernetes-dashboard   443     
+
+Select a service [1]: 1
+Local port (press Enter for 53): 5353
+```
+
+With endpoint status checking:
+
+```bash
+$ kpf --prompt --check -n kube-system
 
 Services in namespace: kube-system
 
@@ -163,6 +193,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Changelog
 
 ### v0.1.0
+
 - Initial release
 - Interactive service selection
 - Automatic port-forward restart

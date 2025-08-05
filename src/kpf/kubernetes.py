@@ -3,7 +3,7 @@
 import json
 import subprocess
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -43,17 +43,15 @@ class ServiceInfo:
 class KubernetesClient:
     """Client for interacting with Kubernetes via kubectl."""
 
-    def __init__(self):
-        self._check_kubectl()
+    # def __init__(self):
+    #     self._check_kubectl()
 
-    def _check_kubectl(self):
-        """Check if kubectl is available."""
-        try:
-            subprocess.run(
-                ["kubectl", "version", "--client"], capture_output=True, check=True
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            raise RuntimeError("kubectl is not available or not configured properly")
+    # def _check_kubectl(self):
+    #     """Check if kubectl is available."""
+    #     try:
+    #         subprocess.run(["kubectl", "version"], capture_output=True, check=True)
+    #     except (subprocess.CalledProcessError, FileNotFoundError):
+    #         raise RuntimeError("kubectl is not available or not configured properly")
 
     def get_current_namespace(self) -> str:
         """Get the current namespace from kubectl context."""
@@ -95,7 +93,9 @@ class KubernetesClient:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to get namespaces: {e}")
 
-    def get_services_in_namespace(self, namespace: str) -> List[ServiceInfo]:
+    def get_services_in_namespace(
+        self, namespace: str, check_endpoints: bool = True
+    ) -> List[ServiceInfo]:
         """Get all services in a specific namespace."""
         try:
             # Get services
@@ -112,8 +112,12 @@ class KubernetesClient:
                 service_name = item["metadata"]["name"]
                 ports = item["spec"].get("ports", [])
 
-                # Check if service has endpoints
-                has_endpoints = self._service_has_endpoints(namespace, service_name)
+                # Check if service has endpoints (only if requested)
+                has_endpoints = (
+                    self._service_has_endpoints(namespace, service_name)
+                    if check_endpoints
+                    else False
+                )
 
                 services.append(
                     ServiceInfo(
@@ -132,7 +136,9 @@ class KubernetesClient:
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Failed to parse services JSON: {e}")
 
-    def get_all_services(self) -> Dict[str, List[ServiceInfo]]:
+    def get_all_services(
+        self, check_endpoints: bool = True
+    ) -> Dict[str, List[ServiceInfo]]:
         """Get all services across all namespaces."""
         try:
             namespaces = self.get_all_namespaces()
@@ -140,7 +146,9 @@ class KubernetesClient:
 
             for namespace in namespaces:
                 try:
-                    services = self.get_services_in_namespace(namespace)
+                    services = self.get_services_in_namespace(
+                        namespace, check_endpoints
+                    )
                     if services:  # Only include namespaces with services
                         all_services[namespace] = services
                 except RuntimeError:
@@ -229,7 +237,7 @@ class KubernetesClient:
 
             return sorted(pods_with_ports, key=lambda p: p.name)
 
-        except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+        except (subprocess.CalledProcessError, json.JSONDecodeError):
             # Return empty list if we can't get pods
             return []
 
@@ -275,6 +283,6 @@ class KubernetesClient:
 
             return sorted(deployments_with_ports, key=lambda d: d.name)
 
-        except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError) as e:
+        except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError):
             # Return empty list if we can't get deployments
             return []
