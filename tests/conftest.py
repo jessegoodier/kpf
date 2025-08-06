@@ -1,8 +1,10 @@
 """Pytest configuration and fixtures."""
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
-from src.kpf.kubernetes import ServiceInfo, KubernetesClient
+
+from src.kpf.kubernetes import KubernetesClient, ServiceInfo
 
 
 @pytest.fixture
@@ -13,10 +15,10 @@ def sample_service_info():
         namespace="default",
         ports=[
             {"port": 80, "targetPort": 8080, "protocol": "TCP", "name": "http"},
-            {"port": 443, "targetPort": 8443, "protocol": "TCP", "name": "https"}
+            {"port": 443, "targetPort": 8443, "protocol": "TCP", "name": "https"},
         ],
         has_endpoints=True,
-        service_type="service"
+        service_type="service",
     )
 
 
@@ -28,7 +30,7 @@ def sample_service_no_endpoints():
         namespace="default",
         ports=[{"port": 8080, "protocol": "TCP"}],
         has_endpoints=False,
-        service_type="service"
+        service_type="service",
     )
 
 
@@ -40,7 +42,7 @@ def sample_pod_info():
         namespace="default",
         ports=[{"port": 3000, "protocol": "TCP", "name": "app"}],
         has_endpoints=True,
-        service_type="pod"
+        service_type="pod",
     )
 
 

@@ -5,7 +5,6 @@ import subprocess
 import sys
 from typing import List, Optional
 
-from rich import print as rich_print
 from rich.console import Console
 
 from . import __version__
@@ -34,9 +33,7 @@ Examples:
         """,
     )
 
-    parser.add_argument(
-        "--version", "-v", action="version", version=f"kpf {__version__}"
-    )
+    parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
 
     parser.add_argument(
         "--prompt",
@@ -81,9 +78,7 @@ Examples:
     )
 
     # Positional arguments for legacy port-forward syntax
-    parser.add_argument(
-        "args", nargs="*", help="kubectl port-forward arguments (legacy mode)"
-    )
+    parser.add_argument("args", nargs="*", help="kubectl port-forward arguments (legacy mode)")
 
     return parser
 
@@ -101,9 +96,7 @@ def handle_prompt_mode(
     if show_all:
         return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
     else:
-        return selector.select_service_in_namespace(
-            namespace, show_all_ports, check_endpoints
-        )
+        return selector.select_service_in_namespace(namespace, show_all_ports, check_endpoints)
 
 
 def check_kubectl():
@@ -120,6 +113,8 @@ def main():
     args = parser.parse_args()
 
     try:
+        port_forward_args = None
+
         # Handle interactive modes
         if args.prompt or args.all or args.all_ports or args.check:
             port_forward_args = handle_prompt_mode(
@@ -143,8 +138,9 @@ def main():
             parser.print_help()
             sys.exit(1)
 
-        # Run the port-forward utility
-        run_port_forward(port_forward_args, debug_mode=args.debug)
+        # Run the port-forward utility (should only reach here if port_forward_args is set)
+        if port_forward_args:
+            run_port_forward(port_forward_args, debug_mode=args.debug)
 
     except KeyboardInterrupt:
         console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")

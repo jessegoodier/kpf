@@ -136,9 +136,7 @@ class KubernetesClient:
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Failed to parse services JSON: {e}")
 
-    def get_all_services(
-        self, check_endpoints: bool = True
-    ) -> Dict[str, List[ServiceInfo]]:
+    def get_all_services(self, check_endpoints: bool = True) -> Dict[str, List[ServiceInfo]]:
         """Get all services across all namespaces."""
         try:
             namespaces = self.get_all_namespaces()
@@ -146,9 +144,7 @@ class KubernetesClient:
 
             for namespace in namespaces:
                 try:
-                    services = self.get_services_in_namespace(
-                        namespace, check_endpoints
-                    )
+                    services = self.get_services_in_namespace(namespace, check_endpoints)
                     if services:  # Only include namespaces with services
                         all_services[namespace] = services
                 except RuntimeError:

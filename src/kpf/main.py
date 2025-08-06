@@ -17,11 +17,13 @@ shutdown_event = threading.Event()
 # Global debug state
 _debug_enabled = False
 
+
 class Debug:
     @staticmethod
     def print(message: str):
         if _debug_enabled:
             console.print(f"[dim cyan][DEBUG][/dim cyan] {message}")
+
 
 debug = Debug()
 
@@ -110,9 +112,7 @@ def port_forward_thread(args):
                 if proc.poll() is None:
                     debug.print("Process did not terminate gracefully, force killing")
                     proc.kill()  # Force kill if it's still running
-                    console.print(
-                        "[red][Port-Forwarder] Process was forcefully killed.[/red]"
-                    )
+                    console.print("[red][Port-Forwarder] Process was forcefully killed.[/red]")
                 else:
                     debug.print("Process terminated gracefully")
                 proc = None
@@ -136,6 +136,7 @@ def endpoint_watcher_thread(namespace, resource_name):
     When a change is detected, it sets the `restart_event`.
     """
     debug.print(f"Endpoint watcher thread started for {namespace}/{resource_name}")
+    proc = None
     while not shutdown_event.is_set():
         try:
             console.print(
@@ -174,7 +175,7 @@ def endpoint_watcher_thread(namespace, resource_name):
                     debug.print("Skipping first line (header)")
                     continue
                 else:
-                    debug.print(f"Endpoint change detected, setting restart event")
+                    debug.print("Endpoint change detected, setting restart event")
                     debug.print(f"Endpoint change details: {line.strip()}")
                 restart_event.set()
 
@@ -184,6 +185,8 @@ def endpoint_watcher_thread(namespace, resource_name):
 
         except Exception as e:
             console.print(f"[red][Watcher] An error occurred: {e}[/red]")
+            if proc:
+                proc.kill()
             shutdown_event.set()
             return
 
@@ -197,18 +200,16 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
     """
     global _debug_enabled
     _debug_enabled = debug_mode
-    
+
     console.print("kpf: Kubectl Port-Forward Restarter Utility")
-    debug.print(f"Debug mode enabled")
+    debug.print("Debug mode enabled")
 
     # Get watcher arguments from the port-forwarding args
     namespace, resource_name = get_watcher_args(port_forward_args)
     debug.print(f"Parsed namespace: {namespace}, resource_name: {resource_name}")
 
     console.print(f"Port-forward arguments: {port_forward_args}")
-    console.print(
-        f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}"
-    )
+    console.print(f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}")
 
     # Create and start the two threads
     debug.print("Creating port-forward and endpoint watcher threads")
