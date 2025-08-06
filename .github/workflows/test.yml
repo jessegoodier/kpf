@@ -32,8 +32,8 @@ jobs:
     
     - name: Lint with ruff
       run: |
-        uv run ruff check src tests
-        uv run ruff format --check src tests
+        uvx isort .
+        uvx ruff format --check .
     
     - name: Test with pytest
       run: |
