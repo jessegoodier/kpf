@@ -1,6 +1,6 @@
 [project]
 name = "kpf"
-version = "0.1.1"
+version = "0.1.2"
 description = "A terminal utility to run kubectl port-forward and automatically restart it when endpoint changes are detected"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -70,7 +70,7 @@ line_length = 100
 known_first_party = ["kpf"]
 
 [tool.bumpversion]
-current_version = "0.1.1"
+current_version = "0.1.2"
 commit = false
 tag = false
 tag_name = "{new_version}"
@@ -92,4 +92,7 @@ values = ["release", "post"]
 
 [[tool.bumpversion.files]]
 filename = "src/kpf/__init__.py"
+
+[[tool.bumpversion.files]]
+filename = "tests/test_integration.py"
 
