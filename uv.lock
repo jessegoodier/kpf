@@ -217,6 +217,7 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "bump-my-version" },
+    { name = "coverage" },
     { name = "isort" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -226,6 +227,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bump-my-version", marker = "extra == 'dev'" },
+    { name = "coverage", marker = "extra == 'dev'" },
     { name = "isort", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
