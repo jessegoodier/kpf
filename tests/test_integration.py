@@ -104,9 +104,7 @@ class TestEndToEndScenarios:
                 return result
             else:
                 # Simulate connection error for other commands
-                raise subprocess.CalledProcessError(
-                    1, cmd, stderr=b"connection refused"
-                )
+                raise subprocess.CalledProcessError(1, cmd, stderr=b"connection refused")
 
         mock_run.side_effect = mock_subprocess
 

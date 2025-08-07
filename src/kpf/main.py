@@ -59,32 +59,40 @@ def _validate_port_format(port_forward_args):
                 parts = arg.split(":")
                 if len(parts) < 2:
                     continue
-                
+
                 local_port_str = parts[0]
-                remote_port_str = parts[1] 
-                
+                remote_port_str = parts[1]
+
                 # Validate local port
                 local_port = int(local_port_str)
                 if not (1 <= local_port <= 65535):
-                    console.print(f"[red]Error: Local port {local_port} is not in valid range (1-65535)[/red]")
+                    console.print(
+                        f"[red]Error: Local port {local_port} is not in valid range (1-65535)[/red]"
+                    )
                     return False
-                
-                # Validate remote port  
+
+                # Validate remote port
                 remote_port = int(remote_port_str)
                 if not (1 <= remote_port <= 65535):
-                    console.print(f"[red]Error: Remote port {remote_port} is not in valid range (1-65535)[/red]")
+                    console.print(
+                        f"[red]Error: Remote port {remote_port} is not in valid range (1-65535)[/red]"
+                    )
                     return False
-                    
+
                 debug.print(f"Port format validation passed: {local_port}:{remote_port}")
                 return True
-                
+
             except (ValueError, IndexError) as e:
-                console.print(f"[red]Error: Invalid port format in '{arg}'. Expected format: 'local_port:remote_port' (e.g., 8080:80)[/red]")
+                console.print(
+                    f"[red]Error: Invalid port format in '{arg}'. Expected format: 'local_port:remote_port' (e.g., 8080:80)[/red]"
+                )
                 debug.print(f"Port format validation failed for '{arg}': {e}")
                 return False
-    
+
     # No port mapping found
-    console.print("[red]Error: No valid port mapping found. Expected format: 'local_port:remote_port' (e.g., 8080:80)[/red]")
+    console.print(
+        "[red]Error: No valid port mapping found. Expected format: 'local_port:remote_port' (e.g., 8080:80)[/red]"
+    )
     return False
 
 
@@ -93,19 +101,18 @@ def _validate_kubectl_command(port_forward_args):
     try:
         # First check if kubectl is available
         result = subprocess.run(
-            ["kubectl", "version", "--client"],
-            capture_output=True,
-            text=True,
-            timeout=5
+            ["kubectl", "version", "--client"], capture_output=True, text=True, timeout=5
         )
-        
+
         if result.returncode != 0:
             console.print("[red]Error: kubectl is not working properly[/red]")
-            console.print(f"[yellow]kubectl error: {result.stderr.strip() if result.stderr else 'Unknown error'}[/yellow]")
+            console.print(
+                f"[yellow]kubectl error: {result.stderr.strip() if result.stderr else 'Unknown error'}[/yellow]"
+            )
             return False
-            
+
         debug.print("kubectl client is available")
-        
+
         # Basic validation of resource format (svc/name, pod/name, etc.)
         resource_found = False
         for arg in port_forward_args:
@@ -114,22 +121,32 @@ def _validate_kubectl_command(port_forward_args):
                 if len(resource_parts) == 2:
                     resource_type = resource_parts[0].lower()
                     resource_name = resource_parts[1]
-                    
+
                     # Check for valid resource types
-                    valid_types = ["svc", "service", "pod", "deploy", "deployment", "rs", "replicaset"]
+                    valid_types = [
+                        "svc",
+                        "service",
+                        "pod",
+                        "deploy",
+                        "deployment",
+                        "rs",
+                        "replicaset",
+                    ]
                     if resource_type in valid_types and resource_name:
                         resource_found = True
                         debug.print(f"Valid resource format found: {resource_type}/{resource_name}")
                         break
-        
+
         if not resource_found:
             console.print("[red]Error: No valid resource specified[/red]")
-            console.print("[yellow]Expected format: 'svc/service-name', 'pod/pod-name', etc.[/yellow]")
+            console.print(
+                "[yellow]Expected format: 'svc/service-name', 'pod/pod-name', etc.[/yellow]"
+            )
             return False
-        
+
         debug.print("kubectl command validation passed")
         return True
-            
+
     except subprocess.TimeoutExpired:
         console.print("[red]Error: kubectl command validation timed out[/red]")
         console.print("[yellow]This may indicate kubectl is not responding[/yellow]")
@@ -151,7 +168,7 @@ def _validate_service_and_endpoints(port_forward_args):
         namespace = "default"
         resource_type = None
         resource_name = None
-        
+
         # Find namespace
         try:
             n_index = port_forward_args.index("-n")
@@ -159,7 +176,7 @@ def _validate_service_and_endpoints(port_forward_args):
                 namespace = port_forward_args[n_index + 1]
         except ValueError:
             pass
-        
+
         # Find resource
         for arg in port_forward_args:
             if "/" in arg and not arg.startswith("-"):
@@ -168,82 +185,114 @@ def _validate_service_and_endpoints(port_forward_args):
                     resource_type = parts[0].lower()
                     resource_name = parts[1]
                     break
-        
+
         if not resource_name:
             debug.print("No resource found for service validation")
             return True  # Let kubectl handle it
-        
+
         debug.print(f"Validating {resource_type}/{resource_name} in namespace {namespace}")
-        
+
         # For services, check if service exists and has endpoints
         if resource_type in ["svc", "service"]:
             # Check if service exists
             cmd_service = ["kubectl", "get", "svc", resource_name, "-n", namespace, "-o", "json"]
             result = subprocess.run(cmd_service, capture_output=True, text=True, timeout=10)
-            
+
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-                console.print(f"[red]Error: Service '{resource_name}' not found in namespace '{namespace}'[/red]")
+                console.print(
+                    f"[red]Error: Service '{resource_name}' not found in namespace '{namespace}'[/red]"
+                )
                 if "not found" in error_msg.lower():
-                    console.print("[yellow]Check the service name and namespace, or create the service first[/yellow]")
+                    console.print(
+                        "[yellow]Check the service name and namespace, or create the service first[/yellow]"
+                    )
                 else:
                     console.print(f"[yellow]kubectl error: {error_msg}[/yellow]")
                 return False
-            
+
             debug.print(f"Service {resource_name} exists")
-            
+
             # Check if service has endpoints
-            cmd_endpoints = ["kubectl", "get", "endpoints", resource_name, "-n", namespace, "-o", "json"]
+            cmd_endpoints = [
+                "kubectl",
+                "get",
+                "endpoints",
+                resource_name,
+                "-n",
+                namespace,
+                "-o",
+                "json",
+            ]
             result = subprocess.run(cmd_endpoints, capture_output=True, text=True, timeout=10)
-            
+
             if result.returncode != 0:
                 console.print(f"[red]Error: No endpoints found for service '{resource_name}'[/red]")
-                console.print("[yellow]This usually means no pods are running for this service[/yellow]")
-                console.print("[yellow]Check if pods are running: kubectl get pods -n {namespace}[/yellow]".replace("{namespace}", namespace))
+                console.print(
+                    "[yellow]This usually means no pods are running for this service[/yellow]"
+                )
+                console.print(
+                    "[yellow]Check if pods are running: kubectl get pods -n {namespace}[/yellow]".replace(
+                        "{namespace}", namespace
+                    )
+                )
                 return False
-            
+
             # Parse endpoints to see if any exist
             try:
                 import json
+
                 endpoints_data = json.loads(result.stdout)
                 subsets = endpoints_data.get("subsets", [])
-                
+
                 has_ready_endpoints = False
                 for subset in subsets:
                     addresses = subset.get("addresses", [])
                     if addresses:
                         has_ready_endpoints = True
                         break
-                
+
                 if not has_ready_endpoints:
-                    console.print(f"[red]Error: Service '{resource_name}' has no ready endpoints[/red]")
-                    console.print("[yellow]This means the service exists but no pods are ready to serve traffic[/yellow]")
-                    console.print(f"[yellow]Check pod status: kubectl get pods -n {namespace} -l <service-selector>[/yellow]")
+                    console.print(
+                        f"[red]Error: Service '{resource_name}' has no ready endpoints[/red]"
+                    )
+                    console.print(
+                        "[yellow]This means the service exists but no pods are ready to serve traffic[/yellow]"
+                    )
+                    console.print(
+                        f"[yellow]Check pod status: kubectl get pods -n {namespace} -l <service-selector>[/yellow]"
+                    )
                     return False
-                
+
                 debug.print(f"Service {resource_name} has ready endpoints")
-                
+
             except (json.JSONDecodeError, KeyError) as e:
                 debug.print(f"Failed to parse endpoints JSON: {e}")
-                console.print("[yellow]Warning: Could not validate endpoints, proceeding anyway[/yellow]")
-        
+                console.print(
+                    "[yellow]Warning: Could not validate endpoints, proceeding anyway[/yellow]"
+                )
+
         # For pods/deployments, check if they exist (simpler check)
         elif resource_type in ["pod", "deploy", "deployment"]:
-            kubectl_resource = "deployment" if resource_type in ["deploy", "deployment"] else resource_type
+            kubectl_resource = (
+                "deployment" if resource_type in ["deploy", "deployment"] else resource_type
+            )
             cmd = ["kubectl", "get", kubectl_resource, resource_name, "-n", namespace]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            
+
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-                console.print(f"[red]Error: {kubectl_resource.capitalize()} '{resource_name}' not found in namespace '{namespace}'[/red]")
+                console.print(
+                    f"[red]Error: {kubectl_resource.capitalize()} '{resource_name}' not found in namespace '{namespace}'[/red]"
+                )
                 console.print(f"[yellow]kubectl error: {error_msg}[/yellow]")
                 return False
-            
+
             debug.print(f"{kubectl_resource.capitalize()} {resource_name} exists")
-        
+
         debug.print("Service and endpoints validation passed")
         return True
-        
+
     except subprocess.TimeoutExpired:
         console.print("[red]Error: Service validation timed out[/red]")
         console.print("[yellow]This may indicate kubectl is not responding[/yellow]")
@@ -260,12 +309,14 @@ def _validate_port_availability(port_forward_args):
     if local_port is None:
         debug.print("Could not extract local port from arguments")
         return True  # Can't validate, let kubectl handle it
-    
+
     if not _is_port_available(local_port):
         console.print(f"[red]Error: Local port {local_port} is already in use[/red]")
-        console.print(f"[yellow]Please choose a different port or free up port {local_port}[/yellow]")
+        console.print(
+            f"[yellow]Please choose a different port or free up port {local_port}[/yellow]"
+        )
         return False
-    
+
     debug.print(f"Port {local_port} is available")
     return True
 
@@ -276,9 +327,9 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
     if local_port is None:
         debug.print("Could not extract local port for health check")
         return True  # Can't test, assume it's working
-    
+
     debug.print(f"Testing port-forward health on port {local_port}")
-    
+
     # Wait for port to become active (kubectl port-forward takes a moment to start)
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -287,15 +338,19 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(1)
                 result = sock.connect_ex(("localhost", local_port))
-                if result == 0 or result == 61:  # Connected or connection refused (service may be down but port-forward is working)
+                if (
+                    result == 0 or result == 61
+                ):  # Connected or connection refused (service may be down but port-forward is working)
                     debug.print(f"Port-forward appears to be working on port {local_port}")
                     return True
         except (OSError, socket.error):
             pass
-        
+
         time.sleep(0.5)
-    
-    debug.print(f"Port-forward health check failed - port {local_port} not responding after {timeout}s")
+
+    debug.print(
+        f"Port-forward health check failed - port {local_port} not responding after {timeout}s"
+    )
     return False
 
 
@@ -370,11 +425,13 @@ def port_forward_thread(args):
 
             # Give port-forward a moment to start, then test if it's working
             time.sleep(2)
-            
+
             # Test if port-forward is healthy
             if not _test_port_forward_health(args):
                 console.print("[red]Port-forward failed to start properly[/red]")
-                console.print("[yellow]This may indicate the service is not running or the port mapping is incorrect[/yellow]")
+                console.print(
+                    "[yellow]This may indicate the service is not running or the port mapping is incorrect[/yellow]"
+                )
                 if proc:
                     proc.terminate()
                     proc.wait(timeout=5)
