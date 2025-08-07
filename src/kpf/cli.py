@@ -20,20 +20,27 @@ def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         prog="kpf",
-        description="Kubectl Port-Forward Restarter Utility - automatically restart port-forwards when endpoints change",
+        description="A better Kubectl Port-Forward that automatically restarts port-forwards when endpoints change",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  kpf svc/frontend 8080:8080 -n production     # Direct port-forward (legacy mode)
-  kpf --prompt                                  # Interactive service selection
+There is no default command. You must specify one of the arguments below.
+You could alias kpf to -p for interactive mode if you prefer.
+Example of this in your ~/.zshrc:
+alias kpf='uvx kpf -p'
+
+Example usage:
+  kpf svc/frontend 8080:8080 -n production      # Direct port-forward (backwards compatible with kpf alias)
+  kpf --prompt (or -p)                          # Interactive service selection
   kpf --prompt -n production                    # Interactive selection in specific namespace
-  kpf --all                                     # Show all services across all namespaces
-  kpf --all-ports                              # Show all services with their ports
-  kpf --prompt --check -n production           # Interactive selection with endpoint status
+  kpf --all (or -A)                             # Show all services across all namespaces
+  kpf --all-ports (or -l)                       # Show all services with their ports
+  kpf --prompt --check -n production            # Interactive selection with endpoint status
         """,
     )
 
-    parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
+    parser.add_argument(
+        "--version", "-v", action="version", version=f"kpf {__version__}"
+    )
 
     parser.add_argument(
         "--prompt",
@@ -78,7 +85,9 @@ Examples:
     )
 
     # Positional arguments for legacy port-forward syntax
-    parser.add_argument("args", nargs="*", help="kubectl port-forward arguments (legacy mode)")
+    parser.add_argument(
+        "args", nargs="*", help="kubectl port-forward arguments (legacy mode)"
+    )
 
     return parser
 
@@ -96,7 +105,9 @@ def handle_prompt_mode(
     if show_all:
         return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
     else:
-        return selector.select_service_in_namespace(namespace, show_all_ports, check_endpoints)
+        return selector.select_service_in_namespace(
+            namespace, show_all_ports, check_endpoints
+        )
 
 
 def check_kubectl():

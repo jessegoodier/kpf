@@ -15,14 +15,16 @@ A Python utility that automatically restarts kubectl port-forward when endpoint 
 
 **Note**: `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. If you prefer this tool, you can alias at the bottom of your `~/.zshrc` file or use a different alias.
 
+If you have `uv` installed, you can install `kpf` with:
+
 ```bash
 alias kpf="uvx kpf"
 ```
 
-or:
+Install uv with pipx:
 
 ```bash
-pipx install kpf
+pipx install uv
 ```
 
 ## Usage
@@ -35,13 +37,19 @@ Select services interactively with a colored table:
 # Interactive selection in current namespace
 kpf --prompt
 
+# or just:
+kpf -p
+
 # Interactive selection in specific namespace
 kpf --prompt -n production
+
+# or just:
+kpf -p -n production
 
 # Show all services across all namespaces
 kpf --all
 
-# Include pods and deployments with ports
+# Include pods and deployments with ports defined
 kpf --all-ports
 ```
 
