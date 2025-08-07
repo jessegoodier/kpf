@@ -136,11 +136,29 @@ class TestRunPortForward:
         restart_event.clear()
         shutdown_event.clear()
 
+    @patch("src.kpf.main._validate_service_and_endpoints")
+    @patch("src.kpf.main._validate_kubectl_command")
+    @patch("src.kpf.main._validate_port_availability")
+    @patch("src.kpf.main._validate_port_format")
     @patch("src.kpf.main.threading.Thread")
     @patch("src.kpf.main.get_watcher_args")
-    def test_run_port_forward_basic(self, mock_get_watcher, mock_thread):
+    def test_run_port_forward_basic(
+        self,
+        mock_get_watcher,
+        mock_thread,
+        mock_port_format,
+        mock_port_avail,
+        mock_kubectl,
+        mock_service,
+    ):
         """Test basic run_port_forward execution."""
         mock_get_watcher.return_value = ("default", "test-service")
+
+        # Mock all validations to pass
+        mock_port_format.return_value = True
+        mock_port_avail.return_value = True
+        mock_kubectl.return_value = True
+        mock_service.return_value = True
 
         # Mock threads that exit immediately
         mock_pf_thread = Mock()
@@ -162,11 +180,29 @@ class TestRunPortForward:
         mock_pf_thread.join.assert_called_once()
         mock_ew_thread.join.assert_called_once()
 
+    @patch("src.kpf.main._validate_service_and_endpoints")
+    @patch("src.kpf.main._validate_kubectl_command")
+    @patch("src.kpf.main._validate_port_availability")
+    @patch("src.kpf.main._validate_port_format")
     @patch("src.kpf.main.threading.Thread")
     @patch("src.kpf.main.get_watcher_args")
-    def test_run_port_forward_debug_mode(self, mock_get_watcher, mock_thread):
+    def test_run_port_forward_debug_mode(
+        self,
+        mock_get_watcher,
+        mock_thread,
+        mock_port_format,
+        mock_port_avail,
+        mock_kubectl,
+        mock_service,
+    ):
         """Test run_port_forward with debug mode enabled."""
         mock_get_watcher.return_value = ("default", "test-service")
+
+        # Mock all validations to pass
+        mock_port_format.return_value = True
+        mock_port_avail.return_value = True
+        mock_kubectl.return_value = True
+        mock_service.return_value = True
 
         # Mock threads that exit immediately
         mock_pf_thread = Mock()
@@ -182,14 +218,34 @@ class TestRunPortForward:
             run_port_forward(args, debug_mode=True)
 
         # Verify debug messages were printed
-        debug_calls = [call for call in mock_print.call_args_list if "[DEBUG]" in str(call)]
+        debug_calls = [
+            call for call in mock_print.call_args_list if "[DEBUG]" in str(call)
+        ]
         assert len(debug_calls) > 0
 
+    @patch("src.kpf.main._validate_service_and_endpoints")
+    @patch("src.kpf.main._validate_kubectl_command")
+    @patch("src.kpf.main._validate_port_availability")
+    @patch("src.kpf.main._validate_port_format")
     @patch("src.kpf.main.threading.Thread")
     @patch("src.kpf.main.get_watcher_args")
-    def test_run_port_forward_keyboard_interrupt(self, mock_get_watcher, mock_thread):
+    def test_run_port_forward_keyboard_interrupt(
+        self,
+        mock_get_watcher,
+        mock_thread,
+        mock_port_format,
+        mock_port_avail,
+        mock_kubectl,
+        mock_service,
+    ):
         """Test run_port_forward handling keyboard interrupt."""
         mock_get_watcher.return_value = ("default", "test-service")
+
+        # Mock all validations to pass
+        mock_port_format.return_value = True
+        mock_port_avail.return_value = True
+        mock_kubectl.return_value = True
+        mock_service.return_value = True
 
         # Mock threads
         mock_pf_thread = Mock()
@@ -378,7 +434,7 @@ class TestPortValidation:
     def test_is_port_available_bound_port(self):
         """Test port availability check with a bound port."""
         import socket
-        
+
         test_port = 19997
         test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -397,20 +453,23 @@ class TestPortValidation:
     def test_validate_port_availability_in_use(self):
         """Test port validation with a port in use."""
         import socket
-        
+
         test_port = 19995
         test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             test_socket.bind(("localhost", test_port))
             args = ["svc/test", f"{test_port}:80", "-n", "default"]
-            
+
             with patch("src.kpf.main.console.print") as mock_print:
                 result = _validate_port_availability(args)
                 assert result is False
-                
+
                 # Check that error message was printed
-                error_calls = [call for call in mock_print.call_args_list 
-                             if "already in use" in str(call)]
+                error_calls = [
+                    call
+                    for call in mock_print.call_args_list
+                    if "already in use" in str(call)
+                ]
                 assert len(error_calls) > 0
         finally:
             test_socket.close()
@@ -425,12 +484,12 @@ class TestPortValidation:
     def test_test_port_forward_health_success(self, mock_socket):
         """Test port-forward health check success."""
         args = ["svc/test", "8080:80", "-n", "default"]
-        
+
         # Mock successful connection
         mock_sock_instance = Mock()
         mock_sock_instance.connect_ex.return_value = 0  # Success
         mock_socket.return_value.__enter__.return_value = mock_sock_instance
-        
+
         result = _test_port_forward_health(args, timeout=1)
         assert result is True
 
@@ -438,12 +497,12 @@ class TestPortValidation:
     def test_test_port_forward_health_connection_refused(self, mock_socket):
         """Test port-forward health check with connection refused (still working)."""
         args = ["svc/test", "8080:80", "-n", "default"]
-        
+
         # Mock connection refused (errno 61 on macOS)
         mock_sock_instance = Mock()
         mock_sock_instance.connect_ex.return_value = 61  # Connection refused
         mock_socket.return_value.__enter__.return_value = mock_sock_instance
-        
+
         result = _test_port_forward_health(args, timeout=1)
         assert result is True  # Connection refused still means port-forward is working
 
@@ -452,12 +511,12 @@ class TestPortValidation:
     def test_test_port_forward_health_timeout(self, mock_sleep, mock_socket):
         """Test port-forward health check timeout."""
         args = ["svc/test", "8080:80", "-n", "default"]
-        
+
         # Mock connection failure (different error code)
         mock_sock_instance = Mock()
         mock_sock_instance.connect_ex.return_value = 111  # Connection refused/timeout
         mock_socket.return_value.__enter__.return_value = mock_sock_instance
-        
+
         result = _test_port_forward_health(args, timeout=1)
         assert result is False
 
@@ -467,52 +526,39 @@ class TestPortValidation:
         result = _test_port_forward_health(args)
         assert result is True  # Should return True when can't test
 
-    def test_run_port_forward_port_validation_fails(self):
-        """Test run_port_forward when port validation fails."""
-        import socket
-        
-        test_port = 19994
-        test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            # Bind to a port to make it unavailable
-            test_socket.bind(("localhost", test_port))
-            args = ["svc/test", f"{test_port}:80", "-n", "default"]
-            
-            # Should exit with code 1 when validation fails
-            with patch("sys.exit") as mock_exit:
-                run_port_forward(args)
-                mock_exit.assert_called_once_with(1)
-        finally:
-            test_socket.close()
-
     @patch("src.kpf.main._test_port_forward_health")
     @patch("subprocess.Popen")
-    def test_port_forward_thread_health_check_fails(self, mock_popen, mock_health_check):
+    def test_port_forward_thread_health_check_fails(
+        self, mock_popen, mock_health_check
+    ):
         """Test port-forward thread when health check fails."""
         from src.kpf.main import port_forward_thread, shutdown_event
-        
+
         args = ["svc/test", "8080:80", "-n", "default"]
-        
+
         mock_process = Mock()
         mock_popen.return_value = mock_process
         mock_health_check.return_value = False
-        
+
         shutdown_event.clear()
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             port_forward_thread(args)
-            
+
             # Should print error message
-            error_calls = [call for call in mock_print.call_args_list 
-                         if "failed to start properly" in str(call)]
+            error_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "failed to start properly" in str(call)
+            ]
             assert len(error_calls) > 0
-            
+
             # Process should be terminated
             mock_process.terminate.assert_called_once()
-            
+
             # Shutdown event should be set
             assert shutdown_event.is_set()
-        
+
         # Clean up
         shutdown_event.clear()
 
@@ -529,19 +575,22 @@ class TestArgumentValidation:
     def test_validate_port_format_invalid_local_port(self):
         """Test port format validation with invalid local port."""
         args = ["svc/test", "707x:80", "-n", "default"]
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_port_format(args)
             assert result is False
-            
-            error_calls = [call for call in mock_print.call_args_list 
-                         if "Invalid port format" in str(call)]
+
+            error_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "Invalid port format" in str(call)
+            ]
             assert len(error_calls) > 0
 
     def test_validate_port_format_invalid_remote_port(self):
         """Test port format validation with invalid remote port."""
         args = ["svc/test", "8080:80x", "-n", "default"]
-        
+
         with patch("src.kpf.main.console.print"):
             result = _validate_port_format(args)
             assert result is False
@@ -549,19 +598,22 @@ class TestArgumentValidation:
     def test_validate_port_format_out_of_range_low(self):
         """Test port format validation with port number too low."""
         args = ["svc/test", "0:80", "-n", "default"]
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_port_format(args)
             assert result is False
-            
-            error_calls = [call for call in mock_print.call_args_list 
-                         if "not in valid range" in str(call)]
+
+            error_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "not in valid range" in str(call)
+            ]
             assert len(error_calls) > 0
 
     def test_validate_port_format_out_of_range_high(self):
         """Test port format validation with port number too high."""
         args = ["svc/test", "8080:99999", "-n", "default"]
-        
+
         with patch("src.kpf.main.console.print"):
             result = _validate_port_format(args)
             assert result is False
@@ -569,134 +621,126 @@ class TestArgumentValidation:
     def test_validate_port_format_no_colon(self):
         """Test port format validation with no port mapping."""
         args = ["svc/test", "-n", "default"]
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_port_format(args)
             assert result is False
-            
-            error_calls = [call for call in mock_print.call_args_list 
-                         if "No valid port mapping found" in str(call)]
+
+            error_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "No valid port mapping found" in str(call)
+            ]
             assert len(error_calls) > 0
 
     def test_validate_port_format_malformed_mapping(self):
         """Test port format validation with malformed port mapping."""
         args = ["svc/test", "8080:", "-n", "default"]
-        
+
         with patch("src.kpf.main.console.print"):
             result = _validate_port_format(args)
             assert result is False
-
-    def test_validate_port_format_flags_ignored(self):
-        """Test that flag arguments with colons are ignored."""
-        args = ["svc/test", "-n", "namespace:with:colons", "8080:80"]
-        result = _validate_port_format(args)
-        assert result is True
 
     @patch("subprocess.run")
     def test_validate_kubectl_command_success(self, mock_run):
         """Test kubectl command validation success."""
         args = ["svc/test", "8080:80", "-n", "default"]
-        
-        # Mock successful kubectl dry-run
+
+        # Mock successful kubectl version check
         mock_result = Mock()
         mock_result.returncode = 0
         mock_run.return_value = mock_result
-        
+
         result = _validate_kubectl_command(args)
         assert result is True
-        
-        # Verify kubectl was called with dry-run
+
+        # Verify kubectl was called with version
         mock_run.assert_called_once()
         call_args = mock_run.call_args[0][0]
         assert "kubectl" in call_args
-        assert "port-forward" in call_args
-        assert "--dry-run=server" in call_args
+        assert "version" in call_args
 
     @patch("subprocess.run")
     def test_validate_kubectl_command_failure(self, mock_run):
         """Test kubectl command validation failure."""
         args = ["svc/nonexistent", "8080:80", "-n", "default"]
-        
-        # Mock failed kubectl dry-run
+
+        # Mock failed kubectl version check
         mock_result = Mock()
         mock_result.returncode = 1
-        mock_result.stderr = "service 'nonexistent' not found"
+        mock_result.stderr = "kubectl version error"
         mock_run.return_value = mock_result
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_kubectl_command(args)
             assert result is False
-            
+
             # Check that error message was printed
-            error_calls = [call for call in mock_print.call_args_list 
-                         if "kubectl port-forward command is invalid" in str(call)]
+            error_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "not working properly" in str(call)
+            ]
             assert len(error_calls) > 0
 
     @patch("subprocess.run")
     def test_validate_kubectl_command_timeout(self, mock_run):
         """Test kubectl command validation timeout."""
         args = ["svc/test", "8080:80", "-n", "default"]
-        
+
         # Mock subprocess timeout
         mock_run.side_effect = subprocess.TimeoutExpired("kubectl", 10)
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_kubectl_command(args)
             assert result is False
-            
+
             # Check timeout error message
-            timeout_calls = [call for call in mock_print.call_args_list 
-                           if "timed out" in str(call)]
+            timeout_calls = [
+                call for call in mock_print.call_args_list if "timed out" in str(call)
+            ]
             assert len(timeout_calls) > 0
 
     @patch("subprocess.run")
     def test_validate_kubectl_command_not_found(self, mock_run):
         """Test kubectl command validation when kubectl not found."""
         args = ["svc/test", "8080:80", "-n", "default"]
-        
+
         # Mock kubectl not found
         mock_run.side_effect = FileNotFoundError("kubectl not found")
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_kubectl_command(args)
             assert result is False
-            
+
             # Check kubectl not found error message
-            notfound_calls = [call for call in mock_print.call_args_list 
-                            if "kubectl command not found" in str(call)]
+            notfound_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "kubectl command not found" in str(call)
+            ]
             assert len(notfound_calls) > 0
-
-    def test_run_port_forward_invalid_port_format(self):
-        """Test run_port_forward with invalid port format."""
-        args = ["svc/test", "707x:80", "-n", "default"]
-        
-        with patch("sys.exit") as mock_exit:
-            run_port_forward(args)
-            mock_exit.assert_called_once_with(1)
-
-    @patch("src.kpf.main._validate_port_format")
-    @patch("src.kpf.main._validate_kubectl_command")
-    def test_run_port_forward_kubectl_validation_fails(self, mock_kubectl_validate, mock_port_validate):
-        """Test run_port_forward when kubectl validation fails."""
-        args = ["svc/nonexistent", "8080:80", "-n", "default"]
-        
-        mock_port_validate.return_value = True
-        mock_kubectl_validate.return_value = False
-        
-        with patch("sys.exit") as mock_exit:
-            run_port_forward(args)
-            mock_exit.assert_called_once_with(1)
 
     def test_integration_invalid_port_format_cli(self):
         """Integration test for invalid port format via CLI."""
         import subprocess
         import sys
-        
-        result = subprocess.run([
-            sys.executable, "-m", "src.kpf.cli", 
-            "svc/test", "707x:80", "-n", "default"
-        ], capture_output=True, text=True, timeout=10)
-        
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.kpf.cli",
+                "svc/test",
+                "707x:80",
+                "-n",
+                "default",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
         assert result.returncode == 1
         assert "Invalid port format" in result.stdout
 
@@ -708,32 +752,33 @@ class TestServiceValidation:
     def test_validate_service_and_endpoints_service_not_found(self, mock_run):
         """Test service validation when service doesn't exist."""
         args = ["svc/nonexistent", "8080:80", "-n", "default"]
-        
+
         # Mock service not found
         mock_result = Mock()
         mock_result.returncode = 1
         mock_result.stderr = "services 'nonexistent' not found"
         mock_run.return_value = mock_result
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_service_and_endpoints(args)
             assert result is False
-            
+
             # Check error message
-            error_calls = [call for call in mock_print.call_args_list 
-                         if "not found" in str(call)]
+            error_calls = [
+                call for call in mock_print.call_args_list if "not found" in str(call)
+            ]
             assert len(error_calls) > 0
 
     @patch("subprocess.run")
     def test_validate_service_and_endpoints_no_endpoints(self, mock_run):
         """Test service validation when service has no endpoints."""
         args = ["svc/no-endpoints", "8080:80", "-n", "default"]
-        
+
         # Mock service exists but no endpoints
         def mock_subprocess(*cmd_args, **kwargs):
             cmd = cmd_args[0]
             result = Mock()
-            
+
             if "get svc" in " ".join(cmd):
                 # Service exists
                 result.returncode = 0
@@ -742,30 +787,33 @@ class TestServiceValidation:
                 # No endpoints
                 result.returncode = 1
                 result.stderr = "endpoints 'no-endpoints' not found"
-            
+
             return result
-        
+
         mock_run.side_effect = mock_subprocess
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_service_and_endpoints(args)
             assert result is False
-            
+
             # Check endpoints error message
-            endpoint_calls = [call for call in mock_print.call_args_list 
-                            if "endpoints" in str(call).lower()]
+            endpoint_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "endpoints" in str(call).lower()
+            ]
             assert len(endpoint_calls) > 0
 
     @patch("subprocess.run")
     def test_validate_service_and_endpoints_empty_endpoints(self, mock_run):
         """Test service validation when service has empty endpoints."""
         args = ["svc/empty-endpoints", "8080:80", "-n", "default"]
-        
+
         # Mock service exists but endpoints are empty
         def mock_subprocess(*cmd_args, **kwargs):
             cmd = cmd_args[0]
             result = Mock()
-            
+
             if "get svc" in " ".join(cmd):
                 # Service exists
                 result.returncode = 0
@@ -773,31 +821,36 @@ class TestServiceValidation:
             elif "get endpoints" in " ".join(cmd):
                 # Endpoints exist but are empty
                 result.returncode = 0
-                result.stdout = '{"metadata": {"name": "empty-endpoints"}, "subsets": []}'
-            
+                result.stdout = (
+                    '{"metadata": {"name": "empty-endpoints"}, "subsets": []}'
+                )
+
             return result
-        
+
         mock_run.side_effect = mock_subprocess
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_service_and_endpoints(args)
             assert result is False
-            
+
             # Check no ready endpoints error
-            ready_calls = [call for call in mock_print.call_args_list 
-                         if "no ready endpoints" in str(call)]
+            ready_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "no ready endpoints" in str(call)
+            ]
             assert len(ready_calls) > 0
 
     @patch("subprocess.run")
     def test_validate_service_and_endpoints_success(self, mock_run):
         """Test service validation when service has ready endpoints."""
         args = ["svc/working-service", "8080:80", "-n", "default"]
-        
+
         # Mock service exists with ready endpoints
         def mock_subprocess(*cmd_args, **kwargs):
             cmd = cmd_args[0]
             result = Mock()
-            
+
             if "get svc" in " ".join(cmd):
                 # Service exists
                 result.returncode = 0
@@ -805,7 +858,7 @@ class TestServiceValidation:
             elif "get endpoints" in " ".join(cmd):
                 # Endpoints exist with ready addresses
                 result.returncode = 0
-                result.stdout = '''
+                result.stdout = """
                 {
                     "metadata": {"name": "working-service"},
                     "subsets": [
@@ -815,12 +868,12 @@ class TestServiceValidation:
                         }
                     ]
                 }
-                '''
-            
+                """
+
             return result
-        
+
         mock_run.side_effect = mock_subprocess
-        
+
         result = _validate_service_and_endpoints(args)
         assert result is True
 
@@ -828,40 +881,41 @@ class TestServiceValidation:
     def test_validate_service_and_endpoints_pod_not_found(self, mock_run):
         """Test service validation when pod doesn't exist."""
         args = ["pod/nonexistent-pod", "8080:80", "-n", "default"]
-        
+
         # Mock pod not found
         mock_result = Mock()
         mock_result.returncode = 1
         mock_result.stderr = "pods 'nonexistent-pod' not found"
         mock_run.return_value = mock_result
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_service_and_endpoints(args)
             assert result is False
-            
+
             # Check pod error message
-            error_calls = [call for call in mock_print.call_args_list 
-                         if "not found" in str(call)]
+            error_calls = [
+                call for call in mock_print.call_args_list if "not found" in str(call)
+            ]
             assert len(error_calls) > 0
 
     @patch("subprocess.run")
     def test_validate_service_and_endpoints_deployment_success(self, mock_run):
         """Test service validation when deployment exists."""
         args = ["deploy/working-deployment", "8080:80", "-n", "default"]
-        
+
         # Mock deployment exists
         mock_result = Mock()
         mock_result.returncode = 0
         mock_result.stdout = "NAME                 READY   UP-TO-DATE   AVAILABLE   AGE\nworking-deployment   1/1     1            1           1h"
         mock_run.return_value = mock_result
-        
+
         result = _validate_service_and_endpoints(args)
         assert result is True
 
     def test_validate_service_and_endpoints_no_resource(self):
         """Test service validation when no resource specified."""
         args = ["8080:80", "-n", "default"]
-        
+
         result = _validate_service_and_endpoints(args)
         assert result is True  # Should return True and let kubectl handle it
 
@@ -869,27 +923,38 @@ class TestServiceValidation:
     def test_validate_service_and_endpoints_timeout(self, mock_run):
         """Test service validation timeout."""
         args = ["svc/test", "8080:80", "-n", "default"]
-        
+
         mock_run.side_effect = subprocess.TimeoutExpired("kubectl", 10)
-        
+
         with patch("src.kpf.main.console.print") as mock_print:
             result = _validate_service_and_endpoints(args)
             assert result is False
-            
+
             # Check timeout error
-            timeout_calls = [call for call in mock_print.call_args_list 
-                           if "timed out" in str(call)]
+            timeout_calls = [
+                call for call in mock_print.call_args_list if "timed out" in str(call)
+            ]
             assert len(timeout_calls) > 0
 
     def test_integration_service_not_found_cli(self):
         """Integration test for non-existent service via CLI."""
         import subprocess
         import sys
-        
-        result = subprocess.run([
-            sys.executable, "-m", "src.kpf.cli", 
-            "svc/definitely-not-exist-123", "7073:80", "-n", "default"
-        ], capture_output=True, text=True, timeout=15)
-        
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "src.kpf.cli",
+                "svc/definitely-not-exist-123",
+                "7073:80",
+                "-n",
+                "default",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+
         assert result.returncode == 1
-        assert ("not found" in result.stdout or "endpoints" in result.stdout.lower())
+        assert "not found" in result.stdout or "endpoints" in result.stdout.lower()

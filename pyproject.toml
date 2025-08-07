@@ -33,6 +33,7 @@ dev = [
     "bump-my-version",
     "pytest",
     "pytest-cov",
+    "pytest-timeout",
     "coverage",
 ]
 
@@ -76,7 +77,8 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
     "--cov-report=xml:coverage.xml",
-    "--cov-fail-under=70"
+    "--cov-fail-under=70",
+    "--timeout=10"
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

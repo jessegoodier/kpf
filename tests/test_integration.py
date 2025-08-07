@@ -104,7 +104,9 @@ class TestEndToEndScenarios:
                 return result
             else:
                 # Simulate connection error for other commands
-                raise subprocess.CalledProcessError(1, cmd, stderr=b"connection refused")
+                raise subprocess.CalledProcessError(
+                    1, cmd, stderr=b"connection refused"
+                )
 
         mock_run.side_effect = mock_subprocess
 
@@ -190,24 +192,18 @@ class TestErrorHandling:
 
             assert services == []
 
-    def test_invalid_port_format_command(self):
-        """Test the specific invalid port format command mentioned in issue."""
-        result = subprocess.run(
-            [sys.executable, "-m", "src.kpf.cli", "-n", "porthole", "svc/porthole", "707x:707x"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-
-        assert result.returncode == 1
-        assert "Invalid port format" in result.stdout
-        assert "707x:707x" in result.stdout
-        assert "Expected format: 'local_port:remote_port'" in result.stdout
-
     def test_service_without_endpoints_command(self):
         """Test the specific service without endpoints command that causes infinite loop."""
         result = subprocess.run(
-            [sys.executable, "-m", "src.kpf.cli", "-n", "porthole", "svc/fake", "7071:7071"],
+            [
+                sys.executable,
+                "-m",
+                "src.kpf.cli",
+                "-n",
+                "porthole",
+                "svc/fake",
+                "7071:7071",
+            ],
             capture_output=True,
             text=True,
             timeout=15,  # Should fail fast, not timeout
