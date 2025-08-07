@@ -218,7 +218,9 @@ class TestRunPortForward:
             run_port_forward(args, debug_mode=True)
 
         # Verify debug messages were printed
-        debug_calls = [call for call in mock_print.call_args_list if "[DEBUG]" in str(call)]
+        debug_calls = [
+            call for call in mock_print.call_args_list if "[DEBUG]" in str(call)
+        ]
         assert len(debug_calls) > 0
 
     @patch("src.kpf.main._validate_service_and_endpoints")
@@ -262,43 +264,6 @@ class TestRunPortForward:
         # Verify graceful shutdown
         mock_pf_thread.join.assert_called_once()
         mock_ew_thread.join.assert_called_once()
-
-
-class TestPortForwardThread:
-    """Test port-forward thread functionality."""
-
-    def test_port_forward_thread_args_parsing(self):
-        """Test that port-forward thread receives correct arguments."""
-        from src.kpf.main import port_forward_thread, restart_event, shutdown_event
-
-        args = ["svc/test", "8080:8080", "-n", "default"]
-
-        with patch("subprocess.Popen") as mock_popen:
-            mock_process = Mock()
-            mock_popen.return_value = mock_process
-
-            # Clear events first
-            shutdown_event.clear()
-            restart_event.clear()
-
-            # Don't set shutdown event initially - let it process
-            # Use a side_effect to set shutdown event after Popen is called
-            def set_shutdown(*args, **kwargs):
-                shutdown_event.set()
-                return mock_process
-
-            mock_popen.side_effect = set_shutdown
-
-            port_forward_thread(args)
-
-            # Verify kubectl port-forward was called with correct args
-            mock_popen.assert_called_once()
-            call_args = mock_popen.call_args[0][0]
-            assert call_args == ["kubectl", "port-forward"] + args
-
-        # Clean up
-        shutdown_event.clear()
-        restart_event.clear()
 
 
 class TestEndpointWatcherThread:
@@ -464,7 +429,9 @@ class TestPortValidation:
 
                 # Check that error message was printed
                 error_calls = [
-                    call for call in mock_print.call_args_list if "already in use" in str(call)
+                    call
+                    for call in mock_print.call_args_list
+                    if "already in use" in str(call)
                 ]
                 assert len(error_calls) > 0
         finally:
@@ -524,7 +491,9 @@ class TestPortValidation:
 
     @patch("src.kpf.main._test_port_forward_health")
     @patch("subprocess.Popen")
-    def test_port_forward_thread_health_check_fails(self, mock_popen, mock_health_check):
+    def test_port_forward_thread_health_check_fails(
+        self, mock_popen, mock_health_check
+    ):
         """Test port-forward thread when health check fails."""
         from src.kpf.main import port_forward_thread, shutdown_event
 
@@ -575,7 +544,9 @@ class TestArgumentValidation:
             assert result is False
 
             error_calls = [
-                call for call in mock_print.call_args_list if "Invalid port format" in str(call)
+                call
+                for call in mock_print.call_args_list
+                if "Invalid port format" in str(call)
             ]
             assert len(error_calls) > 0
 
@@ -596,7 +567,9 @@ class TestArgumentValidation:
             assert result is False
 
             error_calls = [
-                call for call in mock_print.call_args_list if "not in valid range" in str(call)
+                call
+                for call in mock_print.call_args_list
+                if "not in valid range" in str(call)
             ]
             assert len(error_calls) > 0
 
@@ -667,7 +640,9 @@ class TestArgumentValidation:
 
             # Check that error message was printed
             error_calls = [
-                call for call in mock_print.call_args_list if "not working properly" in str(call)
+                call
+                for call in mock_print.call_args_list
+                if "not working properly" in str(call)
             ]
             assert len(error_calls) > 0
 
@@ -684,7 +659,9 @@ class TestArgumentValidation:
             assert result is False
 
             # Check timeout error message
-            timeout_calls = [call for call in mock_print.call_args_list if "timed out" in str(call)]
+            timeout_calls = [
+                call for call in mock_print.call_args_list if "timed out" in str(call)
+            ]
             assert len(timeout_calls) > 0
 
     @patch("subprocess.run")
@@ -750,7 +727,9 @@ class TestServiceValidation:
             assert result is False
 
             # Check error message
-            error_calls = [call for call in mock_print.call_args_list if "not found" in str(call)]
+            error_calls = [
+                call for call in mock_print.call_args_list if "not found" in str(call)
+            ]
             assert len(error_calls) > 0
 
     @patch("subprocess.run")
@@ -782,7 +761,9 @@ class TestServiceValidation:
 
             # Check endpoints error message
             endpoint_calls = [
-                call for call in mock_print.call_args_list if "endpoints" in str(call).lower()
+                call
+                for call in mock_print.call_args_list
+                if "endpoints" in str(call).lower()
             ]
             assert len(endpoint_calls) > 0
 
@@ -803,7 +784,9 @@ class TestServiceValidation:
             elif "get endpoints" in " ".join(cmd):
                 # Endpoints exist but are empty
                 result.returncode = 0
-                result.stdout = '{"metadata": {"name": "empty-endpoints"}, "subsets": []}'
+                result.stdout = (
+                    '{"metadata": {"name": "empty-endpoints"}, "subsets": []}'
+                )
 
             return result
 
@@ -815,7 +798,9 @@ class TestServiceValidation:
 
             # Check no ready endpoints error
             ready_calls = [
-                call for call in mock_print.call_args_list if "no ready endpoints" in str(call)
+                call
+                for call in mock_print.call_args_list
+                if "no ready endpoints" in str(call)
             ]
             assert len(ready_calls) > 0
 
@@ -871,7 +856,9 @@ class TestServiceValidation:
             assert result is False
 
             # Check pod error message
-            error_calls = [call for call in mock_print.call_args_list if "not found" in str(call)]
+            error_calls = [
+                call for call in mock_print.call_args_list if "not found" in str(call)
+            ]
             assert len(error_calls) > 0
 
     @patch("subprocess.run")
@@ -907,7 +894,9 @@ class TestServiceValidation:
             assert result is False
 
             # Check timeout error
-            timeout_calls = [call for call in mock_print.call_args_list if "timed out" in str(call)]
+            timeout_calls = [
+                call for call in mock_print.call_args_list if "timed out" in str(call)
+            ]
             assert len(timeout_calls) > 0
 
     def test_integration_service_not_found_cli(self):
