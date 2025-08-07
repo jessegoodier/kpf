@@ -189,3 +189,32 @@ class TestErrorHandling:
             services = client.get_services_in_namespace("empty-namespace")
 
             assert services == []
+
+    def test_invalid_port_format_command(self):
+        """Test the specific invalid port format command mentioned in issue."""
+        result = subprocess.run(
+            [sys.executable, "-m", "src.kpf.cli", "-n", "porthole", "svc/porthole", "707x:707x"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        assert result.returncode == 1
+        assert "Invalid port format" in result.stdout
+        assert "707x:707x" in result.stdout
+        assert "Expected format: 'local_port:remote_port'" in result.stdout
+
+    def test_service_without_endpoints_command(self):
+        """Test the specific service without endpoints command that causes infinite loop."""
+        result = subprocess.run(
+            [sys.executable, "-m", "src.kpf.cli", "-n", "porthole", "svc/fake", "7071:7071"],
+            capture_output=True,
+            text=True,
+            timeout=15,  # Should fail fast, not timeout
+        )
+
+        assert result.returncode == 1
+        assert "not found" in result.stdout.lower()
+        # Should not contain looping messages
+        loop_count = result.stdout.count("Starting watcher for endpoint changes")
+        assert loop_count <= 1  # At most one attempt, not continuous looping
