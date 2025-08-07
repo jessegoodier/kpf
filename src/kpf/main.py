@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import socket
 import subprocess
 import sys
 import threading
@@ -26,6 +27,73 @@ class Debug:
 
 
 debug = Debug()
+
+
+def _is_port_available(port: int) -> bool:
+    """Check if a port is available on localhost."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(("localhost", port))
+            return True
+    except OSError:
+        return False
+
+
+def _extract_local_port(port_forward_args):
+    """Extract local port from port-forward arguments like '8080:80' -> 8080."""
+    for arg in port_forward_args:
+        if ":" in arg and not arg.startswith("-"):
+            try:
+                local_port_str, _ = arg.split(":", 1)
+                return int(local_port_str)
+            except (ValueError, IndexError):
+                continue
+    return None
+
+
+def _validate_port_availability(port_forward_args):
+    """Validate that the local port in port-forward args is available."""
+    local_port = _extract_local_port(port_forward_args)
+    if local_port is None:
+        debug.print("Could not extract local port from arguments")
+        return True  # Can't validate, let kubectl handle it
+    
+    if not _is_port_available(local_port):
+        console.print(f"[red]Error: Local port {local_port} is already in use[/red]")
+        console.print(f"[yellow]Please choose a different port or free up port {local_port}[/yellow]")
+        return False
+    
+    debug.print(f"Port {local_port} is available")
+    return True
+
+
+def _test_port_forward_health(port_forward_args, timeout: int = 10):
+    """Test if port-forward is working by checking if the local port becomes active."""
+    local_port = _extract_local_port(port_forward_args)
+    if local_port is None:
+        debug.print("Could not extract local port for health check")
+        return True  # Can't test, assume it's working
+    
+    debug.print(f"Testing port-forward health on port {local_port}")
+    
+    # Wait for port to become active (kubectl port-forward takes a moment to start)
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            # Try to connect to the port to see if it's active
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(1)
+                result = sock.connect_ex(("localhost", local_port))
+                if result == 0 or result == 61:  # Connected or connection refused (service may be down but port-forward is working)
+                    debug.print(f"Port-forward appears to be working on port {local_port}")
+                    return True
+        except (OSError, socket.error):
+            pass
+        
+        time.sleep(0.5)
+    
+    debug.print(f"Port-forward health check failed - port {local_port} not responding after {timeout}s")
+    return False
 
 
 def get_port_forward_args(args):
@@ -96,6 +164,19 @@ def port_forward_thread(args):
                 stderr=subprocess.PIPE,
             )
             debug.print(f"Port-forward process started with PID: {proc.pid}")
+
+            # Give port-forward a moment to start, then test if it's working
+            time.sleep(2)
+            
+            # Test if port-forward is healthy
+            if not _test_port_forward_health(args):
+                console.print("[red]Port-forward failed to start properly[/red]")
+                console.print("[yellow]This may indicate the service is not running or the port mapping is incorrect[/yellow]")
+                if proc:
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                shutdown_event.set()
+                return
 
             # Wait for either a restart signal or a shutdown signal
             # The timeout prevents blocking forever and allows the loop to check for shutdown_event
@@ -203,6 +284,10 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
 
     console.print("kpf: Kubectl Port-Forward Restarter Utility")
     debug.print("Debug mode enabled")
+
+    # Validate port availability before starting
+    if not _validate_port_availability(port_forward_args):
+        sys.exit(1)
 
     # Get watcher arguments from the port-forwarding args
     namespace, resource_name = get_watcher_args(port_forward_args)

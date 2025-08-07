@@ -3,6 +3,10 @@
 from unittest.mock import Mock, patch
 
 from src.kpf.main import (
+    _extract_local_port,
+    _is_port_available,
+    _test_port_forward_health,
+    _validate_port_availability,
     get_port_forward_args,
     get_watcher_args,
     restart_event,
@@ -324,4 +328,186 @@ class TestEndpointWatcherThread:
 
         # Clean up
         restart_event.clear()
+        shutdown_event.clear()
+
+
+class TestPortValidation:
+    """Test port validation functionality."""
+
+    def test_extract_local_port_valid(self):
+        """Test extracting local port from valid port-forward arguments."""
+        args = ["svc/test", "8080:80", "-n", "default"]
+        port = _extract_local_port(args)
+        assert port == 8080
+
+    def test_extract_local_port_multiple_colons(self):
+        """Test extracting local port with multiple colons (IPv6 style)."""
+        args = ["svc/test", "8080:80:443", "-n", "default"]
+        port = _extract_local_port(args)
+        assert port == 8080
+
+    def test_extract_local_port_no_port_mapping(self):
+        """Test extracting local port when no port mapping present."""
+        args = ["svc/test", "-n", "default"]
+        port = _extract_local_port(args)
+        assert port is None
+
+    def test_extract_local_port_invalid_format(self):
+        """Test extracting local port from invalid port format."""
+        args = ["svc/test", "invalid:port", "-n", "default"]
+        port = _extract_local_port(args)
+        assert port is None
+
+    def test_extract_local_port_flag_with_colon(self):
+        """Test that flags with colons are ignored."""
+        args = ["svc/test", "-n", "namespace:with:colons", "8080:80"]
+        port = _extract_local_port(args)
+        assert port == 8080
+
+    def test_is_port_available_high_port(self):
+        """Test port availability check with a high port number."""
+        # Use a high port number that's likely to be available
+        high_port = 19998
+        result = _is_port_available(high_port)
+        assert result is True
+
+    def test_is_port_available_bound_port(self):
+        """Test port availability check with a bound port."""
+        import socket
+        
+        test_port = 19997
+        test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            test_socket.bind(("localhost", test_port))
+            result = _is_port_available(test_port)
+            assert result is False
+        finally:
+            test_socket.close()
+
+    def test_validate_port_availability_available(self):
+        """Test port validation with an available port."""
+        args = ["svc/test", "19996:80", "-n", "default"]
+        result = _validate_port_availability(args)
+        assert result is True
+
+    def test_validate_port_availability_in_use(self):
+        """Test port validation with a port in use."""
+        import socket
+        
+        test_port = 19995
+        test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            test_socket.bind(("localhost", test_port))
+            args = ["svc/test", f"{test_port}:80", "-n", "default"]
+            
+            with patch("src.kpf.main.console.print") as mock_print:
+                result = _validate_port_availability(args)
+                assert result is False
+                
+                # Check that error message was printed
+                error_calls = [call for call in mock_print.call_args_list 
+                             if "already in use" in str(call)]
+                assert len(error_calls) > 0
+        finally:
+            test_socket.close()
+
+    def test_validate_port_availability_no_port(self):
+        """Test port validation when no port can be extracted."""
+        args = ["svc/test", "-n", "default"]
+        result = _validate_port_availability(args)
+        assert result is True  # Should return True when can't validate
+
+    @patch("src.kpf.main.socket.socket")
+    def test_test_port_forward_health_success(self, mock_socket):
+        """Test port-forward health check success."""
+        args = ["svc/test", "8080:80", "-n", "default"]
+        
+        # Mock successful connection
+        mock_sock_instance = Mock()
+        mock_sock_instance.connect_ex.return_value = 0  # Success
+        mock_socket.return_value.__enter__.return_value = mock_sock_instance
+        
+        result = _test_port_forward_health(args, timeout=1)
+        assert result is True
+
+    @patch("src.kpf.main.socket.socket")
+    def test_test_port_forward_health_connection_refused(self, mock_socket):
+        """Test port-forward health check with connection refused (still working)."""
+        args = ["svc/test", "8080:80", "-n", "default"]
+        
+        # Mock connection refused (errno 61 on macOS)
+        mock_sock_instance = Mock()
+        mock_sock_instance.connect_ex.return_value = 61  # Connection refused
+        mock_socket.return_value.__enter__.return_value = mock_sock_instance
+        
+        result = _test_port_forward_health(args, timeout=1)
+        assert result is True  # Connection refused still means port-forward is working
+
+    @patch("src.kpf.main.socket.socket")
+    @patch("time.sleep")
+    def test_test_port_forward_health_timeout(self, mock_sleep, mock_socket):
+        """Test port-forward health check timeout."""
+        args = ["svc/test", "8080:80", "-n", "default"]
+        
+        # Mock connection failure (different error code)
+        mock_sock_instance = Mock()
+        mock_sock_instance.connect_ex.return_value = 111  # Connection refused/timeout
+        mock_socket.return_value.__enter__.return_value = mock_sock_instance
+        
+        result = _test_port_forward_health(args, timeout=1)
+        assert result is False
+
+    def test_test_port_forward_health_no_port(self):
+        """Test port-forward health check when no port can be extracted."""
+        args = ["svc/test", "-n", "default"]
+        result = _test_port_forward_health(args)
+        assert result is True  # Should return True when can't test
+
+    def test_run_port_forward_port_validation_fails(self):
+        """Test run_port_forward when port validation fails."""
+        import socket
+        
+        test_port = 19994
+        test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            # Bind to a port to make it unavailable
+            test_socket.bind(("localhost", test_port))
+            args = ["svc/test", f"{test_port}:80", "-n", "default"]
+            
+            # Should exit with code 1 when validation fails
+            with patch("sys.exit") as mock_exit:
+                run_port_forward(args)
+                mock_exit.assert_called_once_with(1)
+        finally:
+            test_socket.close()
+
+    @patch("src.kpf.main._test_port_forward_health")
+    @patch("subprocess.Popen")
+    def test_port_forward_thread_health_check_fails(self, mock_popen, mock_health_check):
+        """Test port-forward thread when health check fails."""
+        from src.kpf.main import port_forward_thread, shutdown_event
+        
+        args = ["svc/test", "8080:80", "-n", "default"]
+        
+        mock_process = Mock()
+        mock_popen.return_value = mock_process
+        mock_health_check.return_value = False
+        
+        shutdown_event.clear()
+        
+        with patch("src.kpf.main.console.print") as mock_print:
+            port_forward_thread(args)
+            
+            # Should print error message
+            error_calls = [call for call in mock_print.call_args_list 
+                         if "failed to start properly" in str(call)]
+            assert len(error_calls) > 0
+            
+            # Process should be terminated
+            mock_process.terminate.assert_called_once()
+            
+            # Shutdown event should be set
+            assert shutdown_event.is_set()
+        
+        # Clean up
         shutdown_event.clear()
