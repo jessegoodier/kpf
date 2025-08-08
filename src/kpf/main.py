@@ -99,7 +99,9 @@ def _validate_port_format(port_forward_args):
                     )
                     return False
 
-                debug.print(f"Port format validation passed: {local_port}:{remote_port}")
+                debug.print(
+                    f"Port format validation passed: {local_port}:{remote_port}"
+                )
                 return True
 
             except (ValueError, IndexError) as e:
@@ -121,7 +123,10 @@ def _validate_kubectl_command(port_forward_args):
     try:
         # First check if kubectl is available
         result = subprocess.run(
-            ["kubectl", "version", "--client"], capture_output=True, text=True, timeout=5
+            ["kubectl", "version", "--client"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
 
         if result.returncode != 0:
@@ -154,7 +159,9 @@ def _validate_kubectl_command(port_forward_args):
                     ]
                     if resource_type in valid_types and resource_name:
                         resource_found = True
-                        debug.print(f"Valid resource format found: {resource_type}/{resource_name}")
+                        debug.print(
+                            f"Valid resource format found: {resource_type}/{resource_name}"
+                        )
                         break
 
         if not resource_found:
@@ -173,7 +180,9 @@ def _validate_kubectl_command(port_forward_args):
         return False
     except FileNotFoundError:
         console.print("[red]Error: kubectl command not found[/red]")
-        console.print("[yellow]Please install kubectl and ensure it's in your PATH[/yellow]")
+        console.print(
+            "[yellow]Please install kubectl and ensure it's in your PATH[/yellow]"
+        )
         return False
     except Exception as e:
         console.print(f"[red]Error: Failed to validate kubectl command: {e}[/red]")
@@ -210,13 +219,26 @@ def _validate_service_and_endpoints(port_forward_args):
             debug.print("No resource found for service validation")
             return True  # Let kubectl handle it
 
-        debug.print(f"Validating {resource_type}/{resource_name} in namespace {namespace}")
+        debug.print(
+            f"Validating {resource_type}/{resource_name} in namespace {namespace}"
+        )
 
         # For services, check if service exists and has endpoints
         if resource_type in ["svc", "service"]:
             # Check if service exists
-            cmd_service = ["kubectl", "get", "svc", resource_name, "-n", namespace, "-o", "json"]
-            result = subprocess.run(cmd_service, capture_output=True, text=True, timeout=10)
+            cmd_service = [
+                "kubectl",
+                "get",
+                "svc",
+                resource_name,
+                "-n",
+                namespace,
+                "-o",
+                "json",
+            ]
+            result = subprocess.run(
+                cmd_service, capture_output=True, text=True, timeout=10
+            )
 
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
@@ -244,10 +266,14 @@ def _validate_service_and_endpoints(port_forward_args):
                 "-o",
                 "json",
             ]
-            result = subprocess.run(cmd_endpoints, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                cmd_endpoints, capture_output=True, text=True, timeout=10
+            )
 
             if result.returncode != 0:
-                console.print(f"[red]Error: No endpoints found for service '{resource_name}'[/red]")
+                console.print(
+                    f"[red]Error: No endpoints found for service '{resource_name}'[/red]"
+                )
                 console.print(
                     "[yellow]This usually means no pods are running for this service[/yellow]"
                 )
@@ -295,7 +321,9 @@ def _validate_service_and_endpoints(port_forward_args):
         # For pods/deployments, check if they exist (simpler check)
         elif resource_type in ["pod", "deploy", "deployment"]:
             kubectl_resource = (
-                "deployment" if resource_type in ["deploy", "deployment"] else resource_type
+                "deployment"
+                if resource_type in ["deploy", "deployment"]
+                else resource_type
             )
             cmd = ["kubectl", "get", kubectl_resource, resource_name, "-n", namespace]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
@@ -361,7 +389,9 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
                 if (
                     result == 0 or result == 61
                 ):  # Connected or connection refused (service may be down but port-forward is working)
-                    debug.print(f"Port-forward appears to be working on port {local_port}")
+                    debug.print(
+                        f"Port-forward appears to be working on port {local_port}"
+                    )
                     return True
         except (OSError, socket.error):
             pass
@@ -419,7 +449,9 @@ def get_watcher_args(port_forward_args):
         console.print("Could not determine resource name for endpoint watcher.")
         sys.exit(1)
 
-    debug.print(f"Final parsed values - namespace: {namespace}, resource_name: {resource_name}")
+    debug.print(
+        f"Final parsed values - namespace: {namespace}, resource_name: {resource_name}"
+    )
     return namespace, resource_name
 
 
@@ -438,6 +470,7 @@ def port_forward_thread(args):
                 console.print(
                     f"\n[blue][link=http://localhost:{local_port}]http://localhost:{local_port}[/link][/blue]"
                 )
+                console.print(f"[yellow]kubectl port-forward {' '.join(args)}[/yellow]")
 
             console.print(
                 f"\n[green][Port-Forwarder] Starting: kubectl port-forward {' '.join(args)}[/green]"
@@ -482,7 +515,9 @@ def port_forward_thread(args):
                 except subprocess.TimeoutExpired:
                     debug.print("Process did not terminate gracefully, force killing")
                     proc.kill()  # Force kill if it's still running
-                    console.print("[red][Port-Forwarder] Process was forcefully killed.[/red]")
+                    console.print(
+                        "[red][Port-Forwarder] Process was forcefully killed.[/red]"
+                    )
                     try:
                         proc.wait(timeout=0.5)  # Brief wait after kill
                     except subprocess.TimeoutExpired:
@@ -635,7 +670,9 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
     debug.print(f"Parsed namespace: {namespace}, resource_name: {resource_name}")
 
     console.print(f"Port-forward arguments: {port_forward_args}")
-    console.print(f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}")
+    console.print(
+        f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}"
+    )
 
     # Create and start the two threads
     debug.print("Creating port-forward and endpoint watcher threads")
