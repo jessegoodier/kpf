@@ -412,6 +412,13 @@ def port_forward_thread(args):
     proc = None
     while not shutdown_event.is_set():
         try:
+            # Extract local port and display URL before starting
+            local_port = _extract_local_port(args)
+            if local_port:
+                console.print(
+                    f"\n[blue][link=http://localhost:{local_port}]http://localhost:{local_port}[/link][/blue]"
+                )
+
             console.print(
                 f"\n[green][Port-Forwarder] Starting: kubectl port-forward {' '.join(args)}[/green]"
             )

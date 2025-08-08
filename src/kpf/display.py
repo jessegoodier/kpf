@@ -194,7 +194,19 @@ class ServiceSelector:
             # If only one port, use it directly
             if len(selected_resource.ports) == 1:
                 port = selected_resource.ports[0]["port"]
-                local_port = self._prompt_for_local_port(port)
+
+                # Check if the port is available
+                if self._is_port_available(port):
+                    local_port = port
+                    self.console.print(
+                        f"[green]Using available port {local_port} for {selected_resource.name}[/green]"
+                    )
+                else:
+                    # Find next available port
+                    local_port = self._find_available_port(port + 1)
+                    self.console.print(
+                        f"[yellow]Port {port} is in use, using {local_port} instead[/yellow]"
+                    )
 
                 args = [
                     f"{selected_resource.service_type}/{selected_resource.name}",
