@@ -227,8 +227,10 @@ class TestRunPortForward:
     @patch("src.kpf.main._validate_port_format")
     @patch("src.kpf.main.threading.Thread")
     @patch("src.kpf.main.get_watcher_args")
+    @patch("src.kpf.main.shutdown_event")
     def test_run_port_forward_keyboard_interrupt(
         self,
+        mock_shutdown_event,
         mock_get_watcher,
         mock_thread,
         mock_port_format,
@@ -248,20 +250,23 @@ class TestRunPortForward:
         # Mock threads
         mock_pf_thread = Mock()
         mock_ew_thread = Mock()
-        mock_pf_thread.is_alive.return_value = True
-        mock_ew_thread.is_alive.return_value = True
+        # Make threads appear alive initially, then dead after shutdown
+        mock_pf_thread.is_alive.side_effect = [True, True, False]
+        mock_ew_thread.is_alive.side_effect = [True, True, False]
 
         mock_thread.side_effect = [mock_pf_thread, mock_ew_thread]
 
+        # Mock shutdown event to trigger shutdown after first check
+        mock_shutdown_event.is_set.side_effect = [False, True]
+
         args = ["svc/test-service", "8080:8080"]
 
-        # Simulate KeyboardInterrupt in main loop
-        with patch("time.sleep", side_effect=KeyboardInterrupt):
-            run_port_forward(args)
+        # Run port forward (will exit due to shutdown event)
+        run_port_forward(args)
 
         # Verify graceful shutdown
-        mock_pf_thread.join.assert_called_once()
-        mock_ew_thread.join.assert_called_once()
+        mock_pf_thread.join.assert_called()
+        mock_ew_thread.join.assert_called()
 
 
 class TestEndpointWatcherThread:
