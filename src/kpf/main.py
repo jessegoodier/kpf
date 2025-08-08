@@ -468,7 +468,7 @@ def port_forward_thread(args):
             # Wait for either a restart signal or a shutdown signal
             # The timeout prevents blocking forever and allows the loop to check for shutdown_event
             while not restart_event.is_set() and not shutdown_event.is_set():
-                time.sleep(1)
+                time.sleep(0.1)  # More frequent checking for faster shutdown
 
             if proc:
                 console.print(
@@ -477,15 +477,16 @@ def port_forward_thread(args):
                 debug.print(f"Terminating port-forward process PID: {proc.pid}")
                 proc.terminate()  # Gracefully terminate the process
                 try:
-                    proc.wait(timeout=2)  # Shorter timeout for faster shutdown
+                    proc.wait(timeout=1)  # Even shorter timeout for faster shutdown
                     debug.print("Process terminated gracefully")
                 except subprocess.TimeoutExpired:
                     debug.print("Process did not terminate gracefully, force killing")
                     proc.kill()  # Force kill if it's still running
                     console.print("[red][Port-Forwarder] Process was forcefully killed.[/red]")
                     try:
-                        proc.wait(timeout=1)  # Brief wait after kill
+                        proc.wait(timeout=0.5)  # Brief wait after kill
                     except subprocess.TimeoutExpired:
+                        debug.print("Process still not responding after kill")
                         pass
                 proc = None
 
@@ -496,9 +497,13 @@ def port_forward_thread(args):
             if proc:
                 proc.terminate()
                 try:
-                    proc.wait(timeout=1)
+                    proc.wait(timeout=0.5)
                 except subprocess.TimeoutExpired:
                     proc.kill()
+                    try:
+                        proc.wait(timeout=0.5)
+                    except subprocess.TimeoutExpired:
+                        pass
             shutdown_event.set()
             return
 
@@ -506,10 +511,14 @@ def port_forward_thread(args):
         debug.print("Final cleanup: terminating port-forward process")
         proc.terminate()
         try:
-            proc.wait(timeout=1)
+            proc.wait(timeout=0.5)
         except subprocess.TimeoutExpired:
             debug.print("Final cleanup: force killing port-forward process")
             proc.kill()
+            try:
+                proc.wait(timeout=0.5)
+            except subprocess.TimeoutExpired:
+                debug.print("Port-forward process unresponsive even after kill")
 
 
 def endpoint_watcher_thread(namespace, resource_name):
@@ -549,6 +558,7 @@ def endpoint_watcher_thread(namespace, resource_name):
             is_first_line = True
             for line in proc.stdout:
                 if shutdown_event.is_set():
+                    debug.print("Shutdown event detected in endpoint watcher, breaking")
                     break
                 debug.print(f"Endpoint watcher received line: {line.strip()}")
                 # The first line is the table header, which we should ignore.
@@ -570,9 +580,13 @@ def endpoint_watcher_thread(namespace, resource_name):
             if proc:
                 proc.terminate()
                 try:
-                    proc.wait(timeout=1)
+                    proc.wait(timeout=0.5)
                 except subprocess.TimeoutExpired:
                     proc.kill()
+                    try:
+                        proc.wait(timeout=0.5)
+                    except subprocess.TimeoutExpired:
+                        pass
             shutdown_event.set()
             return
 
@@ -580,10 +594,14 @@ def endpoint_watcher_thread(namespace, resource_name):
         debug.print("Final cleanup: terminating endpoint watcher process")
         proc.terminate()
         try:
-            proc.wait(timeout=1)
+            proc.wait(timeout=0.5)
         except subprocess.TimeoutExpired:
             debug.print("Final cleanup: force killing endpoint watcher process")
             proc.kill()
+            try:
+                proc.wait(timeout=0.5)
+            except subprocess.TimeoutExpired:
+                debug.print("Endpoint watcher process unresponsive even after kill")
 
 
 def run_port_forward(port_forward_args, debug_mode: bool = False):
@@ -654,15 +672,20 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
 
         # Wait for both threads to finish with timeout
         debug.print("Waiting for threads to finish...")
-        pf_t.join(timeout=3)  # 3 second timeout
-        ew_t.join(timeout=3)  # 3 second timeout
+        pf_t.join(timeout=2)  # Reduced timeout
+        ew_t.join(timeout=2)  # Reduced timeout
 
         if pf_t.is_alive() or ew_t.is_alive():
+            debug.print("Some threads did not shut down cleanly, forcing exit")
             console.print("[yellow]Some threads did not shut down cleanly[/yellow]")
+            console.print("[Main] Exiting.")
+            # Force exit immediately instead of hanging
+            import os
+
+            os._exit(1)
         else:
             debug.print("All threads have shut down")
-
-        console.print("[Main] Exiting.")
+            console.print("[Main] Exiting.")
 
 
 def main():
