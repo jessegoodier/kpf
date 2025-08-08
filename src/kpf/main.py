@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -18,6 +19,9 @@ shutdown_event = threading.Event()
 # Global debug state
 _debug_enabled = False
 
+# Track Ctrl+C presses for force exit
+_sigint_count = 0
+
 
 class Debug:
     @staticmethod
@@ -27,6 +31,22 @@ class Debug:
 
 
 debug = Debug()
+
+
+def _signal_handler(signum, frame):
+    """Handle SIGINT (Ctrl+C) with force exit on second press."""
+    global _sigint_count
+    _sigint_count += 1
+
+    if _sigint_count == 1:
+        console.print("\n[yellow]Ctrl+C detected. Shutting down gracefully...[/yellow]")
+        console.print("[yellow]Press Ctrl+C again to force exit.[/yellow]")
+        debug.print("First SIGINT received, initiating graceful shutdown")
+        shutdown_event.set()
+    else:
+        console.print("\n[red]Force exit requested. Terminating immediately...[/red]")
+        debug.print("Second SIGINT received, forcing exit")
+        sys.exit(1)
 
 
 def _is_port_available(port: int) -> bool:
@@ -456,13 +476,17 @@ def port_forward_thread(args):
                 )
                 debug.print(f"Terminating port-forward process PID: {proc.pid}")
                 proc.terminate()  # Gracefully terminate the process
-                proc.wait(timeout=5)  # Wait for it to shut down
-                if proc.poll() is None:
+                try:
+                    proc.wait(timeout=2)  # Shorter timeout for faster shutdown
+                    debug.print("Process terminated gracefully")
+                except subprocess.TimeoutExpired:
                     debug.print("Process did not terminate gracefully, force killing")
                     proc.kill()  # Force kill if it's still running
                     console.print("[red][Port-Forwarder] Process was forcefully killed.[/red]")
-                else:
-                    debug.print("Process terminated gracefully")
+                    try:
+                        proc.wait(timeout=1)  # Brief wait after kill
+                    except subprocess.TimeoutExpired:
+                        pass
                 proc = None
 
             restart_event.clear()  # Reset the event for the next cycle
@@ -470,12 +494,22 @@ def port_forward_thread(args):
         except Exception as e:
             console.print(f"[red][Port-Forwarder] An error occurred: {e}[/red]")
             if proc:
-                proc.kill()
+                proc.terminate()
+                try:
+                    proc.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
             shutdown_event.set()
             return
 
     if proc:
-        proc.kill()
+        debug.print("Final cleanup: terminating port-forward process")
+        proc.terminate()
+        try:
+            proc.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            debug.print("Final cleanup: force killing port-forward process")
+            proc.kill()
 
 
 def endpoint_watcher_thread(namespace, resource_name):
@@ -534,12 +568,22 @@ def endpoint_watcher_thread(namespace, resource_name):
         except Exception as e:
             console.print(f"[red][Watcher] An error occurred: {e}[/red]")
             if proc:
-                proc.kill()
+                proc.terminate()
+                try:
+                    proc.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
             shutdown_event.set()
             return
 
     if proc:
-        proc.kill()
+        debug.print("Final cleanup: terminating endpoint watcher process")
+        proc.terminate()
+        try:
+            proc.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            debug.print("Final cleanup: force killing endpoint watcher process")
+            proc.kill()
 
 
 def run_port_forward(port_forward_args, debug_mode: bool = False):
@@ -590,27 +634,35 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
     pf_t.start()
     ew_t.start()
 
+    # Register signal handler for graceful shutdown
+    signal.signal(signal.SIGINT, _signal_handler)
+
     try:
         # Keep the main thread alive while the other threads are running
-        while pf_t.is_alive() and ew_t.is_alive():
-            time.sleep(1)
+        while pf_t.is_alive() and ew_t.is_alive() and not shutdown_event.is_set():
+            time.sleep(0.5)  # Check more frequently for shutdown
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]Ctrl+C detected. Shutting down gracefully...[/yellow]")
-        console.print("[yellow]Press Ctrl+C again to force exit.[/yellow]")
-        debug.print("KeyboardInterrupt received, initiating graceful shutdown")
+        # This should be handled by signal handler now, but keep as fallback
+        debug.print("KeyboardInterrupt in main loop (fallback)")
+        shutdown_event.set()
 
     finally:
         # Signal a graceful shutdown
         debug.print("Setting shutdown event")
         shutdown_event.set()
 
-        # Wait for both threads to finish
+        # Wait for both threads to finish with timeout
         debug.print("Waiting for threads to finish...")
-        pf_t.join()
-        ew_t.join()
-        debug.print("All threads have shut down")
-        console.print("[Main] All threads have shut down. Exiting.")
+        pf_t.join(timeout=3)  # 3 second timeout
+        ew_t.join(timeout=3)  # 3 second timeout
+
+        if pf_t.is_alive() or ew_t.is_alive():
+            console.print("[yellow]Some threads did not shut down cleanly[/yellow]")
+        else:
+            debug.print("All threads have shut down")
+
+        console.print("[Main] Exiting.")
 
 
 def main():
