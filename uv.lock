@@ -250,7 +250,7 @@ wheels = [
 
 [[package]]
 name = "kpf"
-version = "0.1.11"
+version = "0.1.10"
 source = { editable = "." }
 dependencies = [
     { name = "requests" },
