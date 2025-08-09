@@ -1038,7 +1038,7 @@ class TestConnectivityTesting:
     def test_test_http_connectivity_rate_limited(self, mock_time, mock_get):
         """Test HTTP connectivity test rate limiting."""
         # Mock time to simulate recent request
-        mock_time.side_effect = [1000.0, 1001.0]  # 1 second apart, less than 2s minimum
+        mock_time.side_effect = [1000.0, 1001.0, 1001.0, 1001.0]  # Provide enough time values
 
         # First call should work normally
         mock_response = Mock()
@@ -1114,3 +1114,139 @@ class TestConnectivityTesting:
             debug.print("Test message 2")
             debug.print("Test message 3")
             assert mock_print.call_count == 3
+
+
+class TestHttpTimeoutRestart:
+    """Test HTTP timeout restart functionality."""
+
+    def setup_method(self):
+        """Reset global state before each test."""
+        import src.kpf.main
+
+        src.kpf.main._http_timeout_start_time = None
+
+    def teardown_method(self):
+        """Clean up global state after each test."""
+        import src.kpf.main
+
+        src.kpf.main._http_timeout_start_time = None
+
+    @patch("time.time")
+    def test_mark_http_timeout_start(self, mock_time):
+        """Test marking HTTP timeout start."""
+        from src.kpf.main import _mark_http_timeout_start
+
+        mock_time.return_value = 1000.0
+
+        with patch("src.kpf.main.debug.print") as mock_print:
+            _mark_http_timeout_start()
+            mock_print.assert_called_once_with("HTTP timeout period started")
+
+        # Verify global state is set
+        import src.kpf.main
+
+        assert src.kpf.main._http_timeout_start_time == 1000.0
+
+    @patch("time.time")
+    def test_mark_http_timeout_start_already_set(self, mock_time):
+        """Test marking HTTP timeout start when already set."""
+        import src.kpf.main
+        from src.kpf.main import _mark_http_timeout_start
+
+        # Set initial timeout time
+        src.kpf.main._http_timeout_start_time = 1000.0
+        mock_time.return_value = 1005.0
+
+        with patch("src.kpf.main.debug.print") as mock_print:
+            _mark_http_timeout_start()
+            # Should not print again if already set
+            mock_print.assert_not_called()
+
+        # Verify global state unchanged
+        assert src.kpf.main._http_timeout_start_time == 1000.0
+
+    @patch("time.time")
+    def test_mark_http_timeout_end(self, mock_time):
+        """Test marking HTTP timeout end."""
+        import src.kpf.main
+        from src.kpf.main import _mark_http_timeout_end
+
+        # Set initial timeout time
+        src.kpf.main._http_timeout_start_time = 1000.0
+        mock_time.return_value = 1003.0
+
+        with patch("src.kpf.main.debug.print") as mock_print:
+            _mark_http_timeout_end()
+            mock_print.assert_called_once_with("[green]HTTP timeouts resolved after 3.0s[/green]")
+
+        # Verify global state is reset
+        assert src.kpf.main._http_timeout_start_time is None
+
+    def test_mark_http_timeout_end_not_set(self):
+        """Test marking HTTP timeout end when not set."""
+        from src.kpf.main import _mark_http_timeout_end
+
+        with patch("src.kpf.main.debug.print") as mock_print:
+            _mark_http_timeout_end()
+            # Should not print if not set
+            mock_print.assert_not_called()
+
+    @patch("time.time")
+    def test_check_http_timeout_restart_threshold_not_met(self, mock_time):
+        """Test HTTP timeout restart check when threshold not met."""
+        import src.kpf.main
+        from src.kpf.main import _check_http_timeout_restart
+
+        # Set timeout start time
+        src.kpf.main._http_timeout_start_time = 1000.0
+        mock_time.return_value = 1003.0  # Only 3 seconds elapsed
+
+        result = _check_http_timeout_restart()
+        assert result is False
+
+    @patch("time.time")
+    def test_check_http_timeout_restart_threshold_met(self, mock_time):
+        """Test HTTP timeout restart check when threshold met."""
+        import src.kpf.main
+        from src.kpf.main import _check_http_timeout_restart
+
+        # Set timeout start time
+        src.kpf.main._http_timeout_start_time = 1000.0
+        mock_time.return_value = 1006.0  # 6 seconds elapsed (> 5 second threshold)
+
+        with patch("src.kpf.main.debug.print") as mock_print:
+            result = _check_http_timeout_restart()
+            assert result is True
+            mock_print.assert_called_once_with(
+                "[yellow]HTTP timeouts persisted for 6.0s, triggering restart[/yellow]"
+            )
+
+    def test_check_http_timeout_restart_not_set(self):
+        """Test HTTP timeout restart check when timeout not set."""
+        from src.kpf.main import _check_http_timeout_restart
+
+        result = _check_http_timeout_restart()
+        assert result is False
+
+    @patch("time.time")
+    def test_mark_connectivity_success_resets_http_timeout(self, mock_time):
+        """Test that successful connectivity resets HTTP timeout tracking."""
+        import src.kpf.main
+        from src.kpf.main import _mark_connectivity_success
+
+        # Set both connectivity failure and HTTP timeout
+        src.kpf.main._connectivity_failure_start_time = 1000.0
+        src.kpf.main._http_timeout_start_time = 1002.0
+        mock_time.return_value = 1005.0
+
+        with patch("src.kpf.main.debug.print") as mock_print:
+            _mark_connectivity_success()
+
+            # Should print both reset messages
+            calls = [str(call) for call in mock_print.call_args_list]
+            assert any("connectivity restored" in call for call in calls)
+            assert any("HTTP timeouts resolved" in call for call in calls)
+
+        # Verify both global states are reset
+        assert src.kpf.main._connectivity_failure_start_time is None
+        assert src.kpf.main._http_timeout_start_time is None

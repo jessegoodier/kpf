@@ -37,6 +37,10 @@ _last_http_attempt_time = 0
 _debug_message_timestamps = {}
 DEBUG_MESSAGE_INTERVAL = 2.0  # Minimum interval between repeated debug messages
 
+# HTTP timeout specific tracking
+_http_timeout_start_time = None
+HTTP_TIMEOUT_RESTART_THRESHOLD = 5.0  # Restart if HTTP timeouts persist for 5 seconds
+
 
 class ConnectivityTestResult(Enum):
     """Result of connectivity testing."""
@@ -526,6 +530,7 @@ def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, st
             debug.print(
                 f"HTTP connectivity test [green]successful[: {url} -> {response.status_code}[/green]"
             )
+            _mark_http_timeout_end()  # Reset timeout tracking on success
             return (
                 ConnectivityTestResult.SUCCESS,
                 f"http_response_{response.status_code}",
@@ -533,6 +538,7 @@ def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, st
 
         except requests.exceptions.ConnectTimeout:
             debug.print(f"HTTP connectivity test [red]timeout: {url}[/red]")
+            _mark_http_timeout_start()  # Track timeout start
             continue  # Try next URL
 
         except requests.exceptions.ConnectionError as e:
@@ -541,6 +547,7 @@ def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, st
 
         except requests.exceptions.Timeout:
             debug.print(f"HTTP connectivity test [red]timeout: {url}[/red]")
+            _mark_http_timeout_start()  # Track timeout start
             continue  # Try next URL
 
         except Exception as e:
@@ -621,6 +628,8 @@ def _mark_connectivity_success():
         failure_duration = time.time() - _connectivity_failure_start_time
         debug.print(f"[green]Port connectivity restored after {failure_duration:.1f}s[/green]")
         _connectivity_failure_start_time = None
+    # Also reset HTTP timeout tracking on successful connectivity
+    _mark_http_timeout_end()
 
 
 def _check_connectivity_failure_timeout():
@@ -639,6 +648,38 @@ def _get_connectivity_failure_duration():
     if _connectivity_failure_start_time is None:
         return 0
     return time.time() - _connectivity_failure_start_time
+
+
+def _mark_http_timeout_start():
+    """Mark the start of an HTTP timeout period."""
+    global _http_timeout_start_time
+    if _http_timeout_start_time is None:
+        _http_timeout_start_time = time.time()
+        debug.print("HTTP timeout period started")
+
+
+def _mark_http_timeout_end():
+    """Mark the end of HTTP timeout issues."""
+    global _http_timeout_start_time
+    if _http_timeout_start_time is not None:
+        timeout_duration = time.time() - _http_timeout_start_time
+        debug.print(f"[green]HTTP timeouts resolved after {timeout_duration:.1f}s[/green]")
+        _http_timeout_start_time = None
+
+
+def _check_http_timeout_restart():
+    """Check if HTTP timeouts have been persistent and should trigger restart."""
+    global _http_timeout_start_time
+    if _http_timeout_start_time is None:
+        return False  # No timeout in progress
+
+    timeout_duration = time.time() - _http_timeout_start_time
+    if timeout_duration >= HTTP_TIMEOUT_RESTART_THRESHOLD:
+        debug.print(
+            f"[yellow]HTTP timeouts persisted for {timeout_duration:.1f}s, triggering restart[/yellow]"
+        )
+        return True
+    return False
 
 
 def _should_restart_port_forward():
@@ -811,6 +852,19 @@ def port_forward_thread(args):
                             f"Port connectivity check passed on port {local_port}",
                             rate_limit=True,
                         )
+
+                    # Check if HTTP timeouts have persisted for too long and trigger restart
+                    if _check_http_timeout_restart():
+                        console.print(
+                            "[yellow]HTTP connectivity timeouts persisting, restarting port-forward[/yellow]"
+                        )
+                        if _should_restart_port_forward():
+                            restart_event.set()
+                            break
+                        else:
+                            console.print(
+                                f"[yellow]Restart throttled, will retry connectivity check in {CONNECTIVITY_CHECK_INTERVAL}s[/yellow]"
+                            )
 
                     last_connectivity_check = current_time
 
