@@ -149,14 +149,16 @@ def _validate_port_format(port_forward_args):
                     )
                     return False
 
-                debug.print(f"Port format validation passed: {local_port}:{remote_port}")
+                debug.print(
+                    f"Port format validation [green]passed[/green]: {local_port}:{remote_port}"
+                )
                 return True
 
             except (ValueError, IndexError) as e:
                 console.print(
                     f"[red]Error: Invalid port format in '{arg}'. Expected format: 'local_port:remote_port' (e.g., 8080:80)[/red]"
                 )
-                debug.print(f"Port format validation failed for '{arg}': {e}")
+                debug.print(f"Port format validation [red]failed[/red] for '{arg}': {e}")
                 return False
 
     # No port mapping found
@@ -184,7 +186,7 @@ def _validate_kubectl_command(port_forward_args):
             )
             return False
 
-        debug.print("kubectl client is available")
+        debug.print("[green]kubectl client is available[/green]")
 
         # Basic validation of resource format (svc/name, pod/name, etc.)
         resource_found = False
@@ -217,7 +219,7 @@ def _validate_kubectl_command(port_forward_args):
             )
             return False
 
-        debug.print("kubectl command validation passed")
+        debug.print("[green]kubectl command validation passed[/green]")
         return True
 
     except subprocess.TimeoutExpired:
@@ -372,7 +374,7 @@ def _validate_service_and_endpoints(port_forward_args):
 
             debug.print(f"{kubectl_resource.capitalize()} {resource_name} exists")
 
-        debug.print("Service and endpoints validation passed")
+        debug.print("[green]Service and endpoints validation passed[/green]")
         return True
 
     except subprocess.TimeoutExpired:
@@ -399,7 +401,7 @@ def _validate_port_availability(port_forward_args):
         )
         return False
 
-    debug.print(f"Port {local_port} is available")
+    debug.print(f"[green]Port {local_port} is available[/green]")
     return True
 
 
@@ -423,12 +425,12 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
                 if result == 0 or result == 61:
                     # Connected (0) or connection refused (61) - both mean port-forward is working
                     debug.print(
-                        f"Port-forward appears to be working on port {local_port} (result: {result})"
+                        f"Port-forward appears to be working on port {local_port} [green](result: {result})[/green]"
                     )
                     return True
                 else:
                     debug.print(
-                        f"Port-forward health check failed on port {local_port} with result: {result}"
+                        f"Port-forward health check failed on port {local_port} [red](result: {result})[/red]"
                     )
                     return False
         except (OSError, socket.error):
@@ -457,11 +459,13 @@ def _test_socket_connectivity(local_port: int) -> Tuple[bool, str]:
             # 0 = Connected successfully
             # 61 (ECONNREFUSED) = Port is open but service refused connection (service may be down but port-forward works)
             if result == 0:
-                debug.print(f"Socket connectivity test: Connected successfully (code: {result})")
+                debug.print(
+                    f"Socket connectivity test: Connected [green]successfully (code: {result})[/green]"
+                )
                 return True, "connected"
             elif result == 61:  # ECONNREFUSED on macOS/Linux
                 debug.print(
-                    f"Socket connectivity test: Connection refused - port-forward working, service may be down (code: {result})"
+                    f"Socket connectivity test: Connection [red]refused - port-forward working, service may be down (code: {result})[/red]"
                 )
                 return True, "connection_refused"
             else:
@@ -511,26 +515,28 @@ def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, st
 
             # Any HTTP response code is considered success
             # (200, 404, 500, etc. all mean the service is reachable)
-            debug.print(f"HTTP connectivity test successful: {url} -> {response.status_code}")
+            debug.print(
+                f"HTTP connectivity test [green]successful[: {url} -> {response.status_code}[/green]"
+            )
             return (
                 ConnectivityTestResult.SUCCESS,
                 f"http_response_{response.status_code}",
             )
 
         except requests.exceptions.ConnectTimeout:
-            debug.print(f"HTTP connectivity test timeout: {url}")
+            debug.print(f"HTTP connectivity test [red]timeout: {url}[/red]")
             continue  # Try next URL
 
         except requests.exceptions.ConnectionError as e:
-            debug.print(f"HTTP connectivity test connection error: {url} -> {e}")
+            debug.print(f"HTTP connectivity test [red]connection error: {url} -> {e}[/red]")
             continue  # Try next URL
 
         except requests.exceptions.Timeout:
-            debug.print(f"HTTP connectivity test timeout: {url}")
+            debug.print(f"HTTP connectivity test [red]timeout: {url}[/red]")
             continue  # Try next URL
 
         except Exception as e:
-            debug.print(f"HTTP connectivity test unexpected error: {url} -> {e}")
+            debug.print(f"HTTP connectivity test [red]unexpected error: {url} -> {e}[/red]")
             continue  # Try next URL
 
     # If we get here, all HTTP attempts failed
@@ -562,22 +568,22 @@ def _check_port_connectivity(local_port: int) -> bool:
     socket_success, socket_description = _test_socket_connectivity(local_port)
 
     if not socket_success:
-        debug.print(f"Socket connectivity failed: {socket_description}")
+        debug.print(f"Socket connectivity [red]failed: {socket_description}[/red]")
         _mark_connectivity_failure(f"socket_failure: {socket_description}")
         return False
 
-    debug.print(f"Socket connectivity passed: {socket_description}")
+    debug.print(f"Socket connectivity [green]passed: {socket_description}[/green]")
 
     # Step 2: If socket connected successfully (not just refused), test HTTP
     if socket_description == "connected":
         http_result, http_description = _test_http_connectivity(local_port)
 
         if http_result == ConnectivityTestResult.SUCCESS:
-            debug.print(f"HTTP connectivity passed: {http_description}")
+            debug.print(f"HTTP connectivity [green]passed: {http_description}[/green]")
             _mark_connectivity_success()
             return True
         else:
-            debug.print(f"HTTP connectivity failed: {http_description}")
+            debug.print(f"HTTP connectivity [red]failed: {http_description}[/red]")
             # HTTP failure when socket works might indicate service issues
             # but we'll still consider this as working port-forward
             _mark_connectivity_success()
@@ -585,9 +591,9 @@ def _check_port_connectivity(local_port: int) -> bool:
     else:
         # Socket connection was refused - port-forward is working
         # but service is not responding (which is OK)
-        debug.print("Connection refused - port-forward working, service not responding")
+        debug.print("[red]Connection refused - port-forward working, service not responding[/red]")
         _mark_connectivity_success()
-        return True
+        return False
 
 
 def _mark_connectivity_failure(reason: str):
@@ -605,7 +611,7 @@ def _mark_connectivity_success():
 
     if _connectivity_failure_start_time is not None:
         failure_duration = time.time() - _connectivity_failure_start_time
-        debug.print(f"Port connectivity restored after {failure_duration:.1f}s")
+        debug.print(f"[green]Port connectivity restored after {failure_duration:.1f}s[/green]")
         _connectivity_failure_start_time = None
 
 
@@ -638,7 +644,7 @@ def _should_restart_port_forward():
         return True
     else:
         remaining_time = RESTART_THROTTLE_SECONDS - time_since_last_restart
-        debug.print(f"Restart throttled: {remaining_time:.1f}s remaining")
+        debug.print(f"[yellow]Restart throttled: {remaining_time:.1f}s remaining[/yellow]")
         return False
 
 
@@ -703,8 +709,7 @@ def port_forward_thread(args):
 
     while not shutdown_event.is_set():
         try:
-            console.print("\n[green]port-forward started[/green]")
-            console.print(f"[white]kpf {' '.join(args)}[/white]")
+            console.print(f"\nDirect command: [blue]kpf {' '.join(args)}[/blue]\n")
             # Display URL before starting
             if local_port:
                 console.print(
@@ -736,6 +741,8 @@ def port_forward_thread(args):
                     proc.wait(timeout=5)
                 shutdown_event.set()
                 return
+
+            console.print("\n🚀 [green]port-forward started[/green] 🚀")
 
             # Main loop: wait for restart signal or shutdown, checking connectivity periodically
             last_connectivity_check = time.time()
@@ -988,7 +995,7 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
     namespace, resource_name = get_watcher_args(port_forward_args)
     debug.print(f"Parsed namespace: {namespace}, resource_name: {resource_name}")
 
-    console.print(f"Port-forward arguments: {port_forward_args}")
+    debug.print(f"Port-forward arguments: {port_forward_args}")
     console.print(f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}")
 
     # Create and start the two threads
