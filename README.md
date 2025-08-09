@@ -4,7 +4,7 @@ This is a Python utility that (attempts) to dramatically improve the experience 
 
 Primary features:
 Interactive service selection with colored tables and support for multiple Kubernetes resource types.
-Automatically restarts port-forwards when endpoint changes are detected. Normally this is a terrible experience with the port-forward cli only updating after you which to a browser.
+Automatically restarts port-forwards when endpoint changes are detected. Normally (without this tool), this is a terrible experience with the port-forward cli only updating after you switch to a browser and attempt to connect.
 
 ## Features
 
@@ -34,6 +34,10 @@ pipx install uv
 ## Usage
 
 ### Interactive Mode (Recommended)
+
+**Warm Tip**: You can use the interactive mode to find the service you want, and the command to connect to that service directly next time is output just before the connection is established.
+
+![screenshot](kpf-screenshot.png)
 
 Select services interactively with a colored table:
 

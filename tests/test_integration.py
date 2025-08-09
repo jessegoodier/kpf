@@ -38,19 +38,22 @@ class TestCLIIntegration:
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
+    @patch("sys.argv", ["kpf", "--prompt"])
     def test_prompt_mode_integration(self, mock_run_pf, mock_handle_prompt):
         """Test prompt mode integration."""
         mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "default"]
 
-        result = subprocess.run(
-            [sys.executable, "-m", "src.kpf.cli", "--prompt"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
+        # Import and call main directly instead of using subprocess
+        from src.kpf.cli import main
 
-        # Should not fail with import or basic setup errors
-        assert result.returncode in [0, 1]  # May exit with 1 due to mocking
+        # Should not raise any exceptions
+        main()
+
+        # Verify the mocked functions were called
+        mock_handle_prompt.assert_called_once()
+        mock_run_pf.assert_called_once_with(
+            ["svc/test", "8080:8080", "-n", "default"], debug_mode=False
+        )
 
     def test_import_structure(self):
         """Test that all modules can be imported without errors."""
