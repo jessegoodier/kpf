@@ -150,7 +150,7 @@ def _validate_port_format(port_forward_args):
                     return False
 
                 debug.print(
-                    f"Port format validation [green]passed[/green]: {local_port}:{remote_port}"
+                    f"Port format validation [green]passed: {local_port}:{remote_port}[/green]"
                 )
                 return True
 
@@ -158,7 +158,7 @@ def _validate_port_format(port_forward_args):
                 console.print(
                     f"[red]Error: Invalid port format in '{arg}'. Expected format: 'local_port:remote_port' (e.g., 8080:80)[/red]"
                 )
-                debug.print(f"Port format validation [red]failed[/red] for '{arg}': {e}")
+                debug.print(f"Port format validation [red]failed for '{arg}': {e}[/red]")
                 return False
 
     # No port mapping found
@@ -209,7 +209,9 @@ def _validate_kubectl_command(port_forward_args):
                     ]
                     if resource_type in valid_types and resource_name:
                         resource_found = True
-                        debug.print(f"Valid resource format found: {resource_type}/{resource_name}")
+                        debug.print(
+                            f"Valid resource format found: [green]{resource_type}/{resource_name}[/green]"
+                        )
                         break
 
         if not resource_found:
@@ -422,12 +424,18 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(1)
                 result = sock.connect_ex(("localhost", local_port))
-                if result == 0 or result == 61:
+                if result == 0:
                     # Connected (0) or connection refused (61) - both mean port-forward is working
                     debug.print(
                         f"Port-forward appears to be working on port {local_port} [green](result: {result})[/green]"
                     )
                     return True
+                elif result == 61:
+                    # TODO: not sure how to handle this case
+                    debug.print(
+                        f"Port-forward health check failed on port {local_port} [red](result: {result})[/red]"
+                    )
+                    return False
                 else:
                     debug.print(
                         f"Port-forward health check failed on port {local_port} [red](result: {result})[/red]"
@@ -587,7 +595,7 @@ def _check_port_connectivity(local_port: int) -> bool:
             # HTTP failure when socket works might indicate service issues
             # but we'll still consider this as working port-forward
             _mark_connectivity_success()
-            return True
+            return False
     else:
         # Socket connection was refused - port-forward is working
         # but service is not responding (which is OK)

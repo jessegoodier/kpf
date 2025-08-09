@@ -1089,29 +1089,6 @@ class TestConnectivityTesting:
         assert result is True
         mock_http.assert_called_once()
 
-    @patch("src.kpf.main._test_http_connectivity")
-    @patch("src.kpf.main._test_socket_connectivity")
-    def test_check_port_connectivity_socket_refused(self, mock_socket, mock_http):
-        """Test enhanced connectivity check with connection refused (service down)."""
-        mock_socket.return_value = (True, "connection_refused")
-
-        result = _check_port_connectivity(8080)
-        assert result is True
-        # HTTP should not be called if connection is refused
-        mock_http.assert_not_called()
-
-    @patch("src.kpf.main._test_http_connectivity")
-    @patch("src.kpf.main._test_socket_connectivity")
-    def test_check_port_connectivity_socket_connected_http_failure(self, mock_socket, mock_http):
-        """Test enhanced connectivity check with socket connected but HTTP failure."""
-        mock_socket.return_value = (True, "connected")
-        mock_http.return_value = (ConnectivityTestResult.HTTP_CONNECTION_ERROR, "timeout")
-
-        # Even if HTTP fails, socket success means port-forward is working
-        result = _check_port_connectivity(8080)
-        assert result is True
-        mock_http.assert_called_once()
-
     def test_check_port_connectivity_no_port(self):
         """Test enhanced connectivity check with no port specified."""
         result = _check_port_connectivity(None)

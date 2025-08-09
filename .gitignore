@@ -205,3 +205,4 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 CLAUDE.md
+gke_gcloud_auth_plugin_cache
