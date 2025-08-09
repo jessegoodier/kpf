@@ -4,9 +4,13 @@ import subprocess
 from unittest.mock import Mock, patch
 
 from src.kpf.main import (
+    ConnectivityTestResult,
+    _check_port_connectivity,
     _extract_local_port,
     _is_port_available,
+    _test_http_connectivity,
     _test_port_forward_health,
+    _test_socket_connectivity,
     _validate_kubectl_command,
     _validate_port_availability,
     _validate_port_format,
@@ -354,6 +358,43 @@ class TestEndpointWatcherThread:
 
         # Clean up
         restart_event.clear()
+        shutdown_event.clear()
+
+    @patch("time.sleep")
+    def test_endpoint_watcher_delay_on_restart(self, mock_sleep):
+        """Test that endpoint watcher waits 2 seconds before restarting kubectl process."""
+        from src.kpf.main import endpoint_watcher_thread, shutdown_event
+
+        namespace = "default"
+        resource_name = "test-service"
+
+        with patch("subprocess.Popen") as mock_popen:
+            mock_process = Mock()
+            # Mock the process to exit immediately to trigger restart
+            mock_process.stdout = iter([])  # Empty output
+            mock_process.wait.return_value = None  # Process exits
+            mock_popen.return_value = mock_process
+
+            # Clear events first
+            shutdown_event.clear()
+
+            # Set shutdown after first iteration to prevent infinite loop
+            call_count = [0]
+
+            def side_effect(*args, **kwargs):
+                call_count[0] += 1
+                if call_count[0] >= 2:  # After second call, trigger shutdown
+                    shutdown_event.set()
+                return mock_process
+
+            mock_popen.side_effect = side_effect
+
+            endpoint_watcher_thread(namespace, resource_name)
+
+            # Verify that sleep was called with 2 seconds
+            mock_sleep.assert_called_with(2)
+
+        # Clean up
         shutdown_event.clear()
 
 
@@ -900,3 +941,212 @@ class TestServiceValidation:
 
         assert result.returncode == 1
         assert "not found" in result.stdout or "endpoints" in result.stdout.lower()
+
+
+class TestConnectivityTesting:
+    """Test enhanced connectivity testing functionality."""
+
+    def setup_method(self):
+        """Reset global state before each test."""
+        import src.kpf.main
+
+        src.kpf.main._last_http_attempt_time = 0
+        src.kpf.main._connectivity_failure_start_time = None
+
+    def teardown_method(self):
+        """Clean up global state after each test."""
+        import src.kpf.main
+
+        src.kpf.main._last_http_attempt_time = 0
+        src.kpf.main._connectivity_failure_start_time = None
+
+    def test_test_socket_connectivity_success(self):
+        """Test socket connectivity test with successful connection."""
+        with patch("socket.socket") as mock_socket:
+            mock_sock_instance = Mock()
+            mock_sock_instance.connect_ex.return_value = 0  # Success
+            mock_socket.return_value.__enter__.return_value = mock_sock_instance
+
+            success, description = _test_socket_connectivity(8080)
+            assert success is True
+            assert description == "connected"
+
+    def test_test_socket_connectivity_connection_refused(self):
+        """Test socket connectivity test with connection refused."""
+        with patch("socket.socket") as mock_socket:
+            mock_sock_instance = Mock()
+            mock_sock_instance.connect_ex.return_value = 61  # ECONNREFUSED
+            mock_socket.return_value.__enter__.return_value = mock_sock_instance
+
+            success, description = _test_socket_connectivity(8080)
+            assert success is True  # Connection refused still means port-forward works
+            assert description == "connection_refused"
+
+    def test_test_socket_connectivity_failure(self):
+        """Test socket connectivity test with connection failure."""
+        with patch("socket.socket") as mock_socket:
+            mock_sock_instance = Mock()
+            mock_sock_instance.connect_ex.return_value = 111  # Connection timeout
+            mock_socket.return_value.__enter__.return_value = mock_sock_instance
+
+            success, description = _test_socket_connectivity(8080)
+            assert success is False
+            assert "connection_error_111" in description
+
+    def test_test_socket_connectivity_exception(self):
+        """Test socket connectivity test with socket exception."""
+        with patch("socket.socket") as mock_socket:
+            mock_socket.side_effect = OSError("Network unreachable")
+
+            success, description = _test_socket_connectivity(8080)
+            assert success is False
+            assert "socket_exception_OSError" in description
+
+    @patch("requests.get")
+    def test_test_http_connectivity_success(self, mock_get):
+        """Test HTTP connectivity test with successful response."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
+        result, description = _test_http_connectivity(8080)
+        assert result == ConnectivityTestResult.SUCCESS
+        assert "http_response_200" in description
+
+    @patch("requests.get")
+    def test_test_http_connectivity_404_is_success(self, mock_get):
+        """Test that HTTP 404 is considered successful connectivity."""
+        mock_response = Mock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        result, description = _test_http_connectivity(8080)
+        assert result == ConnectivityTestResult.SUCCESS
+        assert "http_response_404" in description
+
+    @patch("requests.get")
+    def test_test_http_connectivity_connection_error(self, mock_get):
+        """Test HTTP connectivity test with connection error."""
+        import requests
+
+        mock_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
+
+        result, description = _test_http_connectivity(8080)
+        assert result == ConnectivityTestResult.HTTP_CONNECTION_ERROR
+        assert "all_http_attempts_failed" in description
+
+    @patch("requests.get")
+    def test_test_http_connectivity_timeout(self, mock_get):
+        """Test HTTP connectivity test with timeout."""
+        import requests
+
+        mock_get.side_effect = requests.exceptions.Timeout("Request timed out")
+
+        result, description = _test_http_connectivity(8080)
+        assert result == ConnectivityTestResult.HTTP_CONNECTION_ERROR
+        assert "all_http_attempts_failed" in description
+
+    @patch("requests.get")
+    @patch("time.time")
+    def test_test_http_connectivity_rate_limited(self, mock_time, mock_get):
+        """Test HTTP connectivity test rate limiting."""
+        # Mock time to simulate recent request
+        mock_time.side_effect = [1000.0, 1001.0]  # 1 second apart, less than 2s minimum
+
+        # First call should work normally
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_get.return_value = mock_response
+
+        # First call
+        result1, description1 = _test_http_connectivity(8080)
+        assert result1 == ConnectivityTestResult.SUCCESS
+
+        # Second call should be rate limited
+        result2, description2 = _test_http_connectivity(8080)
+        assert result2 == ConnectivityTestResult.SUCCESS
+        assert "rate_limited" in description2
+
+    @patch("src.kpf.main._test_http_connectivity")
+    @patch("src.kpf.main._test_socket_connectivity")
+    def test_check_port_connectivity_socket_failure(self, mock_socket, mock_http):
+        """Test enhanced connectivity check with socket failure."""
+        mock_socket.return_value = (False, "connection_error_111")
+
+        result = _check_port_connectivity(8080)
+        assert result is False
+        # HTTP should not be called if socket fails
+        mock_http.assert_not_called()
+
+    @patch("src.kpf.main._test_http_connectivity")
+    @patch("src.kpf.main._test_socket_connectivity")
+    def test_check_port_connectivity_socket_connected_http_success(self, mock_socket, mock_http):
+        """Test enhanced connectivity check with socket connected and HTTP success."""
+        mock_socket.return_value = (True, "connected")
+        mock_http.return_value = (ConnectivityTestResult.SUCCESS, "http_response_200")
+
+        result = _check_port_connectivity(8080)
+        assert result is True
+        mock_http.assert_called_once()
+
+    @patch("src.kpf.main._test_http_connectivity")
+    @patch("src.kpf.main._test_socket_connectivity")
+    def test_check_port_connectivity_socket_refused(self, mock_socket, mock_http):
+        """Test enhanced connectivity check with connection refused (service down)."""
+        mock_socket.return_value = (True, "connection_refused")
+
+        result = _check_port_connectivity(8080)
+        assert result is True
+        # HTTP should not be called if connection is refused
+        mock_http.assert_not_called()
+
+    @patch("src.kpf.main._test_http_connectivity")
+    @patch("src.kpf.main._test_socket_connectivity")
+    def test_check_port_connectivity_socket_connected_http_failure(self, mock_socket, mock_http):
+        """Test enhanced connectivity check with socket connected but HTTP failure."""
+        mock_socket.return_value = (True, "connected")
+        mock_http.return_value = (ConnectivityTestResult.HTTP_CONNECTION_ERROR, "timeout")
+
+        # Even if HTTP fails, socket success means port-forward is working
+        result = _check_port_connectivity(8080)
+        assert result is True
+        mock_http.assert_called_once()
+
+    def test_check_port_connectivity_no_port(self):
+        """Test enhanced connectivity check with no port specified."""
+        result = _check_port_connectivity(None)
+        assert result is True
+
+    @patch("src.kpf.main._debug_enabled", True)
+    @patch("time.time")
+    def test_debug_rate_limiting(self, mock_time):
+        """Test that debug messages can be rate limited."""
+        from src.kpf.main import debug
+
+        # Mock time to control rate limiting
+        mock_time.side_effect = [1000.0, 1001.0, 1003.0]  # 0s, 1s, 3s timestamps
+
+        with patch("src.kpf.main.console.print") as mock_print:
+            # First call should print
+            debug.print("Test message", rate_limit=True)
+            assert mock_print.call_count == 1
+
+            # Second call within 2s should be rate limited
+            debug.print("Test message", rate_limit=True)
+            assert mock_print.call_count == 1  # No additional call
+
+            # Third call after 2s should print again
+            debug.print("Test message", rate_limit=True)
+            assert mock_print.call_count == 2
+
+    @patch("src.kpf.main._debug_enabled", True)
+    def test_debug_no_rate_limiting(self):
+        """Test that debug messages without rate limiting always print."""
+        from src.kpf.main import debug
+
+        with patch("src.kpf.main.console.print") as mock_print:
+            # Multiple calls without rate limiting should all print
+            debug.print("Test message 1")
+            debug.print("Test message 2")
+            debug.print("Test message 3")
+            assert mock_print.call_count == 3

@@ -162,6 +162,82 @@ class TestServiceSelector:
         warning_call = [call for call in mock_print.call_args_list if "Warning" in str(call)]
         assert len(warning_call) > 0
 
+    @patch("rich.prompt.IntPrompt.ask")
+    def test_prompt_for_local_port_privileged_available(self, mock_prompt, service_selector):
+        """Test _prompt_for_local_port with privileged port (< 1024) that is available after adding 1000."""
+        remote_port = 80  # HTTP port (privileged)
+        suggested_port = 1080  # 80 + 1000
+        user_port = 1080
+        mock_prompt.return_value = user_port
+
+        def mock_port_available(port):
+            return port == suggested_port  # Only 1080 is available
+
+        with (
+            patch.object(service_selector, "_is_port_available", side_effect=mock_port_available),
+            patch.object(service_selector.console, "print") as mock_print,
+        ):
+            result = service_selector._prompt_for_local_port(remote_port)
+
+        assert result == user_port
+        # Should print privileged port message
+        privileged_calls = [call for call in mock_print.call_args_list if "privileged" in str(call)]
+        assert len(privileged_calls) > 0
+        # Should suggest 1080
+        suggested_calls = [call for call in mock_print.call_args_list if "1080" in str(call)]
+        assert len(suggested_calls) > 0
+
+    @patch("rich.prompt.IntPrompt.ask")
+    def test_prompt_for_local_port_privileged_unavailable(self, mock_prompt, service_selector):
+        """Test _prompt_for_local_port with privileged port when suggested port (port+1000) is in use."""
+        remote_port = 443  # HTTPS port (privileged)
+        alternative_port = 1444  # Next available
+        user_port = 1444
+        mock_prompt.return_value = user_port
+
+        def mock_port_available(port):
+            return port == alternative_port  # Only 1444 is available
+
+        with (
+            patch.object(service_selector, "_is_port_available", side_effect=mock_port_available),
+            patch.object(service_selector, "_find_available_port", return_value=alternative_port),
+            patch.object(service_selector.console, "print") as mock_print,
+        ):
+            result = service_selector._prompt_for_local_port(remote_port)
+
+        assert result == user_port
+        # Should print privileged port message
+        privileged_calls = [call for call in mock_print.call_args_list if "privileged" in str(call)]
+        assert len(privileged_calls) > 0
+        # Should print that 1443 is in use
+        unavailable_calls = [
+            call
+            for call in mock_print.call_args_list
+            if "1443" in str(call) and "already in use" in str(call)
+        ]
+        assert len(unavailable_calls) > 0
+
+    @patch("rich.prompt.IntPrompt.ask")
+    def test_prompt_for_local_port_non_privileged(self, mock_prompt, service_selector):
+        """Test _prompt_for_local_port with non-privileged port (>= 1024) uses existing behavior."""
+        remote_port = 8080  # Non-privileged port
+        user_port = 8080
+        mock_prompt.return_value = user_port
+
+        def mock_port_available(port):
+            return port == remote_port  # Port is available
+
+        with (
+            patch.object(service_selector, "_is_port_available", side_effect=mock_port_available),
+            patch.object(service_selector.console, "print") as mock_print,
+        ):
+            result = service_selector._prompt_for_local_port(remote_port)
+
+        assert result == user_port
+        # Should NOT print privileged port message
+        privileged_calls = [call for call in mock_print.call_args_list if "privileged" in str(call)]
+        assert len(privileged_calls) == 0
+
     def test_display_services_table_without_check(self, service_selector, sample_service_info):
         """Test _display_services_table without endpoint checking."""
         services = [sample_service_info]

@@ -7,7 +7,10 @@ import subprocess
 import sys
 import threading
 import time
+from enum import Enum
+from typing import Tuple
 
+import requests
 from rich.console import Console
 
 # Initialize Rich console
@@ -15,6 +18,35 @@ console = Console()
 
 restart_event = threading.Event()
 shutdown_event = threading.Event()
+
+# Track last restart time for throttling
+_last_restart_time = 0
+RESTART_THROTTLE_SECONDS = 5
+
+# Track connectivity failure state
+_connectivity_failure_start_time = None
+CONNECTIVITY_CHECK_INTERVAL = 2.0  # Check every 2 seconds minimum
+CONNECTIVITY_FAILURE_TIMEOUT = 10.0  # Exit after 10 seconds of failures
+HTTP_TIMEOUT = 3.0  # HTTP request timeout
+HTTP_RETRY_INTERVAL = 2.0  # Minimum interval between HTTP retries
+
+# Connection health tracking
+_last_http_attempt_time = 0
+
+# Debug message rate limiting
+_debug_message_timestamps = {}
+DEBUG_MESSAGE_INTERVAL = 2.0  # Minimum interval between repeated debug messages
+
+
+class ConnectivityTestResult(Enum):
+    """Result of connectivity testing."""
+
+    SUCCESS = "success"
+    SOCKET_FAILURE = "socket_failure"
+    HTTP_CONNECTION_ERROR = "http_connection_error"
+    HTTP_TIMEOUT = "http_timeout"
+    UNKNOWN_ERROR = "unknown_error"
+
 
 # Global debug state
 _debug_enabled = False
@@ -25,9 +57,27 @@ _sigint_count = 0
 
 class Debug:
     @staticmethod
-    def print(message: str):
-        if _debug_enabled:
-            console.print(f"[dim cyan][DEBUG][/dim cyan] {message}")
+    def print(message: str, rate_limit: bool = False):
+        """Print debug message with optional rate limiting.
+
+        Args:
+            message: The debug message to print
+            rate_limit: If True, rate limit this message to once every DEBUG_MESSAGE_INTERVAL seconds
+        """
+        if not _debug_enabled:
+            return
+
+        if rate_limit:
+            current_time = time.time()
+            message_key = message[:50]  # Use first 50 chars as key to group similar messages
+
+            last_time = _debug_message_timestamps.get(message_key, 0)
+            if current_time - last_time < DEBUG_MESSAGE_INTERVAL:
+                return  # Rate limited
+
+            _debug_message_timestamps[message_key] = current_time
+
+        console.print(f"[dim cyan][DEBUG][/dim cyan] {message}")
 
 
 debug = Debug()
@@ -370,11 +420,17 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(1)
                 result = sock.connect_ex(("localhost", local_port))
-                if (
-                    result == 0 or result == 61
-                ):  # Connected or connection refused (service may be down but port-forward is working)
-                    debug.print(f"Port-forward appears to be working on port {local_port}")
+                if result == 0 or result == 61:
+                    # Connected (0) or connection refused (61) - both mean port-forward is working
+                    debug.print(
+                        f"Port-forward appears to be working on port {local_port} (result: {result})"
+                    )
                     return True
+                else:
+                    debug.print(
+                        f"Port-forward health check failed on port {local_port} with result: {result}"
+                    )
+                    return False
         except (OSError, socket.error):
             pass
 
@@ -384,6 +440,206 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
         f"Port-forward health check failed - port {local_port} not responding after {timeout}s"
     )
     return False
+
+
+def _test_socket_connectivity(local_port: int) -> Tuple[bool, str]:
+    """Test basic socket connectivity to the port.
+
+    Returns:
+        Tuple[bool, str]: (success, error_description)
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(2)  # Short timeout for connectivity check
+            result = sock.connect_ex(("localhost", local_port))
+
+            # Connection codes we consider successful:
+            # 0 = Connected successfully
+            # 61 (ECONNREFUSED) = Port is open but service refused connection (service may be down but port-forward works)
+            if result == 0:
+                debug.print(f"Socket connectivity test: Connected successfully (code: {result})")
+                return True, "connected"
+            elif result == 61:  # ECONNREFUSED on macOS/Linux
+                debug.print(
+                    f"Socket connectivity test: Connection refused - port-forward working, service may be down (code: {result})"
+                )
+                return True, "connection_refused"
+            else:
+                debug.print(f"Socket connectivity test failed (code: {result})")
+                return False, f"connection_error_{result}"
+
+    except (OSError, socket.error) as e:
+        debug.print(f"Socket connectivity test failed with exception: {e}")
+        return False, f"socket_exception_{type(e).__name__}"
+
+
+def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, str]:
+    """Test HTTP connectivity to the port.
+
+    This function attempts both HTTP and HTTPS requests to the local port.
+    Any response (including 404, 500, etc.) is considered successful as it proves
+    the port-forward is working and traffic is reaching the service.
+
+    Returns:
+        Tuple[ConnectivityTestResult, str]: (result, description)
+    """
+    global _last_http_attempt_time
+
+    current_time = time.time()
+
+    # Rate limit HTTP requests
+    if current_time - _last_http_attempt_time < HTTP_RETRY_INTERVAL:
+        debug.print("HTTP connectivity test rate limited")
+        return ConnectivityTestResult.SUCCESS, "rate_limited"
+
+    _last_http_attempt_time = current_time
+
+    # Try both HTTP and HTTPS
+    urls = [f"http://localhost:{local_port}", f"https://localhost:{local_port}"]
+
+    for url in urls:
+        try:
+            debug.print(f"Attempting HTTP connectivity test: {url}")
+
+            # Make request with short timeout and disabled SSL verification
+            response = requests.get(
+                url,
+                timeout=HTTP_TIMEOUT,
+                verify=False,  # Don't verify SSL for localhost
+                allow_redirects=False,  # Don't follow redirects for faster response
+            )
+
+            # Any HTTP response code is considered success
+            # (200, 404, 500, etc. all mean the service is reachable)
+            debug.print(f"HTTP connectivity test successful: {url} -> {response.status_code}")
+            return (
+                ConnectivityTestResult.SUCCESS,
+                f"http_response_{response.status_code}",
+            )
+
+        except requests.exceptions.ConnectTimeout:
+            debug.print(f"HTTP connectivity test timeout: {url}")
+            continue  # Try next URL
+
+        except requests.exceptions.ConnectionError as e:
+            debug.print(f"HTTP connectivity test connection error: {url} -> {e}")
+            continue  # Try next URL
+
+        except requests.exceptions.Timeout:
+            debug.print(f"HTTP connectivity test timeout: {url}")
+            continue  # Try next URL
+
+        except Exception as e:
+            debug.print(f"HTTP connectivity test unexpected error: {url} -> {e}")
+            continue  # Try next URL
+
+    # If we get here, all HTTP attempts failed
+    return ConnectivityTestResult.HTTP_CONNECTION_ERROR, "all_http_attempts_failed"
+
+
+def _check_port_connectivity(local_port: int) -> bool:
+    """Enhanced port connectivity check using both socket and HTTP testing.
+
+    First performs a basic socket connectivity test. If that passes and the
+    connection is successful (not just refused), also performs HTTP testing
+    to ensure the service is actually responding.
+
+    Args:
+        local_port: The local port to test
+
+    Returns:
+        bool: True if connectivity is healthy, False otherwise
+    """
+    global _connectivity_failure_start_time
+
+    if local_port is None:
+        debug.print("No local port specified, skipping connectivity check")
+        return True  # Can't test, assume it's working
+
+    debug.print(f"Starting enhanced connectivity check for port {local_port}", rate_limit=True)
+
+    # Step 1: Basic socket connectivity test
+    socket_success, socket_description = _test_socket_connectivity(local_port)
+
+    if not socket_success:
+        debug.print(f"Socket connectivity failed: {socket_description}")
+        _mark_connectivity_failure(f"socket_failure: {socket_description}")
+        return False
+
+    debug.print(f"Socket connectivity passed: {socket_description}")
+
+    # Step 2: If socket connected successfully (not just refused), test HTTP
+    if socket_description == "connected":
+        http_result, http_description = _test_http_connectivity(local_port)
+
+        if http_result == ConnectivityTestResult.SUCCESS:
+            debug.print(f"HTTP connectivity passed: {http_description}")
+            _mark_connectivity_success()
+            return True
+        else:
+            debug.print(f"HTTP connectivity failed: {http_description}")
+            # HTTP failure when socket works might indicate service issues
+            # but we'll still consider this as working port-forward
+            _mark_connectivity_success()
+            return True
+    else:
+        # Socket connection was refused - port-forward is working
+        # but service is not responding (which is OK)
+        debug.print("Connection refused - port-forward working, service not responding")
+        _mark_connectivity_success()
+        return True
+
+
+def _mark_connectivity_failure(reason: str):
+    """Mark the start of a connectivity failure period."""
+    global _connectivity_failure_start_time
+
+    if _connectivity_failure_start_time is None:
+        _connectivity_failure_start_time = time.time()
+        debug.print(f"Port connectivity failure started: {reason}")
+
+
+def _mark_connectivity_success():
+    """Mark successful connectivity, resetting failure tracking."""
+    global _connectivity_failure_start_time
+
+    if _connectivity_failure_start_time is not None:
+        failure_duration = time.time() - _connectivity_failure_start_time
+        debug.print(f"Port connectivity restored after {failure_duration:.1f}s")
+        _connectivity_failure_start_time = None
+
+
+def _check_connectivity_failure_timeout():
+    """Check if connectivity has been failing for too long and should trigger program exit."""
+    global _connectivity_failure_start_time
+
+    if _connectivity_failure_start_time is None:
+        return False  # No failure in progress
+
+    failure_duration = time.time() - _connectivity_failure_start_time
+    return failure_duration >= CONNECTIVITY_FAILURE_TIMEOUT
+
+
+def _get_connectivity_failure_duration():
+    """Get the duration of the current connectivity failure."""
+    if _connectivity_failure_start_time is None:
+        return 0
+    return time.time() - _connectivity_failure_start_time
+
+
+def _should_restart_port_forward():
+    """Check if enough time has passed since last restart to allow another restart."""
+    global _last_restart_time
+    current_time = time.time()
+    time_since_last_restart = current_time - _last_restart_time
+
+    if time_since_last_restart >= RESTART_THROTTLE_SECONDS:
+        _last_restart_time = current_time
+        return True
+    else:
+        remaining_time = RESTART_THROTTLE_SECONDS - time_since_last_restart
+        debug.print(f"Restart throttled: {remaining_time:.1f}s remaining")
+        return False
 
 
 def get_port_forward_args(args):
@@ -439,20 +695,23 @@ def port_forward_thread(args):
     """
     This thread runs the kubectl port-forward command.
     It listens for the `restart_event` and restarts the process when it's set.
+    It also monitors port connectivity every 5 seconds and restarts if connection fails.
     """
     debug.print(f"Port-forward thread started with args: {args}")
     proc = None
+    local_port = _extract_local_port(args)
+
     while not shutdown_event.is_set():
         try:
-            # Extract local port and display URL before starting
-            local_port = _extract_local_port(args)
+            console.print("\n[green]port-forward started[/green]")
+            console.print(f"[white]kpf {' '.join(args)}[/white]")
+            # Display URL before starting
             if local_port:
                 console.print(
-                    f"\n[blue][link=http://localhost:{local_port}]http://localhost:{local_port}[/link][/blue]"
+                    f"[blue][link=http://localhost:{local_port}]http://localhost:{local_port}[/link][/blue]"
                 )
-                console.print(f"[yellow]kubectl port-forward {' '.join(args)}[/yellow]")
 
-            console.print(
+            debug.print(
                 f"\n[green][Port-Forwarder] Starting: kubectl port-forward {' '.join(args)}[/green]"
             )
             debug.print(f"Executing: kubectl port-forward {' '.join(args)}")
@@ -478,15 +737,75 @@ def port_forward_thread(args):
                 shutdown_event.set()
                 return
 
-            # Wait for either a restart signal or a shutdown signal
-            # The timeout prevents blocking forever and allows the loop to check for shutdown_event
-            while not restart_event.is_set() and not shutdown_event.is_set():
-                time.sleep(0.1)  # More frequent checking for faster shutdown
+            # Main loop: wait for restart signal or shutdown, checking connectivity periodically
+            last_connectivity_check = time.time()
 
-            if proc:
-                console.print(
-                    f"[green][Port-Forwarder] Change detected on {args}. Restarting process...[/green]"
-                )
+            while not restart_event.is_set() and not shutdown_event.is_set():
+                current_time = time.time()
+
+                # Check if it's time to test connectivity (minimum 2 seconds between checks)
+                if current_time - last_connectivity_check >= CONNECTIVITY_CHECK_INTERVAL:
+                    debug.print(
+                        f"Checking port connectivity on port {local_port}",
+                        rate_limit=True,
+                    )
+
+                    if not _check_port_connectivity(local_port):
+                        failure_duration = _get_connectivity_failure_duration()
+                        console.print(
+                            f"[red]Port-forward connection failed on port {local_port}[/red]"
+                        )
+                        console.print(
+                            f"[yellow]Failed to establish a new connection (failing for {failure_duration:.1f}s)[/yellow]"
+                        )
+
+                        # Check if we've been failing for too long
+                        if _check_connectivity_failure_timeout():
+                            console.print(
+                                f"[red]Port-forward has been failing for {CONNECTIVITY_FAILURE_TIMEOUT}+ seconds[/red]"
+                            )
+                            console.print("[red]This usually indicates one of the following:[/red]")
+                            console.print(
+                                "[red]  • kubectl port-forward process died unexpectedly[/red]"
+                            )
+                            console.print(
+                                "[red]  • Target service/pod is no longer available[/red]"
+                            )
+                            console.print(
+                                "[red]  • Network connectivity issues to Kubernetes cluster[/red]"
+                            )
+                            console.print(
+                                f"[red]  • Port {local_port} is being blocked or intercepted[/red]"
+                            )
+                            console.print(
+                                "[yellow]Exiting kpf. Please check your service and cluster status.[/yellow]"
+                            )
+                            shutdown_event.set()
+                            return
+
+                        # Check if we should restart (throttling)
+                        if _should_restart_port_forward():
+                            restart_event.set()
+                            break
+                        else:
+                            console.print(
+                                f"[yellow]Restart throttled, will retry connectivity check in {CONNECTIVITY_CHECK_INTERVAL}s[/yellow]"
+                            )
+                    else:
+                        debug.print(
+                            f"Port connectivity check passed on port {local_port}",
+                            rate_limit=True,
+                        )
+
+                    last_connectivity_check = current_time
+
+                time.sleep(0.1)  # Short sleep for responsive shutdown
+
+            if proc and (restart_event.is_set() or shutdown_event.is_set()):
+                if restart_event.is_set():
+                    console.print(
+                        "[yellow][Port-Forwarder] Restarting port-forward process...[/yellow]"
+                    )
                 debug.print(f"Terminating port-forward process PID: {proc.pid}")
                 proc.terminate()  # Gracefully terminate the process
                 try:
@@ -543,7 +862,7 @@ def endpoint_watcher_thread(namespace, resource_name):
     proc = None
     while not shutdown_event.is_set():
         try:
-            console.print(
+            debug.print(
                 f"[green][Watcher] Starting watcher for endpoint changes for '{namespace}/{resource_name}'...[/green]"
             )
             command = [
@@ -556,7 +875,10 @@ def endpoint_watcher_thread(namespace, resource_name):
                 namespace,
                 resource_name,
             ]
-            debug.print(f"Executing endpoint watcher command: {' '.join(command)}")
+            debug.print(
+                f"Executing endpoint watcher command: {' '.join(command)}",
+                rate_limit=True,
+            )
 
             proc = subprocess.Popen(
                 command,
@@ -573,20 +895,38 @@ def endpoint_watcher_thread(namespace, resource_name):
                 if shutdown_event.is_set():
                     debug.print("Shutdown event detected in endpoint watcher, breaking")
                     break
-                debug.print(f"Endpoint watcher received line: {line.strip()}")
+                debug.print(f"Endpoint watcher received line: {line.strip()}", rate_limit=True)
                 # The first line is the table header, which we should ignore.
                 if is_first_line:
                     is_first_line = False
                     debug.print("Skipping first line (header)")
                     continue
                 else:
-                    debug.print("Endpoint change detected, setting restart event")
+                    debug.print("Endpoint change detected")
                     debug.print(f"Endpoint change details: {line.strip()}")
-                restart_event.set()
+
+                    # Check if we should restart (throttling)
+                    if _should_restart_port_forward():
+                        console.print(
+                            "[green][Watcher] Endpoint change detected, restarting port-forward...[/green]"
+                        )
+                        restart_event.set()
+                    else:
+                        console.print(
+                            "[yellow][Watcher] Endpoint change detected, but restart throttled[/yellow]"
+                        )
 
             # If the subprocess finishes, we should break out and restart the watcher
             # This handles cases where the kubectl process itself might terminate.
             proc.wait()
+
+            # Add delay before restarting to prevent rapid kubectl process creation
+            if not shutdown_event.is_set():
+                debug.print(
+                    "Endpoint watcher kubectl process ended, waiting 2s before restart",
+                    rate_limit=True,
+                )
+                time.sleep(2)
 
         except Exception as e:
             console.print(f"[red][Watcher] An error occurred: {e}[/red]")
@@ -600,6 +940,7 @@ def endpoint_watcher_thread(namespace, resource_name):
                         proc.wait(timeout=0.5)
                     except subprocess.TimeoutExpired:
                         pass
+
             shutdown_event.set()
             return
 

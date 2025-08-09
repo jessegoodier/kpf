@@ -243,32 +243,54 @@ class ServiceSelector:
     def _prompt_for_local_port(self, remote_port: int) -> int:
         """Prompt user for local port, defaulting to remote port or suggesting alternative if in use."""
         try:
-            # Check if the remote port is available
-            if self._is_port_available(remote_port):
-                # Port is available, use as default
-                local_port = IntPrompt.ask(
-                    f"Local port (press Enter for {remote_port})",
-                    default=remote_port,
-                    show_default=False,
-                )
-            else:
-                # Port is in use, find an available alternative
-                suggested_port = self._find_available_port(remote_port + 1)
-                self.console.print(f"[yellow]Port {remote_port} is already in use[/yellow]")
-                local_port = IntPrompt.ask(
-                    f"Local port (press Enter for {suggested_port})",
-                    default=suggested_port,
-                    show_default=False,
+            # If remote port is privileged (< 1024), suggest adding 1000
+            if remote_port < 1024:
+                suggested_port = remote_port + 1000
+                self.console.print(
+                    f"[cyan]Service port {remote_port} is privileged (< 1024), suggesting {suggested_port}[/cyan]"
                 )
 
-            # Validate the chosen port and warn if it's in use
-            if local_port != remote_port and local_port != self._find_available_port(
-                remote_port + 1
-            ):
-                if not self._is_port_available(local_port):
-                    self.console.print(
-                        f"[yellow]Warning: Port {local_port} appears to be in use[/yellow]"
+                # Check if suggested port is available
+                if self._is_port_available(suggested_port):
+                    local_port = IntPrompt.ask(
+                        f"Local port (press Enter for {suggested_port})",
+                        default=suggested_port,
+                        show_default=False,
                     )
+                else:
+                    # Suggested port is in use, find next available
+                    alternative_port = self._find_available_port(suggested_port + 1)
+                    self.console.print(f"[yellow]Port {suggested_port} is already in use[/yellow]")
+                    local_port = IntPrompt.ask(
+                        f"Local port (press Enter for {alternative_port})",
+                        default=alternative_port,
+                        show_default=False,
+                    )
+            else:
+                # Non-privileged port logic (existing behavior)
+                # Check if the remote port is available
+                if self._is_port_available(remote_port):
+                    # Port is available, use as default
+                    local_port = IntPrompt.ask(
+                        f"Local port (press Enter for {remote_port})",
+                        default=remote_port,
+                        show_default=False,
+                    )
+                else:
+                    # Port is in use, find an available alternative
+                    suggested_port = self._find_available_port(remote_port + 1)
+                    self.console.print(f"[yellow]Port {remote_port} is already in use[/yellow]")
+                    local_port = IntPrompt.ask(
+                        f"Local port (press Enter for {suggested_port})",
+                        default=suggested_port,
+                        show_default=False,
+                    )
+
+            # Validate the chosen port and warn if it's in use
+            if not self._is_port_available(local_port):
+                self.console.print(
+                    f"[yellow]Warning: Port {local_port} appears to be in use[/yellow]"
+                )
 
             return local_port
         except KeyboardInterrupt:
