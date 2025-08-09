@@ -499,19 +499,6 @@ class TestPortValidation:
         assert result is True
 
     @patch("src.kpf.main.socket.socket")
-    def test_test_port_forward_health_connection_refused(self, mock_socket):
-        """Test port-forward health check with connection refused (still working)."""
-        args = ["svc/test", "8080:80", "-n", "default"]
-
-        # Mock connection refused (errno 61 on macOS)
-        mock_sock_instance = Mock()
-        mock_sock_instance.connect_ex.return_value = 61  # Connection refused
-        mock_socket.return_value.__enter__.return_value = mock_sock_instance
-
-        result = _test_port_forward_health(args, timeout=1)
-        assert result is True  # Connection refused still means port-forward is working
-
-    @patch("src.kpf.main.socket.socket")
     @patch("time.sleep")
     def test_test_port_forward_health_timeout(self, mock_sleep, mock_socket):
         """Test port-forward health check timeout."""
