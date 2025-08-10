@@ -1,5 +1,7 @@
 .kubeconfig
 temp/
+homebrew-kpf/
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -206,3 +208,4 @@ __marimo__/
 .streamlit/secrets.toml
 CLAUDE.md
 gke_gcloud_auth_plugin_cache
+homebrew-kpf
