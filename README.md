@@ -2,9 +2,7 @@
 
 This is a Python utility that (attempts) to dramatically improve the experience of port-forwarding with kubectl.
 
-Primary features:
-Interactive service selection with colored tables and support for multiple Kubernetes resource types.
-Automatically restarts port-forwards when endpoint changes are detected. Normally (without this tool), this is a terrible experience with the port-forward cli only updating after you switch to a browser and attempt to connect.
+It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic restarts when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
 
 ## Features
 
@@ -35,31 +33,44 @@ pipx install uv
 
 ### Interactive Mode (Recommended)
 
-**Warm Tip**: You can use the interactive mode to find the service you want, and the command to connect to that service directly next time is output just before the connection is established.
+**Warm Tip**: You can use the interactive mode to find the service you want, and it will output the command to connect to that service directly next time.
+
+**Note**: You might think that "warm tip" is something that AI wrote, but that's not the case. It really is just a little bit less than a hot tip.
 
 ![screenshot](kpf-screenshot.png)
 
-Select services interactively with a colored table:
+Select services interactively:
+
+Interactive selection in current namespace:
 
 ```bash
-# Interactive selection in current namespace
 kpf --prompt
+```
 
-# or just:
-kpf -p
+Interactive selection in specific namespace:
 
-# Interactive selection in specific namespace
+```bash
 kpf --prompt -n production
 
-# or just:
-kpf -p -n production
+Show all services across all namespaces:
 
-# Show all services across all namespaces
+```bash
 kpf --all
+```
 
-# Include pods and deployments with ports defined
+Include pods and deployments with ports defined:
+
+```bash
 kpf --all-ports
 ```
+
+Combine a few options (interactive mode, all services, and endpoint status checking, debug mode):
+
+```bash
+kpf -pAdl
+```
+
+
 
 ### Check Mode
 
