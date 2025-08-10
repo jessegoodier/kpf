@@ -17,6 +17,21 @@ It is essentially a wrapper around `kubectl port-forward` that adds an interacti
 
 **Note**: `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. If you prefer this tool, you can alias at the bottom of your `~/.zshrc` file or use a different alias.
 
+### Homebrew (Recommended)
+
+```bash
+brew tap jessegoodier/kpf
+brew install kpf
+```
+
+Or install directly:
+
+```bash
+brew install jessegoodier/kpf/kpf
+```
+
+### Using uv
+
 If you have `uv` installed, you can "install" `kpf` with:
 
 ```bash
@@ -27,6 +42,12 @@ Install uv with pipx:
 
 ```bash
 pipx install uv
+```
+
+### Using pip
+
+```bash
+pip install kpf
 ```
 
 ## Usage
