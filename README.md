@@ -2,7 +2,7 @@
 
 This is a Python utility that (attempts) to dramatically improve the experience of port-forwarding with kubectl.
 
-It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic restarts when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
+It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic reconnect when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
 
 ## Features
 
