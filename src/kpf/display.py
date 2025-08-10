@@ -30,12 +30,8 @@ class ServiceSelector:
             )
         except subprocess.CalledProcessError as e:
             # Get the actual error output from kubectl
-            error_output = (
-                e.stderr.decode("utf-8") if e.stderr else "No error output available"
-            )
-            stdout_output = (
-                e.stdout.decode("utf-8") if e.stdout else "No output available"
-            )
+            error_output = e.stderr.decode("utf-8") if e.stderr else "No error output available"
+            stdout_output = e.stdout.decode("utf-8") if e.stdout else "No output available"
 
             raise RuntimeError(
                 f"kubectl command failed with exit code {e.returncode}.\n"
@@ -71,9 +67,7 @@ class ServiceSelector:
         if not namespace:
             namespace = self.k8s_client.get_current_namespace()
 
-        self.console.print(
-            f"\n[bold cyan]Services in namespace: {namespace}[/bold cyan]"
-        )
+        self.console.print(f"\n[bold cyan]Services in namespace: {namespace}[/bold cyan]")
 
         # Get services
         services = self.k8s_client.get_services_in_namespace(namespace, check_endpoints)
@@ -88,9 +82,7 @@ class ServiceSelector:
             all_resources.sort(key=lambda r: (r.service_type, r.name))
 
         if not all_resources:
-            self.console.print(
-                f"[yellow]No resources found in namespace '{namespace}'[/yellow]"
-            )
+            self.console.print(f"[yellow]No resources found in namespace '{namespace}'[/yellow]")
             return []
 
         # Display table
@@ -103,9 +95,7 @@ class ServiceSelector:
         self, include_all_ports: bool = False, check_endpoints: bool = False
     ) -> List[str]:
         """Select a service interactively across all namespaces."""
-        self.console.print(
-            "\n[bold cyan]Getting services across all namespaces...[/bold cyan]"
-        )
+        self.console.print("\n[bold cyan]Getting services across all namespaces...[/bold cyan]")
 
         # Get all services
         all_services_by_ns = self.k8s_client.get_all_services(check_endpoints)
@@ -179,18 +169,14 @@ class ServiceSelector:
 
         # Only show legend if we're checking endpoints
         if check_endpoints:
-            self.console.print(
-                "\n[green]✓[/green] = Has endpoints  [red]✗[/red] = No endpoints"
-            )
+            self.console.print("\n[green]✓[/green] = Has endpoints  [red]✗[/red] = No endpoints")
 
     def _prompt_for_service_selection(
         self, resources: List[ServiceInfo], namespace: Optional[str] = None
     ) -> List[str]:
         """Prompt user to select a service and return port-forward arguments."""
         try:
-            selection = IntPrompt.ask(
-                "\nSelect a service", default=1, show_default=True
-            )
+            selection = IntPrompt.ask("\nSelect a service", default=1, show_default=True)
 
             if selection < 1 or selection > len(resources):
                 self.console.print("[red]Invalid selection[/red]")
@@ -209,9 +195,7 @@ class ServiceSelector:
             return self._prompt_for_port_selection(selected_resource)
 
         except KeyboardInterrupt:
-            self.console.print(
-                "\n[yellow]Service selection cancelled (Ctrl+C)[/yellow]"
-            )
+            self.console.print("\n[yellow]Service selection cancelled (Ctrl+C)[/yellow]")
             return []
 
     def _prompt_for_port_selection(self, resource: ServiceInfo) -> List[str]:
@@ -235,9 +219,7 @@ class ServiceSelector:
         self.console.print(port_table)
 
         try:
-            port_selection = IntPrompt.ask(
-                "Select a port", default=1, show_default=True
-            )
+            port_selection = IntPrompt.ask("Select a port", default=1, show_default=True)
 
             if port_selection < 1 or port_selection > len(resource.ports):
                 self.console.print("[red]Invalid port selection[/red]")
@@ -278,9 +260,7 @@ class ServiceSelector:
                 else:
                     # Suggested port is in use, find next available
                     alternative_port = self._find_available_port(suggested_port + 1)
-                    self.console.print(
-                        f"[yellow]Port {suggested_port} is already in use[/yellow]"
-                    )
+                    self.console.print(f"[yellow]Port {suggested_port} is already in use[/yellow]")
                     local_port = IntPrompt.ask(
                         f"Local port (press Enter for {alternative_port})",
                         default=alternative_port,
@@ -299,9 +279,7 @@ class ServiceSelector:
                 else:
                     # Port is in use, find an available alternative
                     suggested_port = self._find_available_port(remote_port + 1)
-                    self.console.print(
-                        f"[yellow]Port {remote_port} is already in use[/yellow]"
-                    )
+                    self.console.print(f"[yellow]Port {remote_port} is already in use[/yellow]")
                     local_port = IntPrompt.ask(
                         f"Local port (press Enter for {suggested_port})",
                         default=suggested_port,
