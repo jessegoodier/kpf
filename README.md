@@ -206,9 +206,6 @@ uvx isort .
 
 # Run tests
 uv run pytest
-
-# Bump version
-uvx bump-my-version bump patch --allow-dirty --no-commit  --no-tag
 ```
 
 ## Contributing
