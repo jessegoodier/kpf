@@ -70,8 +70,6 @@ Combine a few options (interactive mode, all services, and endpoint status check
 kpf -pAdl
 ```
 
-
-
 ### Check Mode
 
 Add endpoint status checking to service selection (slower but shows endpoint health):
