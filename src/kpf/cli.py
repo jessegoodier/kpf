@@ -38,9 +38,7 @@ Example usage:
         """,
     )
 
-    parser.add_argument(
-        "--version", "-v", action="version", version=f"kpf {__version__}"
-    )
+    parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
 
     parser.add_argument(
         "--prompt",
@@ -85,9 +83,7 @@ Example usage:
     )
 
     # Positional arguments for legacy port-forward syntax
-    parser.add_argument(
-        "args", nargs="*", help="kubectl port-forward arguments (legacy mode)"
-    )
+    parser.add_argument("args", nargs="*", help="kubectl port-forward arguments (legacy mode)")
 
     return parser
 
@@ -105,9 +101,7 @@ def handle_prompt_mode(
     if show_all:
         return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
     else:
-        return selector.select_service_in_namespace(
-            namespace, show_all_ports, check_endpoints
-        )
+        return selector.select_service_in_namespace(namespace, show_all_ports, check_endpoints)
 
 
 def check_kubectl():
