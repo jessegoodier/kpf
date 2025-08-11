@@ -88,18 +88,21 @@ class TestArgumentParser:
     def test_parser_legacy_args(self):
         """Test legacy kubectl port-forward arguments."""
         parser = create_parser()
-        args = parser.parse_args(["svc/frontend", "8080:8080", "-n", "production"])
+        args, unknown_args = parser.parse_known_args(
+            ["svc/frontend", "8080:8080", "-n", "production"]
+        )
 
         # The parser separates namespace from positional args
         assert args.args == ["svc/frontend", "8080:8080"]
         assert args.namespace == "production"
+        assert unknown_args == []
         assert args.prompt is False
         assert args.all is False
 
     def test_parser_short_flags(self):
         """Test short flag versions."""
         parser = create_parser()
-        args = parser.parse_args(["-p", "-c", "-A", "-l", "-n", "test", "-d"])
+        args, unknown_args = parser.parse_known_args(["-p", "-c", "-A", "-l", "-n", "test", "-d"])
 
         assert args.prompt is True
         assert args.check is True
@@ -107,6 +110,106 @@ class TestArgumentParser:
         assert args.all_ports is True
         assert args.namespace == "test"
         assert args.debug is True
+        assert unknown_args == []
+
+
+class TestKubectlArgumentPassthrough:
+    """Test kubectl argument passthrough functionality.
+
+    These tests ensure that kpf can pass through kubectl port-forward arguments
+    that it doesn't recognize, allowing full compatibility with kubectl options
+    like --address, --pod-running-timeout, and global kubectl options.
+
+    This functionality was added to support the original issue where commands like:
+    `kpf service/porthole 7070:7070 -n porthole --address 0.0.0.0`
+    were failing with "unrecognized arguments" errors.
+    """
+
+    def test_parser_kubectl_address_option(self):
+        """Test kubectl --address option is passed through."""
+        parser = create_parser()
+        args, unknown_args = parser.parse_known_args(
+            ["svc/frontend", "8080:8080", "-n", "production", "--address", "0.0.0.0"]
+        )
+
+        assert args.args == ["svc/frontend", "8080:8080"]
+        assert args.namespace == "production"
+        assert unknown_args == ["--address", "0.0.0.0"]
+
+    def test_parser_kubectl_pod_running_timeout(self):
+        """Test kubectl --pod-running-timeout option is passed through."""
+        parser = create_parser()
+        args, unknown_args = parser.parse_known_args(
+            ["svc/frontend", "8080:8080", "--pod-running-timeout", "2m", "-n", "production"]
+        )
+
+        assert args.args == ["svc/frontend", "8080:8080"]
+        assert args.namespace == "production"
+        assert unknown_args == ["--pod-running-timeout", "2m"]
+
+    def test_parser_multiple_kubectl_options(self):
+        """Test multiple kubectl options are passed through."""
+        parser = create_parser()
+        args, unknown_args = parser.parse_known_args(
+            [
+                "svc/frontend",
+                "8080:8080",
+                "-n",
+                "production",
+                "--address",
+                "0.0.0.0",
+                "--pod-running-timeout",
+                "30s",
+            ]
+        )
+
+        assert args.args == ["svc/frontend", "8080:8080"]
+        assert args.namespace == "production"
+        assert unknown_args == ["--address", "0.0.0.0", "--pod-running-timeout", "30s"]
+
+    def test_parser_kubectl_global_options(self):
+        """Test kubectl global options are passed through."""
+        parser = create_parser()
+        args, unknown_args = parser.parse_known_args(
+            [
+                "svc/frontend",
+                "8080:8080",
+                "-n",
+                "production",
+                "--context",
+                "my-cluster",
+                "--kubeconfig",
+                "/path/to/config",
+            ]
+        )
+
+        assert args.args == ["svc/frontend", "8080:8080"]
+        assert args.namespace == "production"
+        assert unknown_args == ["--context", "my-cluster", "--kubeconfig", "/path/to/config"]
+
+    def test_parser_only_kubectl_options(self):
+        """Test when only kubectl options are provided (no args)."""
+        parser = create_parser()
+        args, unknown_args = parser.parse_known_args(
+            ["--address", "0.0.0.0", "svc/frontend", "8080:8080"]
+        )
+
+        # Note: argparse treats the value "0.0.0.0" as a positional arg when --address appears before resource
+        # This behavior is consistent with how kubectl itself works
+        assert args.args == ["0.0.0.0", "svc/frontend", "8080:8080"]
+        assert unknown_args == ["--address"]
+
+    def test_parser_mixed_kpf_kubectl_options(self):
+        """Test mixing kpf and kubectl options."""
+        parser = create_parser()
+        args, unknown_args = parser.parse_known_args(
+            ["--debug", "svc/frontend", "8080:8080", "--address", "0.0.0.0", "-n", "production"]
+        )
+
+        assert args.debug is True
+        assert args.namespace == "production"
+        assert args.args == ["svc/frontend", "8080:8080"]
+        assert unknown_args == ["--address", "0.0.0.0"]
 
 
 class TestHandlePromptMode:
@@ -232,6 +335,125 @@ class TestMainFunction:
 
         mock_run_pf.assert_called_once_with(
             ["svc/frontend", "8080:8080", "-n", "production"], debug_mode=False
+        )
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch(
+        "sys.argv", ["kpf", "svc/frontend", "8080:8080", "-n", "production", "--address", "0.0.0.0"]
+    )
+    def test_main_kubectl_address_option(self, mock_run_pf):
+        """Test main function with kubectl --address option."""
+        main()
+
+        mock_run_pf.assert_called_once_with(
+            ["svc/frontend", "8080:8080", "--address", "0.0.0.0", "-n", "production"],
+            debug_mode=False,
+        )
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch("sys.argv", ["kpf", "svc/frontend", "8080:8080", "--pod-running-timeout", "2m"])
+    def test_main_kubectl_pod_timeout_option(self, mock_run_pf):
+        """Test main function with kubectl --pod-running-timeout option."""
+        main()
+
+        mock_run_pf.assert_called_once_with(
+            ["svc/frontend", "8080:8080", "--pod-running-timeout", "2m"], debug_mode=False
+        )
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch(
+        "sys.argv",
+        [
+            "kpf",
+            "svc/frontend",
+            "8080:8080",
+            "-n",
+            "prod",
+            "--address",
+            "0.0.0.0",
+            "--pod-running-timeout",
+            "30s",
+        ],
+    )
+    def test_main_multiple_kubectl_options(self, mock_run_pf):
+        """Test main function with multiple kubectl options."""
+        main()
+
+        mock_run_pf.assert_called_once_with(
+            [
+                "svc/frontend",
+                "8080:8080",
+                "--address",
+                "0.0.0.0",
+                "--pod-running-timeout",
+                "30s",
+                "-n",
+                "prod",
+            ],
+            debug_mode=False,
+        )
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch("sys.argv", ["kpf", "--debug", "svc/frontend", "8080:8080", "--address", "0.0.0.0"])
+    def test_main_mixed_kpf_kubectl_options(self, mock_run_pf):
+        """Test main function mixing kpf and kubectl options."""
+        main()
+
+        mock_run_pf.assert_called_once_with(
+            ["svc/frontend", "8080:8080", "--address", "0.0.0.0"], debug_mode=True
+        )
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch("sys.argv", ["kpf", "svc/frontend", "8080:8080", "--namespace", "ignored"])
+    def test_main_namespace_precedence(self, mock_run_pf):
+        """Test that kpf --namespace option is parsed and used."""
+        main()
+
+        # kpf's --namespace should be parsed as a known argument and added as -n
+        mock_run_pf.assert_called_once_with(
+            ["svc/frontend", "8080:8080", "-n", "ignored"], debug_mode=False
+        )
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch(
+        "sys.argv", ["kpf", "svc/frontend", "8080:8080", "-n", "existing", "--namespace", "kpf-arg"]
+    )
+    def test_main_namespace_override(self, mock_run_pf):
+        """Test that kpf --namespace overrides earlier -n argument."""
+        main()
+
+        # When both -n and --namespace are specified, --namespace (kpf's option) takes precedence
+        # This is the expected argparse behavior - later arguments override earlier ones
+        mock_run_pf.assert_called_once_with(
+            ["svc/frontend", "8080:8080", "-n", "kpf-arg"], debug_mode=False
+        )
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch(
+        "sys.argv",
+        ["kpf", "svc/frontend", "8080:8080", "--context", "my-cluster", "-n", "kubectl-ns"],
+    )
+    def test_main_kubectl_namespace_no_duplication(self, mock_run_pf):
+        """Test that -n is not duplicated when it already exists in known args."""
+        main()
+
+        # -n is parsed as kpf's namespace argument, so no additional -n should be added
+        # --context remains as unknown kubectl arg
+        mock_run_pf.assert_called_once_with(
+            ["svc/frontend", "8080:8080", "--context", "my-cluster", "-n", "kubectl-ns"],
+            debug_mode=False,
+        )
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch("sys.argv", ["kpf", "--address", "0.0.0.0", "svc/frontend", "8080:8080"])
+    def test_main_kubectl_option_before_resource(self, mock_run_pf):
+        """Test kubectl options appearing before resource specification."""
+        main()
+
+        # Note: When --address appears before resource, argparse treats "0.0.0.0" as positional arg
+        # This matches kubectl behavior where options should come after resource and port specs
+        mock_run_pf.assert_called_once_with(
+            ["0.0.0.0", "svc/frontend", "8080:8080", "--address"], debug_mode=False
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")

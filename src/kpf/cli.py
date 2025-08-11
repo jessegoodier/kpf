@@ -115,7 +115,7 @@ def check_kubectl():
 def main():
     """Main CLI entry point."""
     parser = create_parser()
-    args = parser.parse_args()
+    args, unknown_args = parser.parse_known_args()
 
     try:
         port_forward_args = None
@@ -132,11 +132,16 @@ def main():
                 console.print("No service selected. Exiting.", style="dim")
                 sys.exit(0)
 
-        # Handle legacy mode
-        elif args.args:
-            port_forward_args = args.args
-            # Add namespace if specified
-            if args.namespace and "-n" not in port_forward_args:
+        # Handle legacy mode (direct kubectl port-forward arguments)
+        elif args.args or unknown_args:
+            # Combine explicit args and unknown kubectl arguments
+            port_forward_args = args.args + unknown_args
+            # Add namespace if specified and not already present
+            if (
+                args.namespace
+                and "-n" not in port_forward_args
+                and "--namespace" not in port_forward_args
+            ):
                 port_forward_args.extend(["-n", args.namespace])
 
         else:
