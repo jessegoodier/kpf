@@ -34,7 +34,7 @@ class TestCLIIntegration:
 
         assert result.returncode == 0
         assert "kpf" in result.stdout
-        assert "0.1.16" in result.stdout
+        assert "0.1.17" in result.stdout
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
@@ -64,7 +64,7 @@ class TestCLIIntegration:
             from src.kpf.kubernetes import KubernetesClient, ServiceInfo
             from src.kpf.main import run_port_forward
 
-            assert __version__ == "0.1.16"
+            assert __version__ == "0.1.17"
             assert callable(main)
             assert KubernetesClient is not None
             assert ServiceInfo is not None

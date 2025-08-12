@@ -439,12 +439,12 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
                     debug.print(
                         f"Port-forward health check failed on port {local_port} [red](result: {result})[/red]"
                     )
-                    return False
+                    # return False # don't return false here, we want to keep trying
                 else:
                     debug.print(
                         f"Port-forward health check failed on port {local_port} [red](result: {result})[/red]"
                     )
-                    return False
+                    # return False # don't return false here, we want to keep trying
         except (OSError, socket.error):
             pass
 
