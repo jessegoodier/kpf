@@ -25,6 +25,7 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "rich>=14",
     "requests>=2.28",
+    "prompt-toolkit>=3.0.51",
 ]
 
 [project.optional-dependencies]
@@ -128,6 +129,7 @@ dev = [
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "pytest-timeout>=2.4.0",
+    "readchar>=4.2.1",
     "ruff>=0.12.8",
 ]
 
