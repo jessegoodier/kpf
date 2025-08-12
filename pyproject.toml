@@ -1,6 +1,6 @@
 [project]
 name = "kpf"
-version = "0.1.15"
+version = "0.1.16"
 description = "A terminal utility to run kubectl port-forward and automatically restart it when endpoint changes are detected"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -54,6 +54,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build]
 include = ["src/kpf"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/kpf"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/kpf"]
 
 [tool.ruff]
 line-length = 100
@@ -89,7 +94,7 @@ filterwarnings = [
 ]
 
 [tool.bumpversion]
-current_version = "0.1.15"
+current_version = "0.1.16"
 commit = false
 tag = false
 tag_name = "{new_version}"
