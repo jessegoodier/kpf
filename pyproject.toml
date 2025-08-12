@@ -36,6 +36,7 @@ dev = [
     "pytest-cov",
     "pytest-timeout",
     "coverage",
+    "hatch",
 ]
 
 [project.urls]
@@ -53,11 +54,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build]
 include = ["src/kpf"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/kpf"]
-
-[tool.hatch.build.targets.sdist]
-include = ["src/kpf"]
 
 [tool.ruff]
 line-length = 100
