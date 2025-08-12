@@ -124,5 +124,10 @@ filename = "tests/test_integration.py"
 dev = [
     "build>=1.3.0",
     "hatchling>=1.27.0",
+    "isort>=6.0.1",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.12.8",
 ]
 

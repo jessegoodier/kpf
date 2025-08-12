@@ -86,7 +86,11 @@ class ServiceSelector:
             return []
 
         # Display table
-        self._display_services_table(all_resources, check_endpoints=check_endpoints)
+        self._display_services_table(
+            all_resources,
+            check_endpoints=check_endpoints,
+            include_all_ports=include_all_ports,
+        )
 
         # Get user selection
         return self._prompt_for_service_selection(all_resources, namespace)
@@ -95,7 +99,10 @@ class ServiceSelector:
         self, include_all_ports: bool = False, check_endpoints: bool = False
     ) -> List[str]:
         """Select a service interactively across all namespaces."""
-        self.console.print("\n[bold cyan]Getting services across all namespaces...[/bold cyan]")
+        if include_all_ports:
+            self.console.print("\n[bold cyan]Getting ports across all namespaces...[/bold cyan]")
+        else:
+            self.console.print("\n[bold cyan]Getting services across all namespaces...[/bold cyan]")
 
         # Get all services
         all_services_by_ns = self.k8s_client.get_all_services(check_endpoints)
@@ -120,7 +127,10 @@ class ServiceSelector:
 
         # Display table
         self._display_services_table(
-            all_resources, show_namespace=True, check_endpoints=check_endpoints
+            all_resources,
+            show_namespace=True,
+            check_endpoints=check_endpoints,
+            include_all_ports=include_all_ports,
         )
 
         # Get user selection
@@ -131,6 +141,7 @@ class ServiceSelector:
         resources: List[ServiceInfo],
         show_namespace: bool = False,
         check_endpoints: bool = False,
+        include_all_ports: bool = False,
     ):
         """Display services in a colored table."""
         table = Table()
@@ -138,7 +149,9 @@ class ServiceSelector:
         table.add_column("#", style="dim", width=4)
         if show_namespace:
             table.add_column("Namespace", style="cyan")
-        table.add_column("Type", style="magenta")
+        # Only show Type column when including all ports
+        if include_all_ports:
+            table.add_column("Type", style="magenta")
         table.add_column("Name", style="bold")
         table.add_column("Ports", style="cyan")
 
@@ -149,13 +162,21 @@ class ServiceSelector:
         for i, resource in enumerate(resources, 1):
             row = [
                 str(i),
-                resource.service_type.upper(),
                 resource.name,
                 resource.port_summary,
             ]
 
             if show_namespace:
                 row.insert(1, resource.namespace)
+
+            # Only add Type column when including all ports
+            if include_all_ports:
+                # Convert service_type to lowercase for display
+                type_value = resource.service_type.lower()
+                if show_namespace:
+                    row.insert(2, type_value)
+                else:
+                    row.insert(1, type_value)
 
             # Only add status if we're checking endpoints
             if check_endpoints:

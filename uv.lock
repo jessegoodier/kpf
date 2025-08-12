@@ -521,6 +521,11 @@ dev = [
 dev = [
     { name = "build" },
     { name = "hatchling" },
+    { name = "isort" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-timeout" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -542,6 +547,11 @@ provides-extras = ["dev"]
 dev = [
     { name = "build", specifier = ">=1.3.0" },
     { name = "hatchling", specifier = ">=1.27.0" },
+    { name = "isort", specifier = ">=6.0.1" },
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-cov", specifier = ">=6.2.1" },
+    { name = "pytest-timeout", specifier = ">=2.4.0" },
+    { name = "ruff", specifier = ">=0.12.8" },
 ]
 
 [[package]]
