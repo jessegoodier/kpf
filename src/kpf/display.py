@@ -85,13 +85,6 @@ class ServiceSelector:
             self.console.print(f"[yellow]No resources found in namespace '{namespace}'[/yellow]")
             return []
 
-        # Display table
-        self._display_services_table(
-            all_resources,
-            check_endpoints=check_endpoints,
-            include_all_ports=include_all_ports,
-        )
-
         # Get user selection
         return self._prompt_for_service_selection(
             all_resources,
@@ -130,14 +123,6 @@ class ServiceSelector:
 
         # Sort by namespace, then type, then name
         all_resources.sort(key=lambda r: (r.namespace, r.service_type, r.name))
-
-        # Display table
-        self._display_services_table(
-            all_resources,
-            show_namespace=True,
-            check_endpoints=check_endpoints,
-            include_all_ports=include_all_ports,
-        )
 
         # Get user selection
         return self._prompt_for_service_selection(
@@ -228,6 +213,10 @@ class ServiceSelector:
         """Prompt user to select a service and return port-forward arguments."""
         # First, try an interactive keyboard navigation if available
         selection: Optional[int] = None
+        # Resolve layout flags up-front so they can be used in both interactive and fallback paths
+        show_namespace_flag = namespace is None if show_namespace is None else show_namespace
+        include_all_ports_flag = include_all_ports if include_all_ports is not None else False
+        check_endpoints_flag = bool(check_endpoints)
         try:
             # Only attempt interactive navigation in a TTY
             if sys.stdin.isatty() and sys.stdout.isatty():
@@ -235,15 +224,6 @@ class ServiceSelector:
                     # Lazy imports (optional dependency)
                     from readchar import key, readkey
                     from rich.live import Live
-
-                    # Resolve layout flags
-                    show_namespace_flag = (
-                        namespace is None if show_namespace is None else show_namespace
-                    )
-                    include_all_ports_flag = (
-                        include_all_ports if include_all_ports is not None else False
-                    )
-                    check_endpoints_flag = bool(check_endpoints)
 
                     current_index = 1
                     max_index = len(resources)
@@ -266,6 +246,11 @@ class ServiceSelector:
                         transient=True,
                     ) as live:
                         self.console.print(help_text, style="dim")
+                        if check_endpoints_flag:
+                            self.console.print(
+                                "[green]✓[/green] = Has endpoints  [red]✗[/red] = No endpoints",
+                                style="dim",
+                            )
                         typed_number = ""
                         while True:
                             ch = readkey()
@@ -300,6 +285,13 @@ class ServiceSelector:
 
             # Fall back to numeric selection if interactive not used or cancelled
             if selection is None:
+                # Render a single static table for numeric selection
+                self._display_services_table(
+                    resources,
+                    show_namespace=show_namespace_flag,
+                    check_endpoints=check_endpoints_flag,
+                    include_all_ports=include_all_ports_flag,
+                )
                 selection = IntPrompt.ask("\nSelect a service", default=1, show_default=True)
 
             if selection < 1 or selection > len(resources):
