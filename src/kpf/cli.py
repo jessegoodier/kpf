@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import subprocess
 import sys
 from typing import List, Optional
@@ -112,10 +113,47 @@ def check_kubectl():
         raise RuntimeError("kubectl is not available or not configured properly")
 
 
+def _display_terminal_capabilities():
+    """Display terminal capabilities and environment information for debugging."""
+    console.print("\n[bold cyan]═══ Terminal Environment Debug Information ═══[/bold cyan]")
+
+    # Terminal type
+    term = os.environ.get("TERM", "unknown")
+    console.print(f"[dim]TERM:[/dim] [green]{term}[/green]")
+
+    # Terminal dimensions
+    try:
+        size = os.get_terminal_size()
+        console.print(f"[dim]Columns:[/dim] [green]{size.columns}[/green]")
+        console.print(f"[dim]Lines:[/dim] [green]{size.lines}[/green]")
+    except OSError:
+        console.print(
+            "[dim]Columns:[/dim] [yellow]Unable to detect (non-interactive session)[/yellow]"
+        )
+        console.print(
+            "[dim]Lines:[/dim] [yellow]Unable to detect (non-interactive session)[/yellow]"
+        )
+
+    # Color support detection
+    colorterm = os.environ.get("COLORTERM", "")
+    if colorterm:
+        console.print(f"[dim]COLORTERM:[/dim] [green]{colorterm}[/green]")
+
+    # Rich console capabilities
+    console.print(f"[dim]Rich Color System:[/dim] [green]{console.color_system or 'None'}[/green]")
+    console.print(f"[dim]Rich Legacy Windows:[/dim] [green]{console.legacy_windows}[/green]")
+    console.print(f"[dim]Rich Force Terminal:[/dim] [green]{console._force_terminal}[/green]")
+
+    console.print("[bold cyan]══════════════════════════════════════════════[/bold cyan]\n")
+
+
 def main():
     """Main CLI entry point."""
     parser = create_parser()
     args, unknown_args = parser.parse_known_args()
+    if args.debug:
+        print("Debug mode enabled")
+        _display_terminal_capabilities()
 
     try:
         port_forward_args = None
