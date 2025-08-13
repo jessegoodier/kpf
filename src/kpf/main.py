@@ -422,12 +422,14 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
 
     # Wait for port to become active (kubectl port-forward takes a moment to start)
     start_time = time.time()
+    last_result = None
     while time.time() - start_time < timeout:
         try:
             # Try to connect to the port to see if it's active
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(1)
                 result = sock.connect_ex(("localhost", local_port))
+                last_result = result
                 if result == 0:
                     # Connected (0) or connection refused (61) - both mean port-forward is working
                     debug.print(
@@ -435,20 +437,27 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
                     )
                     return True
                 elif result == 61:
-                    # TODO: not sure how to handle this case
+                    # Connection refused - port-forward is working but service may not be ready
                     debug.print(
-                        f"Port-forward health check failed on port {local_port} [red](result: {result})[/red]"
+                        f"Port-forward health check: connection refused on port {local_port} [yellow](result: {result})[/yellow]"
                     )
-                    # return False # don't return false here, we want to keep trying
+                    # Continue trying - this might indicate service is starting up
                 else:
                     debug.print(
                         f"Port-forward health check failed on port {local_port} [red](result: {result})[/red]"
                     )
-                    # return False # don't return false here, we want to keep trying
         except (OSError, socket.error):
             pass
 
         time.sleep(0.5)
+
+    # If we exited the loop and the last result was 61 (connection refused), 
+    # this indicates port-forward is working but service might not be ready yet
+    if last_result == 61:
+        debug.print(
+            f"Port-forward health check: timeout reached but connection refused (61) suggests port-forward is working"
+        )
+        return True  # Port-forward is working, service just not ready
 
     debug.print(
         f"Port-forward health check failed - port {local_port} not responding after {timeout}s"
