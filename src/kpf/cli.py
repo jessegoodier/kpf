@@ -41,9 +41,7 @@ Example usage:
         """,
     )
 
-    parser.add_argument(
-        "--version", "-v", action="version", version=f"kpf {__version__}"
-    )
+    parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
 
     parser.add_argument(
         "--prompt",
@@ -95,9 +93,7 @@ Example usage:
     )
 
     # Positional arguments for legacy port-forward syntax
-    parser.add_argument(
-        "args", nargs="*", help="kubectl port-forward arguments (legacy mode)"
-    )
+    parser.add_argument("args", nargs="*", help="kubectl port-forward arguments (legacy mode)")
 
     return parser
 
@@ -115,9 +111,7 @@ def handle_prompt_mode(
     if show_all:
         return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
     else:
-        return selector.select_service_in_namespace(
-            namespace, show_all_ports, check_endpoints
-        )
+        return selector.select_service_in_namespace(namespace, show_all_ports, check_endpoints)
 
 
 def check_kubectl():
@@ -130,9 +124,7 @@ def check_kubectl():
 
 def _debug_display_terminal_capabilities():
     """Display terminal capabilities and environment information for debugging."""
-    console.print(
-        "\n[bold cyan]═══ Terminal Environment Debug Information ═══[/bold cyan]"
-    )
+    console.print("\n[bold cyan]═══ Terminal Environment Debug Information ═══[/bold cyan]")
 
     # Basic runtime info
     console.print(f"[dim]Python:[/dim] [green]{sys.version.split()[0]}[/green]")
@@ -192,15 +184,9 @@ def _debug_display_terminal_capabilities():
         console.print(f"[dim]COLORTERM:[/dim] [green]{colorterm}[/green]")
 
     # Rich console capabilities
-    console.print(
-        f"[dim]Rich Color System:[/dim] [green]{console.color_system or 'None'}[/green]"
-    )
-    console.print(
-        f"[dim]Rich Legacy Windows:[/dim] [green]{console.legacy_windows}[/green]"
-    )
-    console.print(
-        f"[dim]Rich Force Terminal:[/dim] [green]{console._force_terminal}[/green]"
-    )
+    console.print(f"[dim]Rich Color System:[/dim] [green]{console.color_system or 'None'}[/green]")
+    console.print(f"[dim]Rich Legacy Windows:[/dim] [green]{console.legacy_windows}[/green]")
+    console.print(f"[dim]Rich Force Terminal:[/dim] [green]{console._force_terminal}[/green]")
 
     # Terminal program (iTerm2, tmux, SSH, etc.)
     term_program = os.environ.get("TERM_PROGRAM")
@@ -210,9 +196,7 @@ def _debug_display_terminal_capabilities():
     if term_program:
         console.print(f"[dim]TERM_PROGRAM:[/dim] [green]{term_program}[/green]")
     if term_program_version:
-        console.print(
-            f"[dim]TERM_PROGRAM_VERSION:[/dim] [green]{term_program_version}[/green]"
-        )
+        console.print(f"[dim]TERM_PROGRAM_VERSION:[/dim] [green]{term_program_version}[/green]")
     if iterm_profile:
         console.print(f"[dim]ITERM_PROFILE:[/dim] [green]{iterm_profile}[/green]")
     if iterm_session:
@@ -239,9 +223,7 @@ def _debug_display_terminal_capabilities():
 
     # tput-based capabilities (colors)
     try:
-        colors = subprocess.run(
-            ["tput", "colors"], capture_output=True, text=True, check=False
-        )
+        colors = subprocess.run(["tput", "colors"], capture_output=True, text=True, check=False)
         colors_value = colors.stdout.strip() or colors.stderr.strip()
         if colors_value:
             console.print(f"[dim]tput colors:[/dim] [green]{colors_value}[/green]")
@@ -260,7 +242,7 @@ def _debug_display_terminal_capabilities():
 
         samples = {
             "pointer_simple": ">",
-            "pointer_fancy": "➤", 
+            "pointer_fancy": "➤",
             "check": "✓",
             "cross": "✗",
         }
@@ -271,9 +253,7 @@ def _debug_display_terminal_capabilities():
     except Exception:
         console.print("[dim]wcwidth:[/dim] [yellow]unavailable[/yellow]")
 
-    console.print(
-        "[bold cyan]══════════════════════════════════════════════[/bold cyan]\n"
-    )
+    console.print("[bold cyan]══════════════════════════════════════════════[/bold cyan]\n")
 
 
 def main():
