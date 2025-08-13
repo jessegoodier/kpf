@@ -17,20 +17,6 @@ It is essentially a wrapper around `kubectl port-forward` that adds an interacti
 
 **Note**: `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. If you prefer this tool, you can alias at the bottom of your `~/.zshrc` file or use a different alias.
 
-### Display compatibility
-
-The application now uses simple table formatting by default for maximum terminal compatibility. If you prefer the fancier table styles with rounded borders and emojis, you can enable them by setting:
-
-```sh
-KPF_TTY_COMPAT=0 kpf -p
-```
-
-To make this permanent:
-
-```sh
-export KPF_TTY_COMPAT=0
-```
-
 ### Homebrew (Recommended)
 
 ```bash
