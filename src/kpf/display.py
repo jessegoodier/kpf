@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import socket
 import subprocess
 import sys
@@ -21,6 +22,9 @@ class ServiceSelector:
         self.k8s_client = k8s_client
         self._check_kubectl()
         self.console = Console()
+        # Simple compatibility mode for terminals that struggle with emojis/box drawing
+        # Enable by setting env var KPF_TTY_COMPAT=1
+        self.compat_mode = os.environ.get("KPF_TTY_COMPAT") == "1"
 
     def _check_kubectl(self):
         """Check if kubectl is available."""
@@ -159,9 +163,9 @@ class ServiceSelector:
         title_text = "Select a service"
         table = Table(
             title=f"[bold bright_white] {title_text} [/bold bright_white]",
-            box=box.ROUNDED,
+            box=(box.SIMPLE if self.compat_mode else box.ROUNDED),
             show_lines=False,
-            expand=True,
+            expand=(False if self.compat_mode else True),
             padding=(0, 1),
         )
 
@@ -203,14 +207,24 @@ class ServiceSelector:
                 no_wrap=True,
             )
 
-        type_icon = {
-            "service": "⛴️  svc",
-            "pod": "🐬 pod",
-            "deployment": "⛵️ dep",
-            "daemonset": "🚣 ds",
-            "statefulset": "⛴️ sts",
-            "replicaset": "🐋 rs",
-        }
+        if self.compat_mode:
+            type_icon = {
+                "service": "svc",
+                "pod": "pod",
+                "deployment": "dep",
+                "daemonset": "ds",
+                "statefulset": "sts",
+                "replicaset": "rs",
+            }
+        else:
+            type_icon = {
+                "service": "⛴️  svc",
+                "pod": "🐬 pod",
+                "deployment": "⛵️ dep",
+                "daemonset": "🚣 ds",
+                "statefulset": "⛴️ sts",
+                "replicaset": "🐋 rs",
+            }
 
         for i, resource in enumerate(resources, 1 + row_index_offset):
             index_cell = f"{i}"
@@ -239,7 +253,10 @@ class ServiceSelector:
             else:
                 row[0] = f"  {index_cell}"
 
-            selected_style = "bold white on deep_sky_blue4" if is_selected else None
+            if self.compat_mode:
+                selected_style = "reverse" if is_selected else None
+            else:
+                selected_style = "bold white on deep_sky_blue4" if is_selected else None
             table.add_row(*row, style=selected_style)
 
         return table
