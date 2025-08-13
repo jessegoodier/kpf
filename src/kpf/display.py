@@ -22,9 +22,9 @@ class ServiceSelector:
         self.k8s_client = k8s_client
         self._check_kubectl()
         self.console = Console()
-        # Simple compatibility mode for terminals that struggle with emojis/box drawing
-        # Enable by setting env var KPF_TTY_COMPAT=1
-        self.compat_mode = os.environ.get("KPF_TTY_COMPAT") == "1"
+        # Simple compatibility mode for terminals (now default for stability)
+        # Disable by setting env var KPF_TTY_COMPAT=0
+        self.compat_mode = os.environ.get("KPF_TTY_COMPAT") != "0"
 
     def _check_kubectl(self):
         """Check if kubectl is available."""
@@ -151,9 +151,9 @@ class ServiceSelector:
         title_text = "Select a service"
         table = Table(
             title=f"[bold bright_white] {title_text} [/bold bright_white]",
-            box=(box.SIMPLE if self.compat_mode else box.ROUNDED),
+            box=box.SIMPLE,
             show_lines=False,
-            expand=(False if self.compat_mode else True),
+            expand=False,
             padding=(0, 1),
         )
 
@@ -193,24 +193,14 @@ class ServiceSelector:
                 no_wrap=True,
             )
 
-        if self.compat_mode:
-            type_icon = {
-                "service": "svc",
-                "pod": "pod",
-                "deployment": "dep",
-                "daemonset": "ds",
-                "statefulset": "sts",
-                "replicaset": "rs",
-            }
-        else:
-            type_icon = {
-                "service": "⛴️  svc",
-                "pod": "🐬 pod",
-                "deployment": "⛵️ dep",
-                "daemonset": "🚣 ds",
-                "statefulset": "⛴️ sts",
-                "replicaset": "🐋 rs",
-            }
+        type_icon = {
+            "service": "svc",
+            "pod": "pod",
+            "deployment": "dep",
+            "daemonset": "ds",
+            "statefulset": "sts",
+            "replicaset": "rs",
+        }
 
         for i, resource in enumerate(resources, 1 + row_index_offset):
             index_cell = f"{i}"
@@ -235,14 +225,12 @@ class ServiceSelector:
             # Highlight selected row with a visible pointer and background color
             is_selected = selected_index is not None and i == selected_index
             if is_selected:
-                row[0] = f"➤ {index_cell}"
+                pointer_char = ">" if self.compat_mode else "➤"
+                row[0] = f"{pointer_char} {index_cell}"
             else:
                 row[0] = f"  {index_cell}"
 
-            if self.compat_mode:
-                selected_style = "reverse" if is_selected else None
-            else:
-                selected_style = "bold white on deep_sky_blue4" if is_selected else None
+            selected_style = "reverse" if is_selected else None
             table.add_row(*row, style=selected_style)
 
         return table
@@ -406,7 +394,7 @@ class ServiceSelector:
         )
 
         port_table = Table(
-            box=box.ROUNDED,
+            box=box.SIMPLE,
             show_lines=False,
             expand=False,
             padding=(0, 1),
@@ -414,17 +402,13 @@ class ServiceSelector:
         port_table.add_column(
             "#",
             header_style="bold",
-            style="bold bright_white on green",
+            style="bold",
             width=4,
             justify="right",
         )
-        port_table.add_column("Port", header_style="bold bright_white on cyan", style="bold")
-        port_table.add_column(
-            "Protocol", header_style="bold bright_white on deep_sky_blue4", style="cyan"
-        )
-        port_table.add_column(
-            "Name", header_style="bold bright_white on deep_sky_blue4", style="green"
-        )
+        port_table.add_column("Port", header_style="bold", style="bold")
+        port_table.add_column("Protocol", header_style="bold", style="cyan")
+        port_table.add_column("Name", header_style="bold", style="green")
 
         for i, port in enumerate(resource.ports, 1):
             port_table.add_row(

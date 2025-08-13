@@ -249,30 +249,20 @@ def _debug_display_terminal_capabilities():
         pass
 
     # What box style will be used by our tables
-    compat_mode = os.environ.get("KPF_TTY_COMPAT") == "1"
+    compat_mode = os.environ.get("KPF_TTY_COMPAT") != "0"
     console.print(
         f"[dim]KPF box style:[/dim] [green]{'SIMPLE' if compat_mode else 'ROUNDED'}[/green]"
     )
 
-    # Optional wcwidth checks for characters we render (box drawing, pointers, emoji)
+    # Optional wcwidth checks for characters we render (mostly simple ASCII now)
     try:
         from wcwidth import wcswidth  # type: ignore
 
         samples = {
-            "light_h": "─",
-            "light_v": "│",
-            "corner_tl": "┌",
-            "corner_tr": "┐",
-            "corner_bl": "└",
-            "corner_br": "┘",
-            "pointer": "➤",
+            "pointer_simple": ">",
+            "pointer_fancy": "➤", 
             "check": "✓",
             "cross": "✗",
-            "emoji_ship": "⛴️",
-            "emoji_dolphin": "🐬",
-            "emoji_row": "⛵️",
-            "emoji_whale": "🐋",
-            "emoji_rowboat": "🚣",
         }
         console.print("[dim]wcwidth (wcswidth) for sample glyphs:[/dim]")
         for name, ch in samples.items():

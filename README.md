@@ -17,18 +17,18 @@ It is essentially a wrapper around `kubectl port-forward` that adds an interacti
 
 **Note**: `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. If you prefer this tool, you can alias at the bottom of your `~/.zshrc` file or use a different alias.
 
-### iTerm2 compatibility
+### Display compatibility
 
-I have seen some issues with iTerm2 and the interactive selection. If you are having issues, you can try using compatibility mode:
+The application now uses simple table formatting by default for maximum terminal compatibility. If you prefer the fancier table styles with rounded borders and emojis, you can enable them by setting:
 
 ```sh
-KPF_TTY_COMPAT=1 kpf -p
+KPF_TTY_COMPAT=0 kpf -p
 ```
 
-If this fixes the issue, you can add it to your `~/.zshrc` file to make it permanent:
+To make this permanent:
 
 ```sh
-export KPF_TTY_COMPAT=1
+export KPF_TTY_COMPAT=0
 ```
 
 ### Homebrew (Recommended)
