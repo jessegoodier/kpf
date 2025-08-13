@@ -451,11 +451,11 @@ def _test_port_forward_health(port_forward_args, timeout: int = 10):
 
         time.sleep(0.5)
 
-    # If we exited the loop and the last result was 61 (connection refused), 
+    # If we exited the loop and the last result was 61 (connection refused),
     # this indicates port-forward is working but service might not be ready yet
     if last_result == 61:
         debug.print(
-            f"Port-forward health check: timeout reached but connection refused (61) suggests port-forward is working"
+            "Port-forward health check: timeout reached but connection refused (61) suggests port-forward is working"
         )
         return True  # Port-forward is working, service just not ready
 

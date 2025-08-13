@@ -9,7 +9,7 @@ import json
 import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 # Track when the container started
 START_TIME = time.time()
@@ -22,7 +22,7 @@ class UptimeHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET requests."""
         path = urlparse(self.path).path
-        query_params = parse_qs(urlparse(self.path).query)
+        # query_params = parse_qs(urlparse(self.path).query)
 
         # Calculate uptime
         current_time = time.time()
@@ -219,16 +219,16 @@ def main():
     port = 8080
     server = HTTPServer(("", port), UptimeHandler)
 
-    print(f"🚀 KPF Test App starting...")
+    print("🚀 KPF Test App starting...")
     print(f"📊 Server listening on port {port}")
     print(f"🕒 Started at: {START_DATETIME.isoformat()}")
     print(f"🌐 Available at: http://localhost:{port}")
-    print(f"💡 Use 'kpf' to port-forward to this service!")
+    print("💡 Use 'kpf' to port-forward to this service!")
 
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print(f"\n🛑 Server stopped gracefully")
+        print("\n🛑 Server stopped gracefully")
         server.server_close()
 
 
