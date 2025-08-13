@@ -1046,8 +1046,8 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
     global _debug_enabled
     _debug_enabled = debug_mode
 
-    # console.print("kpf: kubectl port-forwarder")
-    debug.print("Debug mode enabled")
+    if debug_mode:
+        debug.print("Debug mode enabled")
 
     # Validate port format first
     if not _validate_port_format(port_forward_args):

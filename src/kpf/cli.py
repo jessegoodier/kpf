@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
+import locale
+import os
+import platform
 import subprocess
 import sys
 from typing import List, Optional
@@ -38,7 +41,9 @@ Example usage:
         """,
     )
 
-    parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
+    parser.add_argument(
+        "--version", "-v", action="version", version=f"kpf {__version__}"
+    )
 
     parser.add_argument(
         "--prompt",
@@ -82,8 +87,17 @@ Example usage:
         help="Enable debug output for troubleshooting",
     )
 
+    parser.add_argument(
+        "--debug-terminal",
+        "-t",
+        action="store_true",
+        help="Enable debug output for troubleshooting display issues",
+    )
+
     # Positional arguments for legacy port-forward syntax
-    parser.add_argument("args", nargs="*", help="kubectl port-forward arguments (legacy mode)")
+    parser.add_argument(
+        "args", nargs="*", help="kubectl port-forward arguments (legacy mode)"
+    )
 
     return parser
 
@@ -101,7 +115,9 @@ def handle_prompt_mode(
     if show_all:
         return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
     else:
-        return selector.select_service_in_namespace(namespace, show_all_ports, check_endpoints)
+        return selector.select_service_in_namespace(
+            namespace, show_all_ports, check_endpoints
+        )
 
 
 def check_kubectl():
@@ -112,10 +128,161 @@ def check_kubectl():
         raise RuntimeError("kubectl is not available or not configured properly")
 
 
+def _debug_display_terminal_capabilities():
+    """Display terminal capabilities and environment information for debugging."""
+    console.print(
+        "\n[bold cyan]═══ Terminal Environment Debug Information ═══[/bold cyan]"
+    )
+
+    # Basic runtime info
+    console.print(f"[dim]Python:[/dim] [green]{sys.version.split()[0]}[/green]")
+    console.print(f"[dim]Platform:[/dim] [green]{platform.platform()}[/green]")
+
+    # Terminal type
+    term = os.environ.get("TERM", "unknown")
+    console.print(f"[dim]TERM:[/dim] [green]{term}[/green]")
+
+    # Terminal dimensions
+    try:
+        size = os.get_terminal_size()
+        console.print(f"[dim]Columns:[/dim] [green]{size.columns}[/green]")
+        console.print(f"[dim]Lines:[/dim] [green]{size.lines}[/green]")
+    except OSError:
+        console.print(
+            "[dim]Columns:[/dim] [yellow]Unable to detect (non-interactive session)[/yellow]"
+        )
+        console.print(
+            "[dim]Lines:[/dim] [yellow]Unable to detect (non-interactive session)[/yellow]"
+        )
+
+    # Rich/stream/TTY status
+    try:
+        console_size = console.size
+        console.print(
+            f"[dim]Rich Console Size:[/dim] [green]{console_size.width}×{console_size.height}[/green]"
+        )
+    except Exception:
+        pass
+    console.print(
+        f"[dim]stdin isatty:[/dim] [green]{getattr(sys.stdin, 'isatty', lambda: False)()}[/green]"
+    )
+    console.print(
+        f"[dim]stdout isatty:[/dim] [green]{getattr(sys.stdout, 'isatty', lambda: False)()}[/green]"
+    )
+    console.print(
+        f"[dim]stderr isatty:[/dim] [green]{getattr(sys.stderr, 'isatty', lambda: False)()}[/green]"
+    )
+
+    # Encoding and locale
+    console.print(
+        f"[dim]stdout encoding:[/dim] [green]{getattr(sys.stdout, 'encoding', None) or 'None'}[/green]"
+    )
+    console.print(
+        f"[dim]preferred encoding:[/dim] [green]{locale.getpreferredencoding(False)}[/green]"
+    )
+    current_locale = locale.getlocale()
+    console.print(f"[dim]locale:[/dim] [green]{current_locale}[/green]")
+    py_io_encoding = os.environ.get("PYTHONIOENCODING")
+    if py_io_encoding:
+        console.print(f"[dim]PYTHONIOENCODING:[/dim] [green]{py_io_encoding}[/green]")
+
+    # Color support detection
+    colorterm = os.environ.get("COLORTERM", "")
+    if colorterm:
+        console.print(f"[dim]COLORTERM:[/dim] [green]{colorterm}[/green]")
+
+    # Rich console capabilities
+    console.print(
+        f"[dim]Rich Color System:[/dim] [green]{console.color_system or 'None'}[/green]"
+    )
+    console.print(
+        f"[dim]Rich Legacy Windows:[/dim] [green]{console.legacy_windows}[/green]"
+    )
+    console.print(
+        f"[dim]Rich Force Terminal:[/dim] [green]{console._force_terminal}[/green]"
+    )
+
+    # Terminal program (iTerm2, tmux, SSH, etc.)
+    term_program = os.environ.get("TERM_PROGRAM")
+    term_program_version = os.environ.get("TERM_PROGRAM_VERSION")
+    iterm_profile = os.environ.get("ITERM_PROFILE")
+    iterm_session = os.environ.get("ITERM_SESSION_ID")
+    if term_program:
+        console.print(f"[dim]TERM_PROGRAM:[/dim] [green]{term_program}[/green]")
+    if term_program_version:
+        console.print(
+            f"[dim]TERM_PROGRAM_VERSION:[/dim] [green]{term_program_version}[/green]"
+        )
+    if iterm_profile:
+        console.print(f"[dim]ITERM_PROFILE:[/dim] [green]{iterm_profile}[/green]")
+    if iterm_session:
+        console.print(f"[dim]ITERM_SESSION_ID:[/dim] [green]{iterm_session}[/green]")
+    if os.environ.get("TMUX"):
+        console.print(f"[dim]TMUX:[/dim] [green]{os.environ.get('TMUX')}[/green]")
+    if os.environ.get("SSH_TTY") or os.environ.get("SSH_CONNECTION"):
+        console.print("[dim]SSH:[/dim] [green]yes[/green]")
+
+    # Common env flags that affect color/unicode
+    for var in (
+        "NO_COLOR",
+        "FORCE_COLOR",
+        "KPF_TTY_COMPAT",
+        "COLUMNS",
+        "LINES",
+        "LC_ALL",
+        "LC_CTYPE",
+        "LANG",
+    ):
+        value = os.environ.get(var)
+        if value:
+            console.print(f"[dim]{var}:[/dim] [green]{value}[/green]")
+
+    # tput-based capabilities (colors)
+    try:
+        colors = subprocess.run(
+            ["tput", "colors"], capture_output=True, text=True, check=False
+        )
+        colors_value = colors.stdout.strip() or colors.stderr.strip()
+        if colors_value:
+            console.print(f"[dim]tput colors:[/dim] [green]{colors_value}[/green]")
+    except Exception:
+        pass
+
+    # What box style will be used by our tables
+    compat_mode = os.environ.get("KPF_TTY_COMPAT") != "0"
+    console.print(
+        f"[dim]KPF box style:[/dim] [green]{'SIMPLE' if compat_mode else 'ROUNDED'}[/green]"
+    )
+
+    # Optional wcwidth checks for characters we render (mostly simple ASCII now)
+    try:
+        from wcwidth import wcswidth  # type: ignore
+
+        samples = {
+            "pointer_simple": ">",
+            "pointer_fancy": "➤", 
+            "check": "✓",
+            "cross": "✗",
+        }
+        console.print("[dim]wcwidth (wcswidth) for sample glyphs:[/dim]")
+        for name, ch in samples.items():
+            width = wcswidth(ch)
+            console.print(f"  [dim]{name}[/dim]: '{ch}' -> [green]{width}[/green]")
+    except Exception:
+        console.print("[dim]wcwidth:[/dim] [yellow]unavailable[/yellow]")
+
+    console.print(
+        "[bold cyan]══════════════════════════════════════════════[/bold cyan]\n"
+    )
+
+
 def main():
     """Main CLI entry point."""
     parser = create_parser()
     args, unknown_args = parser.parse_known_args()
+    if args.debug_terminal:
+        print("Debug mode enabled")
+        _debug_display_terminal_capabilities()
 
     try:
         port_forward_args = None

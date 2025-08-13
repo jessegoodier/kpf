@@ -17,20 +17,6 @@ It is essentially a wrapper around `kubectl port-forward` that adds an interacti
 
 **Note**: `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. If you prefer this tool, you can alias at the bottom of your `~/.zshrc` file or use a different alias.
 
-### iTerm2 compatibility
-
-I have seen some issues with iTerm2 and the interactive selection. If you are having issues, you can try using compatibility mode:
-
-```sh
-KPF_TTY_COMPAT=1 kpf -p
-```
-
-If this fixes the issue, you can add it to your `~/.zshrc` file to make it permanent:
-
-```sh
-export KPF_TTY_COMPAT=1
-```
-
 ### Homebrew (Recommended)
 
 ```bash
