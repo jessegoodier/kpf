@@ -387,13 +387,10 @@ class ServiceSelector:
             self.console.print("\n[yellow]Service selection cancelled (Ctrl+C)[/yellow]")
             return []
 
-    def _prompt_for_port_selection(self, resource: ServiceInfo) -> List[str]:
-        """Prompt user to select a port when multiple are available."""
-        self.console.print(
-            f"\n[bold cyan]Available ports for[/bold cyan] [bold]{resource.name}[/bold]"
-        )
-
+    def _build_port_table(self, resource: ServiceInfo, selected_index: Optional[int] = None) -> Table:
+        """Build port selection table with optional selected row highlight."""
         port_table = Table(
+            title=f"[bold bright_white] Available ports for {resource.name} [/bold bright_white]",
             box=box.SIMPLE,
             show_lines=False,
             expand=False,
@@ -402,7 +399,7 @@ class ServiceSelector:
         port_table.add_column(
             "#",
             header_style="bold",
-            style="bold",
+            style="dim",
             width=4,
             justify="right",
         )
@@ -411,23 +408,100 @@ class ServiceSelector:
         port_table.add_column("Name", header_style="bold", style="green")
 
         for i, port in enumerate(resource.ports, 1):
+            index_cell = f"{i}"
+            is_selected = selected_index is not None and i == selected_index
+            
+            if is_selected:
+                pointer_char = ">" if self.compat_mode else "➤"
+                index_display = f"{pointer_char} {index_cell}"
+            else:
+                index_display = f"  {index_cell}"
+
+            selected_style = "reverse" if is_selected else None
+            
             port_table.add_row(
-                str(i),
+                index_display,
                 str(port["port"]),
                 port.get("protocol", "TCP"),
                 port.get("name", ""),
+                style=selected_style
             )
 
-        self.console.print(port_table)
+        return port_table
 
+    def _prompt_for_port_selection(self, resource: ServiceInfo) -> List[str]:
+        """Prompt user to select a port when multiple are available."""
         try:
-            port_selection = IntPrompt.ask("Select a port", default=1, show_default=True)
+            # First, try an interactive keyboard navigation if available
+            selection: Optional[int] = None
+            
+            # Only attempt interactive navigation in a TTY
+            if sys.stdin.isatty() and sys.stdout.isatty():
+                try:
+                    # Lazy imports (optional dependency)
+                    from readchar import key, readkey
+                    from rich.live import Live
 
-            if port_selection < 1 or port_selection > len(resource.ports):
+                    current_index = 1
+                    max_index = len(resource.ports)
+
+                    help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
+
+                    def build_view():
+                        table = self._build_port_table(resource, selected_index=current_index)
+                        renders = [table, Text(help_text, style="dim")]
+                        return Group(*renders)
+
+                    with Live(
+                        build_view(),
+                        console=self.console,
+                        transient=True,
+                        auto_refresh=False,
+                    ) as live:
+                        typed_number = ""
+                        while True:
+                            ch = readkey()
+                            if ch in (key.UP, "k"):
+                                current_index = max(1, current_index - 1)
+                                typed_number = ""
+                                live.update(build_view(), refresh=True)
+                            elif ch in (key.DOWN, "j"):
+                                current_index = min(max_index, current_index + 1)
+                                typed_number = ""
+                                live.update(build_view(), refresh=True)
+                            elif ch in (key.ENTER, "\r", "\n"):
+                                selection = int(typed_number) if typed_number else current_index
+                                break
+                            elif ch in (key.ESC, "q"):
+                                selection = None
+                                break
+                            elif ch.isdigit():
+                                typed_number += ch
+                                try:
+                                    preview = int(typed_number)
+                                    if 1 <= preview <= max_index:
+                                        current_index = preview
+                                        live.update(build_view(), refresh=True)
+                                except ValueError:
+                                    pass
+                            else:
+                                # ignore other keys
+                                pass
+                except Exception:
+                    selection = None
+
+            # Fall back to numeric selection if interactive not used or cancelled
+            if selection is None:
+                # Render a single static table for numeric selection
+                port_table = self._build_port_table(resource)
+                self.console.print(port_table)
+                selection = IntPrompt.ask("\nSelect a port", default=1, show_default=True)
+
+            if selection is None or selection < 1 or selection > len(resource.ports):
                 self.console.print("[red]Invalid port selection[/red]")
                 return []
 
-            selected_port = resource.ports[port_selection - 1]["port"]
+            selected_port = resource.ports[selection - 1]["port"]
             local_port = self._prompt_for_local_port(selected_port)
 
             args = [
