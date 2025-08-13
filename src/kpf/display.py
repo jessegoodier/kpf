@@ -5,6 +5,7 @@ import subprocess
 import sys
 from typing import List, Optional
 
+from rich import box
 from rich.console import Console
 from rich.prompt import IntPrompt
 from rich.table import Table
@@ -85,13 +86,6 @@ class ServiceSelector:
             self.console.print(f"[yellow]No resources found in namespace '{namespace}'[/yellow]")
             return []
 
-        # Display table
-        self._display_services_table(
-            all_resources,
-            check_endpoints=check_endpoints,
-            include_all_ports=include_all_ports,
-        )
-
         # Get user selection
         return self._prompt_for_service_selection(
             all_resources,
@@ -131,14 +125,6 @@ class ServiceSelector:
         # Sort by namespace, then type, then name
         all_resources.sort(key=lambda r: (r.namespace, r.service_type, r.name))
 
-        # Display table
-        self._display_services_table(
-            all_resources,
-            show_namespace=True,
-            check_endpoints=check_endpoints,
-            include_all_ports=include_all_ports,
-        )
-
         # Get user selection
         return self._prompt_for_service_selection(
             all_resources,
@@ -155,33 +141,70 @@ class ServiceSelector:
         include_all_ports: bool = False,
         selected_index: Optional[int] = None,
     ) -> Table:
-        """Build services table with zebra striping and optional selected row highlight."""
-        table = Table()
-        table.row_styles = ["", "dim"]
+        """Build services table with a polished look and optional selected row highlight."""
+        title_text = "Select a service"
+        table = Table(
+            title=f"[bold bright_white] {title_text} [/bold bright_white]",
+            box=box.ROUNDED,
+            show_lines=False,
+            expand=True,
+            padding=(0, 1),
+        )
 
-        table.add_column("#", style="dim", width=4)
+        # Index column with room for a pointer
+        table.add_column("#", header_style="bold", style="dim", width=4, justify="right")
         if show_namespace:
-            table.add_column("Namespace", style="cyan")
+            table.add_column(
+                "Namespace",
+                header_style="bold bright_white",
+                style="cyan",
+                no_wrap=True,
+            )
         if include_all_ports:
-            table.add_column("Type", style="magenta")
-        table.add_column("Name", style="bold")
-        table.add_column("Ports", style="cyan")
+            table.add_column(
+                "Type",
+                header_style="bold bright_white",
+                style="magenta",
+                no_wrap=True,
+            )
+        table.add_column(
+            "Name",
+            header_style="bold bright_white",
+            style="bold white",
+        )
+        table.add_column(
+            "Ports",
+            header_style="bold bright_white",
+            style="cyan",
+            no_wrap=True,
+        )
 
         if check_endpoints:
-            table.add_column("Status", justify="center")
+            table.add_column(
+                "Status",
+                header_style="bold bright_white",
+                justify="center",
+                no_wrap=True,
+            )
+
+        type_icon = {
+            "service": "⛴️ svc",
+            "pod": "🐬 pod",
+            "deployment": "⛵️ deployment",
+            "daemonset": "🚣 ds",
+            "statefulset": "⛴️ sts",
+        }
 
         for i, resource in enumerate(resources, 1):
-            row = [
-                str(i),
-                resource.name,
-                resource.port_summary,
-            ]
+            index_cell = f"{i}"
+            row = [index_cell, resource.name, resource.port_summary]
 
             if show_namespace:
                 row.insert(1, resource.namespace)
 
             if include_all_ports:
-                type_value = resource.service_type.lower()
+                type_value_raw = resource.service_type.lower()
+                type_value = type_icon.get(type_value_raw, type_value_raw)
                 if show_namespace:
                     row.insert(2, type_value)
                 else:
@@ -192,8 +215,15 @@ class ServiceSelector:
                 status_text = "✓" if resource.has_endpoints else "✗"
                 row.append(f"[{status_color}]{status_text}[/{status_color}]")
 
-            style = "bold reverse" if (selected_index is not None and i == selected_index) else None
-            table.add_row(*row, style=style)
+            # Highlight selected row with a visible pointer and background color
+            is_selected = selected_index is not None and i == selected_index
+            if is_selected:
+                row[0] = f"➤ {index_cell}"
+            else:
+                row[0] = f"  {index_cell}"
+
+            selected_style = "bold white on dark_cyan" if is_selected else None
+            table.add_row(*row, style=selected_style)
 
         return table
 
@@ -228,6 +258,10 @@ class ServiceSelector:
         """Prompt user to select a service and return port-forward arguments."""
         # First, try an interactive keyboard navigation if available
         selection: Optional[int] = None
+        # Resolve layout flags up-front so they can be used in both interactive and fallback paths
+        show_namespace_flag = namespace is None if show_namespace is None else show_namespace
+        include_all_ports_flag = include_all_ports if include_all_ports is not None else False
+        check_endpoints_flag = bool(check_endpoints)
         try:
             # Only attempt interactive navigation in a TTY
             if sys.stdin.isatty() and sys.stdout.isatty():
@@ -235,15 +269,6 @@ class ServiceSelector:
                     # Lazy imports (optional dependency)
                     from readchar import key, readkey
                     from rich.live import Live
-
-                    # Resolve layout flags
-                    show_namespace_flag = (
-                        namespace is None if show_namespace is None else show_namespace
-                    )
-                    include_all_ports_flag = (
-                        include_all_ports if include_all_ports is not None else False
-                    )
-                    check_endpoints_flag = bool(check_endpoints)
 
                     current_index = 1
                     max_index = len(resources)
@@ -266,6 +291,11 @@ class ServiceSelector:
                         transient=True,
                     ) as live:
                         self.console.print(help_text, style="dim")
+                        if check_endpoints_flag:
+                            self.console.print(
+                                "[green]✓[/green] = Has endpoints  [red]✗[/red] = No endpoints",
+                                style="dim",
+                            )
                         typed_number = ""
                         while True:
                             ch = readkey()
@@ -300,6 +330,13 @@ class ServiceSelector:
 
             # Fall back to numeric selection if interactive not used or cancelled
             if selection is None:
+                # Render a single static table for numeric selection
+                self._display_services_table(
+                    resources,
+                    show_namespace=show_namespace_flag,
+                    check_endpoints=check_endpoints_flag,
+                    include_all_ports=include_all_ports_flag,
+                )
                 selection = IntPrompt.ask("\nSelect a service", default=1, show_default=True)
 
             if selection < 1 or selection > len(resources):
@@ -324,15 +361,22 @@ class ServiceSelector:
 
     def _prompt_for_port_selection(self, resource: ServiceInfo) -> List[str]:
         """Prompt user to select a port when multiple are available."""
-        self.console.print(f"\n[bold]Available ports for {resource.name}:[/bold]")
+        self.console.print(
+            f"\n[bold cyan]Available ports for[/bold cyan] [bold]{resource.name}[/bold]"
+        )
 
-        port_table = Table()
-        # Zebra striping for port selection table as well
-        port_table.row_styles = ["", "dim"]
-        port_table.add_column("#", style="dim", width=4)
-        port_table.add_column("Port", style="bold")
-        port_table.add_column("Protocol", style="cyan")
-        port_table.add_column("Name", style="green")
+        port_table = Table(
+            box=box.ROUNDED,
+            show_lines=False,
+            expand=False,
+            padding=(0, 1),
+        )
+        port_table.add_column("#", header_style="bold", style="dim", width=4, justify="right")
+        port_table.add_column("Port", header_style="bold bright_white on dark_cyan", style="bold")
+        port_table.add_column(
+            "Protocol", header_style="bold bright_white on dark_cyan", style="cyan"
+        )
+        port_table.add_column("Name", header_style="bold bright_white on dark_cyan", style="green")
 
         for i, port in enumerate(resource.ports, 1):
             port_table.add_row(

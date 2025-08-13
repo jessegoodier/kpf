@@ -479,7 +479,10 @@ def _test_socket_connectivity(local_port: int) -> Tuple[bool, str]:
                 debug.print(
                     f"Socket connectivity test: Connection [red]refused - port-forward working, service may be down (code: {result})[/red]"
                 )
-                return True, "connection_refused"
+                return (
+                    True,
+                    "connection_refused",
+                )  # but there is a port-forward working
             else:
                 debug.print(f"Socket connectivity test failed (code: {result})")
                 return False, f"connection_error_{result}"
@@ -528,7 +531,7 @@ def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, st
             # Any HTTP response code is considered success
             # (200, 404, 500, etc. all mean the service is reachable)
             debug.print(
-                f"HTTP connectivity test [green]successful[: {url} -> {response.status_code}[/green]"
+                f"HTTP connectivity test [green]successful: {url} -> {response.status_code}[/green]"
             )
             _mark_http_timeout_end()  # Reset timeout tracking on success
             return (
@@ -559,17 +562,24 @@ def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, st
 
 
 def _check_port_connectivity(local_port: int) -> bool:
-    """Enhanced port connectivity check using both socket and HTTP testing.
+    """Check port-forward connectivity using socket and HTTP tests.
 
-    First performs a basic socket connectivity test. If that passes and the
-    connection is successful (not just refused), also performs HTTP testing
-    to ensure the service is actually responding.
+    Semantics:
+    - Returns True when the port-forward plumbing is healthy (socket connects
+      or is explicitly refused), regardless of the upstream service being ready.
+    - Returns False only when the port-forward path appears broken (socket
+      failures), which should trigger recovery behavior.
+
+    Additionally, when the socket connects successfully, we attempt an HTTP
+    request to determine if the upstream service is responding. An HTTP failure
+    will NOT be treated as a port-forward failure, but will be surfaced via
+    debug logs.
 
     Args:
         local_port: The local port to test
 
     Returns:
-        bool: True if connectivity is healthy, False otherwise
+        bool: True if port-forward is healthy; False if port-forward is broken
     """
     global _connectivity_failure_start_time
 
@@ -598,17 +608,19 @@ def _check_port_connectivity(local_port: int) -> bool:
             _mark_connectivity_success()
             return True
         else:
-            debug.print(f"HTTP connectivity [red]failed: {http_description}[/red]")
-            # HTTP failure when socket works might indicate service issues
-            # but we'll still consider this as working port-forward
+            debug.print(f"HTTP connectivity [yellow]issue: {http_description}[/yellow]")
+            # HTTP failure when socket works indicates service issues,
+            # but we still consider the port-forward itself healthy.
             _mark_connectivity_success()
-            return False
+            return True
     else:
         # Socket connection was refused - port-forward is working
         # but service is not responding (which is OK)
-        debug.print("[red]Connection refused - port-forward working, service not responding[/red]")
+        debug.print(
+            "[yellow]Connection refused - port-forward working, service not responding[/yellow]"
+        )
         _mark_connectivity_success()
-        return False
+        return True
 
 
 def _mark_connectivity_failure(reason: str):
