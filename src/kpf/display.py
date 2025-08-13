@@ -420,7 +420,22 @@ class ServiceSelector:
                 )
                 return []
 
-            # Always prompt for port selection (even with single port)
+            # If only one port, automatically select it
+            if len(selected_resource.ports) == 1:
+                # Sort ports for consistency (even with single port)
+                sorted_ports = sorted(selected_resource.ports, key=lambda p: p["port"])
+                selected_port = sorted_ports[0]["port"]
+                local_port = self._prompt_for_local_port(selected_port)
+
+                args = [
+                    f"{selected_resource.service_type}/{selected_resource.name}",
+                    f"{local_port}:{selected_port}",
+                    "-n",
+                    selected_resource.namespace,
+                ]
+                return args
+
+            # Otherwise prompt for port selection
             return self._prompt_for_port_selection(selected_resource)
 
         except KeyboardInterrupt:
@@ -455,7 +470,9 @@ class ServiceSelector:
         port_table.add_column(
             "Protocol", header_style="bold bright_white", style="blue"
         )
-        for i, port in enumerate(resource.ports, 1):
+        # Sort ports by port number for consistent ordering
+        sorted_ports = sorted(resource.ports, key=lambda p: p["port"])
+        for i, port in enumerate(sorted_ports, 1):
             index_cell = f"{i}"
             is_selected = selected_index is not None and i == selected_index
 
@@ -591,7 +608,7 @@ class ServiceSelector:
                     # Suggested port is in use, find next available
                     alternative_port = self._find_available_port(suggested_port + 1)
                     self.console.print(
-                        f"[yellow]Port {suggested_port} is already in use[/yellow]"
+                        f"[yellow]Port {suggested_port} is already in use, suggesting port {alternative_port}[/yellow]"
                     )
                     local_port = IntPrompt.ask(
                         f"Local port (press Enter for {alternative_port})",
@@ -612,7 +629,7 @@ class ServiceSelector:
                     # Port is in use, find an available alternative
                     suggested_port = self._find_available_port(remote_port + 1)
                     self.console.print(
-                        f"[yellow]Port {remote_port} is already in use[/yellow]"
+                        f"[yellow]Port {remote_port} is already in use, suggesting port {suggested_port}[/yellow]"
                     )
                     local_port = IntPrompt.ask(
                         f"Local port (press Enter for {suggested_port})",
