@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 
+import os
 import socket
 import subprocess
 import sys
 from typing import List, Optional
 
 from rich import box
-from rich.console import Console
+from rich.console import Console, Group
 from rich.prompt import IntPrompt
 from rich.table import Table
+from rich.text import Text
 
 from .kubernetes import KubernetesClient, ServiceInfo
 
@@ -20,6 +22,9 @@ class ServiceSelector:
         self.k8s_client = k8s_client
         self._check_kubectl()
         self.console = Console()
+        # Simple compatibility mode for terminals that struggle with emojis/box drawing
+        # Enable by setting env var KPF_TTY_COMPAT=1
+        self.compat_mode = os.environ.get("KPF_TTY_COMPAT") == "1"
 
     def _check_kubectl(self):
         """Check if kubectl is available."""
@@ -140,14 +145,15 @@ class ServiceSelector:
         check_endpoints: bool = False,
         include_all_ports: bool = False,
         selected_index: Optional[int] = None,
+        row_index_offset: int = 0,
     ) -> Table:
         """Build services table with a polished look and optional selected row highlight."""
         title_text = "Select a service"
         table = Table(
             title=f"[bold bright_white] {title_text} [/bold bright_white]",
-            box=box.ROUNDED,
+            box=(box.SIMPLE if self.compat_mode else box.ROUNDED),
             show_lines=False,
-            expand=True,
+            expand=(False if self.compat_mode else True),
             padding=(0, 1),
         )
 
@@ -187,15 +193,26 @@ class ServiceSelector:
                 no_wrap=True,
             )
 
-        type_icon = {
-            "service": "⛴️ svc",
-            "pod": "🐬 pod",
-            "deployment": "⛵️ deployment",
-            "daemonset": "🚣 ds",
-            "statefulset": "⛴️ sts",
-        }
+        if self.compat_mode:
+            type_icon = {
+                "service": "svc",
+                "pod": "pod",
+                "deployment": "dep",
+                "daemonset": "ds",
+                "statefulset": "sts",
+                "replicaset": "rs",
+            }
+        else:
+            type_icon = {
+                "service": "⛴️  svc",
+                "pod": "🐬 pod",
+                "deployment": "⛵️ dep",
+                "daemonset": "🚣 ds",
+                "statefulset": "⛴️ sts",
+                "replicaset": "🐋 rs",
+            }
 
-        for i, resource in enumerate(resources, 1):
+        for i, resource in enumerate(resources, 1 + row_index_offset):
             index_cell = f"{i}"
             row = [index_cell, resource.name, resource.port_summary]
 
@@ -222,7 +239,10 @@ class ServiceSelector:
             else:
                 row[0] = f"  {index_cell}"
 
-            selected_style = "bold white on dark_cyan" if is_selected else None
+            if self.compat_mode:
+                selected_style = "reverse" if is_selected else None
+            else:
+                selected_style = "bold white on deep_sky_blue4" if is_selected else None
             table.add_row(*row, style=selected_style)
 
         return table
@@ -273,40 +293,60 @@ class ServiceSelector:
                     current_index = 1
                     max_index = len(resources)
 
-                    def build_view() -> Table:
-                        return self._build_services_table(
-                            resources,
+                    help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
+
+                    def build_view():
+                        # Calculate a scrolling window so the selected row stays a few lines above bottom
+                        terminal_height = self.console.size.height
+                        overhead_lines = 8  # title, headers, borders, and help/legend
+                        visible_rows = max(1, min(max_index, terminal_height - overhead_lines))
+
+                        bottom_margin = 3
+                        pivot = max(1, visible_rows - bottom_margin)
+
+                        if current_index <= pivot:
+                            start_index = 1
+                        else:
+                            start_index = current_index - pivot
+
+                        # Clamp window to valid range
+                        start_index = min(start_index, max(1, max_index - visible_rows + 1))
+                        end_index = min(max_index, start_index + visible_rows - 1)
+
+                        window_resources = resources[start_index - 1 : end_index]
+
+                        table = self._build_services_table(
+                            window_resources,
                             show_namespace=show_namespace_flag,
                             check_endpoints=check_endpoints_flag,
                             include_all_ports=include_all_ports_flag,
                             selected_index=current_index,
+                            row_index_offset=start_index - 1,
                         )
 
-                    help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
+                        renders = [table, Text(help_text, style="dim")]
+                        if check_endpoints_flag:
+                            renders.append(Text("✓ = Has endpoints  ✗ = No endpoints", style="dim"))
+
+                        return Group(*renders)
 
                     with Live(
                         build_view(),
                         console=self.console,
-                        refresh_per_second=20,
                         transient=True,
+                        auto_refresh=False,
                     ) as live:
-                        self.console.print(help_text, style="dim")
-                        if check_endpoints_flag:
-                            self.console.print(
-                                "[green]✓[/green] = Has endpoints  [red]✗[/red] = No endpoints",
-                                style="dim",
-                            )
                         typed_number = ""
                         while True:
                             ch = readkey()
                             if ch in (key.UP, "k"):
                                 current_index = max(1, current_index - 1)
                                 typed_number = ""
-                                live.update(build_view())
+                                live.update(build_view(), refresh=True)
                             elif ch in (key.DOWN, "j"):
                                 current_index = min(max_index, current_index + 1)
                                 typed_number = ""
-                                live.update(build_view())
+                                live.update(build_view(), refresh=True)
                             elif ch in (key.ENTER, "\r", "\n"):
                                 selection = int(typed_number) if typed_number else current_index
                                 break
@@ -319,7 +359,7 @@ class ServiceSelector:
                                     preview = int(typed_number)
                                     if 1 <= preview <= max_index:
                                         current_index = preview
-                                        live.update(build_view())
+                                        live.update(build_view(), refresh=True)
                                 except ValueError:
                                     pass
                             else:
@@ -371,12 +411,20 @@ class ServiceSelector:
             expand=False,
             padding=(0, 1),
         )
-        port_table.add_column("#", header_style="bold", style="dim", width=4, justify="right")
-        port_table.add_column("Port", header_style="bold bright_white on dark_cyan", style="bold")
         port_table.add_column(
-            "Protocol", header_style="bold bright_white on dark_cyan", style="cyan"
+            "#",
+            header_style="bold",
+            style="bold bright_white on green",
+            width=4,
+            justify="right",
         )
-        port_table.add_column("Name", header_style="bold bright_white on dark_cyan", style="green")
+        port_table.add_column("Port", header_style="bold bright_white on cyan", style="bold")
+        port_table.add_column(
+            "Protocol", header_style="bold bright_white on deep_sky_blue4", style="cyan"
+        )
+        port_table.add_column(
+            "Name", header_style="bold bright_white on deep_sky_blue4", style="green"
+        )
 
         for i, port in enumerate(resource.ports, 1):
             port_table.add_row(

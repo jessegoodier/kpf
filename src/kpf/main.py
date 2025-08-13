@@ -1046,7 +1046,7 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
     global _debug_enabled
     _debug_enabled = debug_mode
 
-    console.print("kpf: kubectl port-forwarder")
+    # console.print("kpf: kubectl port-forwarder")
     debug.print("Debug mode enabled")
 
     # Validate port format first
@@ -1070,7 +1070,7 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
     debug.print(f"Parsed namespace: {namespace}, resource_name: {resource_name}")
 
     debug.print(f"Port-forward arguments: {port_forward_args}")
-    console.print(f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}")
+    debug.print(f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}")
 
     # Create and start the two threads
     debug.print("Creating port-forward and endpoint watcher threads")
