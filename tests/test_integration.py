@@ -34,7 +34,7 @@ class TestCLIIntegration:
 
         assert result.returncode == 0
         assert "kpf" in result.stdout
-        assert "0.1.21" in result.stdout
+        assert "0.1.20" in result.stdout
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
@@ -64,7 +64,7 @@ class TestCLIIntegration:
             from src.kpf.kubernetes import KubernetesClient, ServiceInfo
             from src.kpf.main import run_port_forward
 
-            assert __version__ == "0.1.21"
+            assert __version__ == "0.1.20"
             assert callable(main)
             assert KubernetesClient is not None
             assert ServiceInfo is not None
@@ -107,7 +107,9 @@ class TestEndToEndScenarios:
                 return result
             else:
                 # Simulate connection error for other commands
-                raise subprocess.CalledProcessError(1, cmd, stderr=b"connection refused")
+                raise subprocess.CalledProcessError(
+                    1, cmd, stderr=b"connection refused"
+                )
 
         mock_run.side_effect = mock_subprocess
 
