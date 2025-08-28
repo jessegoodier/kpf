@@ -293,7 +293,7 @@ def main():
 
         else:
             parser.print_help()
-            sys.exit(1)
+            sys.exit(0)
 
         # Run the port-forward utility (should only reach here if port_forward_args is set)
         if port_forward_args:

@@ -534,7 +534,9 @@ class ServiceSelector:
                 self.console.print("[red]Invalid port selection[/red]")
                 return []
 
-            selected_port = resource.ports[selection - 1]["port"]
+            # Sort ports by port number for consistent ordering (same as in table display)
+            sorted_ports = sorted(resource.ports, key=lambda p: p["port"])
+            selected_port = sorted_ports[selection - 1]["port"]
             local_port = self._prompt_for_local_port(selected_port)
 
             args = [
