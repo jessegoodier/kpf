@@ -12,6 +12,8 @@ from typing import Tuple
 
 import requests
 from rich.console import Console
+from rich.live import Live
+from rich.spinner import Spinner
 
 # Initialize Rich console
 console = Console()
@@ -73,7 +75,9 @@ class Debug:
 
         if rate_limit:
             current_time = time.time()
-            message_key = message[:50]  # Use first 50 chars as key to group similar messages
+            message_key = message[
+                :50
+            ]  # Use first 50 chars as key to group similar messages
 
             last_time = _debug_message_timestamps.get(message_key, 0)
             if current_time - last_time < DEBUG_MESSAGE_INTERVAL:
@@ -162,7 +166,9 @@ def _validate_port_format(port_forward_args):
                 console.print(
                     f"[red]Error: Invalid port format in '{arg}'. Expected format: 'local_port:remote_port' (e.g., 8080:80)[/red]"
                 )
-                debug.print(f"Port format validation [red]failed for '{arg}': {e}[/red]")
+                debug.print(
+                    f"Port format validation [red]failed for '{arg}': {e}[/red]"
+                )
                 return False
 
     # No port mapping found
@@ -234,7 +240,9 @@ def _validate_kubectl_command(port_forward_args):
         return False
     except FileNotFoundError:
         console.print("[red]Error: kubectl command not found[/red]")
-        console.print("[yellow]Please install kubectl and ensure it's in your PATH[/yellow]")
+        console.print(
+            "[yellow]Please install kubectl and ensure it's in your PATH[/yellow]"
+        )
         return False
     except Exception as e:
         console.print(f"[red]Error: Failed to validate kubectl command: {e}[/red]")
@@ -271,7 +279,9 @@ def _validate_service_and_endpoints(port_forward_args):
             debug.print("No resource found for service validation")
             return True  # Let kubectl handle it
 
-        debug.print(f"Validating {resource_type}/{resource_name} in namespace {namespace}")
+        debug.print(
+            f"Validating {resource_type}/{resource_name} in namespace {namespace}"
+        )
 
         # For services, check if service exists and has endpoints
         if resource_type in ["svc", "service"]:
@@ -286,7 +296,9 @@ def _validate_service_and_endpoints(port_forward_args):
                 "-o",
                 "json",
             ]
-            result = subprocess.run(cmd_service, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                cmd_service, capture_output=True, text=True, timeout=10
+            )
 
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
@@ -314,10 +326,14 @@ def _validate_service_and_endpoints(port_forward_args):
                 "-o",
                 "json",
             ]
-            result = subprocess.run(cmd_endpoints, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                cmd_endpoints, capture_output=True, text=True, timeout=10
+            )
 
             if result.returncode != 0:
-                console.print(f"[red]Error: No endpoints found for service '{resource_name}'[/red]")
+                console.print(
+                    f"[red]Error: No endpoints found for service '{resource_name}'[/red]"
+                )
                 console.print(
                     "[yellow]This usually means no pods are running for this service[/yellow]"
                 )
@@ -365,7 +381,9 @@ def _validate_service_and_endpoints(port_forward_args):
         # For pods/deployments, check if they exist (simpler check)
         elif resource_type in ["pod", "deploy", "deployment"]:
             kubectl_resource = (
-                "deployment" if resource_type in ["deploy", "deployment"] else resource_type
+                "deployment"
+                if resource_type in ["deploy", "deployment"]
+                else resource_type
             )
             cmd = ["kubectl", "get", kubectl_resource, resource_name, "-n", namespace]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
@@ -545,7 +563,9 @@ def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, st
             continue  # Try next URL
 
         except requests.exceptions.ConnectionError as e:
-            debug.print(f"HTTP connectivity test [red]connection error: {url} -> {e}[/red]")
+            debug.print(
+                f"HTTP connectivity test [red]connection error: {url} -> {e}[/red]"
+            )
             continue  # Try next URL
 
         except requests.exceptions.Timeout:
@@ -554,7 +574,9 @@ def _test_http_connectivity(local_port: int) -> Tuple[ConnectivityTestResult, st
             continue  # Try next URL
 
         except Exception as e:
-            debug.print(f"HTTP connectivity test [red]unexpected error: {url} -> {e}[/red]")
+            debug.print(
+                f"HTTP connectivity test [red]unexpected error: {url} -> {e}[/red]"
+            )
             continue  # Try next URL
 
     # If we get here, all HTTP attempts failed
@@ -587,7 +609,9 @@ def _check_port_connectivity(local_port: int) -> bool:
         debug.print("No local port specified, skipping connectivity check")
         return True  # Can't test, assume it's working
 
-    debug.print(f"Starting enhanced connectivity check for port {local_port}", rate_limit=True)
+    debug.print(
+        f"Starting enhanced connectivity check for port {local_port}", rate_limit=True
+    )
 
     # Step 1: Basic socket connectivity test
     socket_success, socket_description = _test_socket_connectivity(local_port)
@@ -638,7 +662,9 @@ def _mark_connectivity_success():
 
     if _connectivity_failure_start_time is not None:
         failure_duration = time.time() - _connectivity_failure_start_time
-        debug.print(f"[green]Port connectivity restored after {failure_duration:.1f}s[/green]")
+        debug.print(
+            f"[green]Port connectivity restored after {failure_duration:.1f}s[/green]"
+        )
         _connectivity_failure_start_time = None
     # Also reset HTTP timeout tracking on successful connectivity
     _mark_http_timeout_end()
@@ -675,7 +701,9 @@ def _mark_http_timeout_end():
     global _http_timeout_start_time
     if _http_timeout_start_time is not None:
         timeout_duration = time.time() - _http_timeout_start_time
-        debug.print(f"[green]HTTP timeouts resolved after {timeout_duration:.1f}s[/green]")
+        debug.print(
+            f"[green]HTTP timeouts resolved after {timeout_duration:.1f}s[/green]"
+        )
         _http_timeout_start_time = None
 
 
@@ -705,7 +733,9 @@ def _should_restart_port_forward():
         return True
     else:
         remaining_time = RESTART_THROTTLE_SECONDS - time_since_last_restart
-        debug.print(f"[yellow]Restart throttled: {remaining_time:.1f}s remaining[/yellow]")
+        debug.print(
+            f"[yellow]Restart throttled: {remaining_time:.1f}s remaining[/yellow]"
+        )
         return False
 
 
@@ -754,7 +784,9 @@ def get_watcher_args(port_forward_args):
         console.print("Could not determine resource name for endpoint watcher.")
         sys.exit(1)
 
-    debug.print(f"Final parsed values - namespace: {namespace}, resource_name: {resource_name}")
+    debug.print(
+        f"Final parsed values - namespace: {namespace}, resource_name: {resource_name}"
+    )
     return namespace, resource_name
 
 
@@ -788,8 +820,11 @@ def port_forward_thread(args):
             )
             debug.print(f"Port-forward process started with PID: {proc.pid}")
 
-            # Give port-forward a moment to start, then test if it's working
-            time.sleep(2)
+            # Show connecting spinner while waiting for port-forward to start
+            spinner = Spinner("dots", text="Connecting...")
+            with Live(spinner, console=console, refresh_per_second=10):
+                # Give port-forward a moment to start
+                time.sleep(2)
 
             # Test if port-forward is healthy
             if not _test_port_forward_health(args):
@@ -812,7 +847,10 @@ def port_forward_thread(args):
                 current_time = time.time()
 
                 # Check if it's time to test connectivity (minimum 2 seconds between checks)
-                if current_time - last_connectivity_check >= CONNECTIVITY_CHECK_INTERVAL:
+                if (
+                    current_time - last_connectivity_check
+                    >= CONNECTIVITY_CHECK_INTERVAL
+                ):
                     debug.print(
                         f"Checking port connectivity on port {local_port}",
                         rate_limit=True,
@@ -832,7 +870,9 @@ def port_forward_thread(args):
                             console.print(
                                 f"[red]Port-forward has been failing for {CONNECTIVITY_FAILURE_TIMEOUT}+ seconds[/red]"
                             )
-                            console.print("[red]This usually indicates one of the following:[/red]")
+                            console.print(
+                                "[red]This usually indicates one of the following:[/red]"
+                            )
                             console.print(
                                 "[red]  • kubectl port-forward process died unexpectedly[/red]"
                             )
@@ -895,7 +935,9 @@ def port_forward_thread(args):
                 except subprocess.TimeoutExpired:
                     debug.print("Process did not terminate gracefully, force killing")
                     proc.kill()  # Force kill if it's still running
-                    console.print("[red][Port-Forwarder] Process was forcefully killed.[/red]")
+                    console.print(
+                        "[red][Port-Forwarder] Process was forcefully killed.[/red]"
+                    )
                     try:
                         proc.wait(timeout=0.5)  # Brief wait after kill
                     except subprocess.TimeoutExpired:
@@ -976,7 +1018,9 @@ def endpoint_watcher_thread(namespace, resource_name):
                 if shutdown_event.is_set():
                     debug.print("Shutdown event detected in endpoint watcher, breaking")
                     break
-                debug.print(f"Endpoint watcher received line: {line.strip()}", rate_limit=True)
+                debug.print(
+                    f"Endpoint watcher received line: {line.strip()}", rate_limit=True
+                )
                 # The first line is the table header, which we should ignore.
                 if is_first_line:
                     is_first_line = False
@@ -993,8 +1037,8 @@ def endpoint_watcher_thread(namespace, resource_name):
                         )
                         restart_event.set()
                     else:
-                        console.print(
-                            "[yellow][Watcher] Endpoint change detected, but restart throttled[/yellow]"
+                        debug.print(
+                            "[Watcher] Endpoint change detected, attempting restart..."
                         )
 
             # If the subprocess finishes, we should break out and restart the watcher
@@ -1070,7 +1114,9 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
     debug.print(f"Parsed namespace: {namespace}, resource_name: {resource_name}")
 
     debug.print(f"Port-forward arguments: {port_forward_args}")
-    debug.print(f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}")
+    debug.print(
+        f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}"
+    )
 
     # Create and start the two threads
     debug.print("Creating port-forward and endpoint watcher threads")
