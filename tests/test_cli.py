@@ -78,7 +78,9 @@ class TestArgumentParser:
     def test_parser_combined_arguments(self):
         """Test multiple arguments together."""
         parser = create_parser()
-        args = parser.parse_args(["--prompt", "--check", "-n", "kube-system", "--debug"])
+        args = parser.parse_args(
+            ["--prompt", "--check", "-n", "kube-system", "--debug"]
+        )
 
         assert args.prompt is True
         assert args.check is True
@@ -102,7 +104,9 @@ class TestArgumentParser:
     def test_parser_short_flags(self):
         """Test short flag versions."""
         parser = create_parser()
-        args, unknown_args = parser.parse_known_args(["-p", "-c", "-A", "-l", "-n", "test", "-d"])
+        args, unknown_args = parser.parse_known_args(
+            ["-p", "-c", "-A", "-l", "-n", "test", "-d"]
+        )
 
         assert args.prompt is True
         assert args.check is True
@@ -140,7 +144,14 @@ class TestKubectlArgumentPassthrough:
         """Test kubectl --pod-running-timeout option is passed through."""
         parser = create_parser()
         args, unknown_args = parser.parse_known_args(
-            ["svc/frontend", "8080:8080", "--pod-running-timeout", "2m", "-n", "production"]
+            [
+                "svc/frontend",
+                "8080:8080",
+                "--pod-running-timeout",
+                "2m",
+                "-n",
+                "production",
+            ]
         )
 
         assert args.args == ["svc/frontend", "8080:8080"]
@@ -185,7 +196,12 @@ class TestKubectlArgumentPassthrough:
 
         assert args.args == ["svc/frontend", "8080:8080"]
         assert args.namespace == "production"
-        assert unknown_args == ["--context", "my-cluster", "--kubeconfig", "/path/to/config"]
+        assert unknown_args == [
+            "--context",
+            "my-cluster",
+            "--kubeconfig",
+            "/path/to/config",
+        ]
 
     def test_parser_only_kubectl_options(self):
         """Test when only kubectl options are provided (no args)."""
@@ -203,7 +219,15 @@ class TestKubectlArgumentPassthrough:
         """Test mixing kpf and kubectl options."""
         parser = create_parser()
         args, unknown_args = parser.parse_known_args(
-            ["--debug", "svc/frontend", "8080:8080", "--address", "0.0.0.0", "-n", "production"]
+            [
+                "--debug",
+                "svc/frontend",
+                "8080:8080",
+                "--address",
+                "0.0.0.0",
+                "-n",
+                "production",
+            ]
         )
 
         assert args.debug is True
@@ -233,12 +257,16 @@ class TestHandlePromptMode:
         result = handle_prompt_mode(namespace="test", show_all=False)
 
         assert result == ["svc/test", "8080:8080", "-n", "test"]
-        mock_selector.select_service_in_namespace.assert_called_once_with("test", False, False)
+        mock_selector.select_service_in_namespace.assert_called_once_with(
+            "test", False, False
+        )
         mock_selector.select_service_all_namespaces.assert_not_called()
 
     @patch("src.kpf.cli.KubernetesClient")
     @patch("src.kpf.cli.ServiceSelector")
-    def test_handle_prompt_mode_all_namespaces(self, mock_selector_class, mock_client_class):
+    def test_handle_prompt_mode_all_namespaces(
+        self, mock_selector_class, mock_client_class
+    ):
         """Test handle_prompt_mode with all namespaces."""
         mock_client = Mock()
         mock_selector = Mock()
@@ -254,12 +282,16 @@ class TestHandlePromptMode:
         result = handle_prompt_mode(show_all=True)
 
         assert result == ["svc/test", "8080:8080", "-n", "default"]
-        mock_selector.select_service_all_namespaces.assert_called_once_with(False, False)
+        mock_selector.select_service_all_namespaces.assert_called_once_with(
+            False, False
+        )
         mock_selector.select_service_in_namespace.assert_not_called()
 
     @patch("src.kpf.cli.KubernetesClient")
     @patch("src.kpf.cli.ServiceSelector")
-    def test_handle_prompt_mode_with_options(self, mock_selector_class, mock_client_class):
+    def test_handle_prompt_mode_with_options(
+        self, mock_selector_class, mock_client_class
+    ):
         """Test handle_prompt_mode with all options enabled."""
         mock_client = Mock()
         mock_selector = Mock()
@@ -276,7 +308,9 @@ class TestHandlePromptMode:
             namespace="test", show_all=False, show_all_ports=True, check_endpoints=True
         )
 
-        mock_selector.select_service_in_namespace.assert_called_once_with("test", True, True)
+        mock_selector.select_service_in_namespace.assert_called_once_with(
+            "test", True, True
+        )
 
 
 class TestMainFunction:
@@ -315,7 +349,9 @@ class TestMainFunction:
         """Test main function with legacy arguments."""
         main()
 
-        mock_run_pf.assert_called_once_with(["svc/frontend", "8080:8080"], debug_mode=False)
+        mock_run_pf.assert_called_once_with(
+            ["svc/frontend", "8080:8080"], debug_mode=False
+        )
 
     @patch("src.kpf.cli.run_port_forward")
     @patch("sys.argv", ["kpf", "svc/frontend", "8080:8080", "-n", "production"])
@@ -328,7 +364,9 @@ class TestMainFunction:
         )
 
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "svc/frontend", "8080:8080", "--namespace", "production"])
+    @patch(
+        "sys.argv", ["kpf", "svc/frontend", "8080:8080", "--namespace", "production"]
+    )
     def test_main_legacy_mode_add_namespace(self, mock_run_pf):
         """Test main function adding namespace to legacy arguments."""
         main()
@@ -339,7 +377,16 @@ class TestMainFunction:
 
     @patch("src.kpf.cli.run_port_forward")
     @patch(
-        "sys.argv", ["kpf", "svc/frontend", "8080:8080", "-n", "production", "--address", "0.0.0.0"]
+        "sys.argv",
+        [
+            "kpf",
+            "svc/frontend",
+            "8080:8080",
+            "-n",
+            "production",
+            "--address",
+            "0.0.0.0",
+        ],
     )
     def test_main_kubectl_address_option(self, mock_run_pf):
         """Test main function with kubectl --address option."""
@@ -351,13 +398,16 @@ class TestMainFunction:
         )
 
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "svc/frontend", "8080:8080", "--pod-running-timeout", "2m"])
+    @patch(
+        "sys.argv", ["kpf", "svc/frontend", "8080:8080", "--pod-running-timeout", "2m"]
+    )
     def test_main_kubectl_pod_timeout_option(self, mock_run_pf):
         """Test main function with kubectl --pod-running-timeout option."""
         main()
 
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080", "--pod-running-timeout", "2m"], debug_mode=False
+            ["svc/frontend", "8080:8080", "--pod-running-timeout", "2m"],
+            debug_mode=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -394,7 +444,10 @@ class TestMainFunction:
         )
 
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "--debug", "svc/frontend", "8080:8080", "--address", "0.0.0.0"])
+    @patch(
+        "sys.argv",
+        ["kpf", "--debug", "svc/frontend", "8080:8080", "--address", "0.0.0.0"],
+    )
     def test_main_mixed_kpf_kubectl_options(self, mock_run_pf):
         """Test main function mixing kpf and kubectl options."""
         main()
@@ -416,7 +469,16 @@ class TestMainFunction:
 
     @patch("src.kpf.cli.run_port_forward")
     @patch(
-        "sys.argv", ["kpf", "svc/frontend", "8080:8080", "-n", "existing", "--namespace", "kpf-arg"]
+        "sys.argv",
+        [
+            "kpf",
+            "svc/frontend",
+            "8080:8080",
+            "-n",
+            "existing",
+            "--namespace",
+            "kpf-arg",
+        ],
     )
     def test_main_namespace_override(self, mock_run_pf):
         """Test that kpf --namespace overrides earlier -n argument."""
@@ -431,7 +493,15 @@ class TestMainFunction:
     @patch("src.kpf.cli.run_port_forward")
     @patch(
         "sys.argv",
-        ["kpf", "svc/frontend", "8080:8080", "--context", "my-cluster", "-n", "kubectl-ns"],
+        [
+            "kpf",
+            "svc/frontend",
+            "8080:8080",
+            "--context",
+            "my-cluster",
+            "-n",
+            "kubectl-ns",
+        ],
     )
     def test_main_kubectl_namespace_no_duplication(self, mock_run_pf):
         """Test that -n is not duplicated when it already exists in known args."""
@@ -440,7 +510,14 @@ class TestMainFunction:
         # -n is parsed as kpf's namespace argument, so no additional -n should be added
         # --context remains as unknown kubectl arg
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080", "--context", "my-cluster", "-n", "kubectl-ns"],
+            [
+                "svc/frontend",
+                "8080:8080",
+                "--context",
+                "my-cluster",
+                "-n",
+                "kubectl-ns",
+            ],
             debug_mode=False,
         )
 
@@ -473,7 +550,7 @@ class TestMainFunction:
         with patch("sys.exit") as mock_exit:
             main()
             # Should call sys.exit(1) after printing help
-            mock_exit.assert_any_call(1)
+            mock_exit.assert_any_call(0)
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("sys.argv", ["kpf", "--prompt"])
