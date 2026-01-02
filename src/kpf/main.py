@@ -21,6 +21,23 @@ console = Console()
 restart_event = threading.Event()
 shutdown_event = threading.Event()
 
+# Track active subprocesses for safe cleanup
+active_processes = []
+active_processes_lock = threading.Lock()
+
+
+def _register_process(proc):
+    """Register a subprocess to be cleaned up on exit."""
+    with active_processes_lock:
+        active_processes.append(proc)
+
+
+def _unregister_process(proc):
+    """Unregister a subprocess that has finished."""
+    with active_processes_lock:
+        if proc in active_processes:
+            active_processes.remove(proc)
+
 # Track last restart time for throttling
 _last_restart_time = 0
 RESTART_THROTTLE_SECONDS = 5
@@ -830,6 +847,7 @@ def port_forward_thread(args):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
+            _register_process(proc)
             debug.print(f"Port-forward process started with PID: {proc.pid}")
 
             # Show connecting spinner while waiting for port-forward to start
@@ -1003,6 +1021,7 @@ def port_forward_thread(args):
                 proc.wait(timeout=0.5)
             except subprocess.TimeoutExpired:
                 debug.print("Port-forward process unresponsive even after kill")
+        _unregister_process(proc)
 
 
 def endpoint_watcher_thread(namespace, resource_name):
@@ -1038,6 +1057,7 @@ def endpoint_watcher_thread(namespace, resource_name):
                 stderr=subprocess.PIPE,
                 universal_newlines=True,
             )
+            _register_process(proc)
             debug.print(f"Endpoint watcher process started with PID: {proc.pid}")
 
             # The `for` loop will block and yield lines as they are produced
@@ -1110,6 +1130,7 @@ def endpoint_watcher_thread(namespace, resource_name):
                 proc.wait(timeout=0.5)
             except subprocess.TimeoutExpired:
                 debug.print("Endpoint watcher process unresponsive even after kill")
+        _unregister_process(proc)
 
 
 def run_port_forward(port_forward_args, debug_mode: bool = False):
@@ -1195,20 +1216,21 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
             debug.print(f"Threads still running: {', '.join(threads_alive)}")
             console.print(f"[yellow]Some threads did not shut down cleanly: {', '.join(threads_alive)}[/yellow]")
             
-            # Try to forcefully kill any remaining kubectl processes using pkill
-            try:
-                import subprocess
-                result = subprocess.run(
-                    ["pkill", "-f", "kubectl port-forward"], 
-                    capture_output=True, 
-                    timeout=2
-                )
-                if result.returncode == 0:
-                    debug.print("Killed remaining kubectl port-forward processes")
-                else:
-                    debug.print("No kubectl port-forward processes found to kill")
-            except Exception as e:
-                debug.print(f"Could not kill kubectl processes: {e}")
+            # Use active_processes registry to clean up any remaining subprocesses
+            if active_processes:
+                debug.print(f"Cleaning up {len(active_processes)} active subprocesses")
+                with active_processes_lock:
+                    for p in active_processes[:]:  # Iterate over a copy
+                        try:
+                            if p.poll() is None:  # If still running
+                                debug.print(f"Killing process PID: {p.pid}")
+                                p.kill()
+                                p.wait(timeout=1)
+                        except Exception as e:
+                            debug.print(f"Error killing process: {e}")
+                debug.print("All tracked processes terminated")
+            else:
+                debug.print("No tracked processes to clean up")
             
             console.print("[Main] Exiting.")
             # Force exit immediately instead of hanging
