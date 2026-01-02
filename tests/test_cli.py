@@ -112,6 +112,14 @@ class TestArgumentParser:
         assert args.debug is True
         assert unknown_args == []
 
+    def test_parser_zero_address(self):
+        """Test -0 argument."""
+        parser = create_parser()
+        args, unknown_args = parser.parse_known_args(["-0"])
+
+        assert args.address_zero is True
+        assert unknown_args == []
+
 
 class TestKubectlArgumentPassthrough:
     """Test kubectl argument passthrough functionality.
@@ -551,3 +559,26 @@ class TestMainFunction:
         with patch("sys.exit") as mock_exit:
             main()
             mock_exit.assert_called_once_with(1)
+
+    @patch("src.kpf.cli.run_port_forward")
+    @patch("sys.argv", ["kpf", "svc/frontend", "8080:8080", "-0"])
+    def test_main_zero_address_legacy(self, mock_run_pf):
+        """Test main function with -0 flag in legacy mode."""
+        main()
+
+        mock_run_pf.assert_called_once_with(
+            ["svc/frontend", "8080:8080", "--address", "0.0.0.0"], debug_mode=False
+        )
+
+    @patch("src.kpf.cli.handle_prompt_mode")
+    @patch("src.kpf.cli.run_port_forward")
+    @patch("sys.argv", ["kpf", "--prompt", "-0"])
+    def test_main_zero_address_prompt(self, mock_run_pf, mock_handle_prompt):
+        """Test main function with -0 flag in prompt mode."""
+        mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "default"]
+
+        main()
+
+        mock_run_pf.assert_called_once_with(
+            ["svc/test", "8080:8080", "-n", "default", "--address", "0.0.0.0"], debug_mode=False
+        )

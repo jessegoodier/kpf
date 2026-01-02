@@ -122,6 +122,7 @@ Example usage:
   kpf --all (or -A)                             # Show all services across all namespaces
   kpf --all-ports (or -l)                       # Show all services with their ports
   kpf --prompt --check -n production            # Interactive selection with endpoint status
+  kpf --prompt -0                               # Listen on 0.0.0.0 (all interfaces)
 ```
 
 ## Examples
