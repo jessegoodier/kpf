@@ -52,7 +52,8 @@ pipx install uv
 
 **Note**: You might think that "warm tip" is something that AI wrote, but that's not the case. It really is just a little bit less than a hot tip.
 
-![screenshot](kpf-screenshot.png)
+![screenshot1](kpf-screenshot1.png)
+![screenshot2](kpf-screenshot2.png)
 
 Select services interactively:
 
