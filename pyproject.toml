@@ -98,7 +98,7 @@ filterwarnings = [
 [tool.bumpversion]
 current_version = "0.2.2"
 commit = true
-tag = false
+tag = true
 allow_dirty = false
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
