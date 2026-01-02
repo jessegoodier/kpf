@@ -36,9 +36,18 @@ jobs:
         run: make bump-${{ inputs.release_type }}
 
       - name: Push Changes
-        run: git push origin HEAD:${{ github.ref_name }}
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
+          git push --tags
+
+      - name: Get Version
+        id: version
+        run: echo "version=$(make version)" >> $GITHUB_OUTPUT
 
       - name: Create Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: make release
+        run: |
+          gh release create v${{ steps.version.outputs.version }} \
+            --generate-notes \
+            --latest
