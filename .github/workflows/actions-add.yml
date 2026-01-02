@@ -9,12 +9,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Make a dummy change
-        run: echo "$(date)" > timestamp.txt
-      - name: Commit and push
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git checkout -b add-actions
+          echo "$(date)" > timestamp.txt          
           git add timestamp.txt
           git commit -m "Trigger write from GitHub Actions"
           git push origin add-actions
