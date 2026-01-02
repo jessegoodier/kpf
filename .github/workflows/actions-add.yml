@@ -1,0 +1,8 @@
+name: Trigger GitHub Actions
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Hello from GitHub Actions"
