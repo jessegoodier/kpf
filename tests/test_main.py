@@ -528,9 +528,14 @@ class TestPortValidation:
 
         mock_process = Mock()
         mock_popen.return_value = mock_process
-        mock_health_check.return_value = False
 
-        shutdown_event.clear()
+        # Configure side effect to shut down after the first health check fails
+        # This breaks the infinite loop in port_forward_thread
+        def side_effect(*args, **kwargs):
+            shutdown_event.set()
+            return False
+
+        mock_health_check.side_effect = side_effect
 
         with patch("src.kpf.main.console.print") as mock_print:
             port_forward_thread(args)
@@ -544,10 +549,13 @@ class TestPortValidation:
             assert len(error_calls) > 0
 
             # Process should be terminated
-            mock_process.terminate.assert_called_once()
+            # It might be called multiple times (once on failure, once on cleanup)
+            mock_process.terminate.assert_called()
 
-            # Shutdown event should be set
-            assert shutdown_event.is_set()
+            # Restart event should be set (because it tries to retry)
+            from src.kpf.main import restart_event
+
+            assert restart_event.is_set()
 
         # Clean up
         shutdown_event.clear()

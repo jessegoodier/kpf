@@ -208,3 +208,4 @@ __marimo__/
 CLAUDE.md
 gke_gcloud_auth_plugin_cache
 homebrew-kpf
+.vscode/settings.json

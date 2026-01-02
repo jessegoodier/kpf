@@ -34,7 +34,7 @@ class TestCLIIntegration:
 
         assert result.returncode == 0
         assert "kpf" in result.stdout
-        assert "0.1.22" in result.stdout
+        assert "0.2.0" in result.stdout
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
@@ -58,13 +58,39 @@ class TestCLIIntegration:
     def test_import_structure(self):
         """Test that all modules can be imported without errors."""
         try:
+            # Verify version consistency
+            import tomllib
+            from pathlib import Path
+
             from src.kpf import __version__
             from src.kpf.cli import main
             from src.kpf.display import ServiceSelector
             from src.kpf.kubernetes import KubernetesClient, ServiceInfo
             from src.kpf.main import run_port_forward
 
-            assert __version__ == "0.1.22"
+            root_dir = Path(__file__).parent.parent
+
+            # Read pyproject.toml
+            with open(root_dir / "pyproject.toml", "rb") as f:
+                pyproject_data = tomllib.load(f)
+                pyproject_version = pyproject_data["project"]["version"]
+
+            # Read uv.lock
+            with open(root_dir / "uv.lock", "rb") as f:
+                lock_data = tomllib.load(f)
+                # Find kpf package in lock file
+                kpf_package = next(
+                    (pkg for pkg in lock_data["package"] if pkg["name"] == "kpf"), None
+                )
+                lock_version = kpf_package["version"] if kpf_package else None
+
+            assert __version__ == pyproject_version, (
+                f"Version mismatch: __init__ ({__version__}) != pyproject ({pyproject_version})"
+            )
+            assert __version__ == lock_version, (
+                f"Version mismatch: __init__ ({__version__}) != uv.lock ({lock_version})"
+            )
+
             assert callable(main)
             assert KubernetesClient is not None
             assert ServiceInfo is not None

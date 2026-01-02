@@ -24,6 +24,7 @@ shutdown_event = threading.Event()
 # Track last restart time for throttling
 _last_restart_time = 0
 RESTART_THROTTLE_SECONDS = 5
+_pending_restart = False  # Track if restart is needed but throttled
 
 # Track connectivity failure state
 _connectivity_failure_start_time = None
@@ -698,17 +699,28 @@ def _check_http_timeout_restart():
 
 def _should_restart_port_forward():
     """Check if enough time has passed since last restart to allow another restart."""
-    global _last_restart_time
+    global _last_restart_time, _pending_restart
     current_time = time.time()
     time_since_last_restart = current_time - _last_restart_time
 
     if time_since_last_restart >= RESTART_THROTTLE_SECONDS:
         _last_restart_time = current_time
+        _pending_restart = False  # Clear pending flag since we're restarting
         return True
     else:
         remaining_time = RESTART_THROTTLE_SECONDS - time_since_last_restart
         debug.print(f"[yellow]Restart throttled: {remaining_time:.1f}s remaining[/yellow]")
+        _pending_restart = True  # Mark that we need to restart later
         return False
+
+
+def _check_pending_restart():
+    """Check if there's a pending restart that can now be executed."""
+    global _pending_restart
+    if _pending_restart and _should_restart_port_forward():
+        debug.print("[green]Executing pending restart[/green]")
+        return True
+    return False
 
 
 def get_port_forward_args(args):
@@ -803,10 +815,19 @@ def port_forward_thread(args):
                     "[yellow]This may indicate the service is not running or the port mapping is incorrect[/yellow]"
                 )
                 if proc:
+                    debug.print(f"Terminating failed port-forward process PID: {proc.pid}")
                     proc.terminate()
-                    proc.wait(timeout=5)
-                shutdown_event.set()
-                return
+                    try:
+                        proc.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        debug.print("Port-forward process did not terminate, killing it")
+                        proc.kill()
+                        proc.wait(timeout=1)
+
+                # Instead of shutting down immediately, set restart event to try again
+                console.print("[yellow]Will retry port-forward in a moment...[/yellow]")
+                restart_event.set()
+                continue
 
             console.print("\n🚀 [green]port-forward started[/green] 🚀")
 
@@ -885,12 +906,20 @@ def port_forward_thread(args):
 
                     last_connectivity_check = current_time
 
+                # Check if there's a pending restart that can now be executed
+                if _check_pending_restart():
+                    console.print(
+                        "[green][Port-Forwarder] Executing pending restart due to endpoint changes[/green]"
+                    )
+                    restart_event.set()
+                    break
+
                 time.sleep(0.1)  # Short sleep for responsive shutdown
 
             if proc and (restart_event.is_set() or shutdown_event.is_set()):
                 if restart_event.is_set():
                     console.print(
-                        "[yellow][Port-Forwarder] Restarting port-forward process...[/yellow]"
+                        "[yellow][Port-Forwarder] Endpoint change detected, restarting port-forward process...[/yellow]"
                     )
                 debug.print(f"Terminating port-forward process PID: {proc.pid}")
                 proc.terminate()  # Gracefully terminate the process
@@ -998,7 +1027,7 @@ def endpoint_watcher_thread(namespace, resource_name):
                         )
                         restart_event.set()
                     else:
-                        debug.print("[Watcher] Endpoint change detected, attempting restart...")
+                        debug.print("[Watcher] Endpoint change detected, but restart throttled")
 
             # If the subprocess finishes, we should break out and restart the watcher
             # This handles cases where the kubectl process itself might terminate.
@@ -1110,19 +1139,42 @@ def run_port_forward(port_forward_args, debug_mode: bool = False):
 
         # Wait for both threads to finish with timeout
         debug.print("Waiting for threads to finish...")
-        pf_t.join(timeout=2)  # Reduced timeout
-        ew_t.join(timeout=2)  # Reduced timeout
+        pf_t.join(timeout=3)  # Give a bit more time for graceful shutdown
+        ew_t.join(timeout=3)
 
-        if pf_t.is_alive() or ew_t.is_alive():
-            debug.print("Some threads did not shut down cleanly, forcing exit")
-            console.print("[yellow]Some threads did not shut down cleanly[/yellow]")
+        threads_alive = []
+        if pf_t.is_alive():
+            threads_alive.append("port-forward")
+        if ew_t.is_alive():
+            threads_alive.append("endpoint-watcher")
+
+        if threads_alive:
+            debug.print(f"Threads still running: {', '.join(threads_alive)}")
+            console.print(
+                f"[yellow]Some threads did not shut down cleanly: {', '.join(threads_alive)}[/yellow]"
+            )
+
+            # Try to forcefully kill any remaining kubectl processes using pkill
+            try:
+                import subprocess
+
+                result = subprocess.run(
+                    ["pkill", "-f", "kubectl port-forward"], capture_output=True, timeout=2
+                )
+                if result.returncode == 0:
+                    debug.print("Killed remaining kubectl port-forward processes")
+                else:
+                    debug.print("No kubectl port-forward processes found to kill")
+            except Exception as e:
+                debug.print(f"Could not kill kubectl processes: {e}")
+
             console.print("[Main] Exiting.")
             # Force exit immediately instead of hanging
             import os
 
             os._exit(1)
         else:
-            debug.print("All threads have shut down")
+            debug.print("All threads have shut down cleanly")
             console.print("[Main] Exiting.")
 
 
