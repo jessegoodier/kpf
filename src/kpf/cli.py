@@ -92,6 +92,13 @@ Example usage:
         help="Enable debug output for troubleshooting display issues",
     )
 
+    parser.add_argument(
+        "-0",
+        dest="address_zero",
+        action="store_true",
+        help="Listen on all interfaces (0.0.0.0) instead of localhost",
+    )
+
     # Positional arguments for legacy port-forward syntax
     parser.add_argument("args", nargs="*", help="kubectl port-forward arguments (legacy mode)")
 
@@ -294,6 +301,12 @@ def main():
         else:
             parser.print_help()
             sys.exit(0)
+
+        # Apply the -0 flag if specified
+        if args.address_zero and port_forward_args:
+            # Check if --address is already specified to avoid duplicates/conflicts
+            if "--address" not in port_forward_args:
+                port_forward_args.extend(["--address", "0.0.0.0"])
 
         # Run the port-forward utility (should only reach here if port_forward_args is set)
         if port_forward_args:
