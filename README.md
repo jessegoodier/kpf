@@ -38,7 +38,7 @@ If you have `uv` installed, you can "install" `kpf` with:
 alias kpf="uvx kpf"
 ```
 
-Install uv with pipx:
+Install uv with pipx (brew can be behind):
 
 ```bash
 pipx install uv
