@@ -113,11 +113,11 @@ replace = '__version__ = "{new_version}"'
 dev = [
     "build>=1.3.0",
     "hatchling>=1.27.0",
-    "isort>=6.0.1",
-    "pytest>=8.4.1",
-    "pytest-cov>=6.2.1",
+    "isort>=7.0.0",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
     "pytest-timeout>=2.4.0",
     "readchar>=4.2.1",
-    "ruff>=0.12.8",
+    "ruff>=0.14.10",
 ]
 
