@@ -299,8 +299,17 @@ def main():
                 port_forward_args.extend(["-n", args.namespace])
 
         else:
-            parser.print_help()
-            sys.exit(0)
+            # Default to interactive mode if no arguments are provided
+            # This is equivalent to running `kpf -p` or `kpf --prompt`
+            port_forward_args = handle_prompt_mode(
+                namespace=args.namespace,
+                show_all=args.all,
+                show_all_ports=args.all_ports,
+                check_endpoints=args.check,
+            )
+            if not port_forward_args:
+                console.print("No service selected. Exiting.", style="dim")
+                sys.exit(0)
 
         # Apply the -0 flag if specified
         if args.address_zero and port_forward_args:
