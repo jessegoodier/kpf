@@ -643,8 +643,10 @@ def _mark_connectivity_success():
         failure_duration = time.time() - _connectivity_failure_start_time
         debug.print(f"[green]Port connectivity restored after {failure_duration:.1f}s[/green]")
         _connectivity_failure_start_time = None
-    # Also reset HTTP timeout tracking on successful connectivity
-    _mark_http_timeout_end()
+    # Note: We do NOT reset HTTP timeout tracking here.
+    # HTTP tracking should only be reset when an HTTP request actually succeeds.
+    # This prevents "zombie" sockets (which accept connections but pass no traffic)
+    # from resetting the HTTP timeout timer.
 
 
 def _check_connectivity_failure_timeout():
