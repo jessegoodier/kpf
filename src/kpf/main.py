@@ -306,6 +306,20 @@ def _validate_service_and_endpoints(port_forward_args):
 
             debug.print(f"Service {resource_name} exists")
 
+            # Parse service data to extract selector for later use
+            service_selector_str = "<service-selector>"
+            try:
+                import json
+
+                service_data = json.loads(result.stdout)
+                selector = service_data.get("spec", {}).get("selector", {})
+                if selector:
+                    # Format selector as key=value,key=value
+                    parts = [f"{k}={v}" for k, v in selector.items()]
+                    service_selector_str = ",".join(parts)
+            except (json.JSONDecodeError, KeyError) as e:
+                debug.print(f"Failed to parse service JSON: {e}")
+
             # Check if service has endpoints
             cmd_endpoints = [
                 "kubectl",
@@ -353,7 +367,7 @@ def _validate_service_and_endpoints(port_forward_args):
                         "[yellow]This means the service exists but no pods are ready to serve traffic[/yellow]"
                     )
                     console.print(
-                        f"[yellow]Check pod status: kubectl get pods -n {namespace} -l <service-selector>[/yellow]"
+                        f"[yellow]Check pod status: kubectl get pods -n {namespace} -l {service_selector_str}[/yellow]"
                     )
                     return False
 

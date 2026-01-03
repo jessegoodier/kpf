@@ -824,6 +824,43 @@ class TestServiceValidation:
             assert len(ready_calls) > 0
 
     @patch("subprocess.run")
+    def test_validate_service_and_endpoints_with_selector(self, mock_run):
+        """Test service validation displays selector when no endpoints are ready."""
+        args = ["svc/selector-service", "8080:80", "-n", "default"]
+
+        # Mock service exists and has selector
+        def mock_subprocess(*cmd_args, **kwargs):
+            cmd = cmd_args[0]
+            result = Mock()
+
+            if "get svc" in " ".join(cmd):
+                # Service exists with selector
+                result.returncode = 0
+                result.stdout = '{"metadata": {"name": "selector-service"}, "spec": {"selector": {"app": "myapp", "tier": "backend"}}}'
+            elif "get endpoints" in " ".join(cmd):
+                # No ready endpoints
+                result.returncode = 0
+                result.stdout = '{"metadata": {"name": "selector-service"}, "subsets": []}'
+
+            return result
+
+        mock_run.side_effect = mock_subprocess
+
+        with patch("src.kpf.main.console.print") as mock_print:
+            result = _validate_service_and_endpoints(args)
+            assert result is False
+
+            # Check that the selector is displayed in the error message
+            # The selector should be formatted as "app=myapp,tier=backend" or "tier=backend,app=myapp"
+            # We check for both parts to be robust against dictionary ordering
+            selector_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "app=myapp" in str(call) and "tier=backend" in str(call)
+            ]
+            assert len(selector_calls) > 0
+
+    @patch("subprocess.run")
     def test_validate_service_and_endpoints_success(self, mock_run):
         """Test service validation when service has ready endpoints."""
         args = ["svc/working-service", "8080:80", "-n", "default"]
