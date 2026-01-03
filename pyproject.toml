@@ -103,11 +103,22 @@ allow_dirty = false
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 message = "Bump version: {current_version} → {new_version}"
+pre_commit_hooks = [
+    "uv sync",
+    "git add uv.lock",
+]
+
 
 [[tool.bumpversion.files]]
 filename = "src/kpf/__init__.py"
 search = '__version__ = "{current_version}"'
 replace = '__version__ = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "tests/test_integration.py"
+search = 'assert "{current_version}" in result.stdout'
+replace = 'assert "{new_version}" in result.stdout'
+
 
 [dependency-groups]
 dev = [
