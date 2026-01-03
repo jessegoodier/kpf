@@ -1,6 +1,6 @@
 [project]
 name = "kpf"
-version = "0.2.4"
+version = "0.3.0"
 description = "A terminal utility to run kubectl port-forward and automatically restart it when endpoint changes are detected"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -96,7 +96,7 @@ filterwarnings = [
 ]
 
 [tool.bumpversion]
-current_version = "0.2.4"
+current_version = "0.3.0"
 commit = true
 tag = true
 allow_dirty = false
