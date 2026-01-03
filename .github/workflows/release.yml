@@ -19,6 +19,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -51,3 +53,10 @@ jobs:
           gh release create v${{ steps.version.outputs.version }} \
             --generate-notes \
             --latest
+
+  publish-pypi:
+    needs: release
+    uses: ./.github/workflows/pypi-publish.yml
+    with:
+      ref: v${{ needs.release.outputs.version }}
+    secrets: inherit
