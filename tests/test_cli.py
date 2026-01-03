@@ -532,13 +532,19 @@ class TestMainFunction:
             # The first call should be sys.exit(0) from the "No service selected" path
             mock_exit.assert_any_call(0)
 
+    @patch("src.kpf.cli.handle_prompt_mode")
+    @patch("src.kpf.cli.run_port_forward")
     @patch("sys.argv", ["kpf"])
-    def test_main_no_arguments(self):
-        """Test main function with no arguments (should show help)."""
-        with patch("sys.exit") as mock_exit:
-            main()
-            # Should call sys.exit(1) after printing help
-            mock_exit.assert_any_call(0)
+    def test_main_no_arguments(self, mock_run_pf, mock_handle_prompt):
+        """Test main function with no arguments (should default to interactive)."""
+        mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "default"]
+
+        main()
+
+        mock_handle_prompt.assert_called_once()
+        mock_run_pf.assert_called_once_with(
+            ["svc/test", "8080:8080", "-n", "default"], debug_mode=False
+        )
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("sys.argv", ["kpf", "--prompt"])
