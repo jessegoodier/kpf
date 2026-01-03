@@ -26,10 +26,6 @@ def create_parser() -> argparse.ArgumentParser:
         description="A better Kubectl Port-Forward that automatically restarts port-forwards when endpoints change",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-There is no default command. You must specify one of the arguments below.
-You could alias kpf to -p for interactive mode if you prefer.
-Example of this in your ~/.zshrc:
-alias kpf='uvx kpf -p'
 
 Example usage:
   kpf svc/frontend 8080:8080 -n production      # Direct port-forward (backwards compatible with kpf alias)
@@ -38,6 +34,11 @@ Example usage:
   kpf --all (or -A)                             # Show all services across all namespaces
   kpf --all-ports (or -l)                       # Show all services with their ports
   kpf --prompt --check -n production            # Interactive selection with endpoint status
+
+There is no default command. You must specify one of the arguments below.
+If you prefer that kpf default to interactive mode, you can create an alias.
+Example of this in your ~/.zshrc:
+alias kpf='kpf -p'
         """,
     )
 
