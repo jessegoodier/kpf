@@ -63,13 +63,13 @@ Select services interactively:
 Interactive selection in current namespace:
 
 ```bash
-kpf --prompt
+kpf
 ```
 
 Interactive selection in specific namespace:
 
 ```bash
-kpf --prompt -n production
+kpf -n production
 
 Show all services across all namespaces:
 
@@ -95,7 +95,7 @@ Add endpoint status checking to service selection (slower but shows endpoint hea
 
 ```bash
 # Interactive selection with endpoint status
-kpf --prompt --check
+kpf --check
 
 # Show all services with endpoint status
 kpf --all --check
@@ -117,16 +117,15 @@ kpf pod/my-pod 3000:3000
 ### Command Options
 
 ```sh
-There is no default command. You must specify one of the arguments below.
 
 Example usage:
+  kpf                                           # Interactive mode
   kpf svc/frontend 8080:8080 -n production      # Direct port-forward (maintain expected behavior)
-  kpf --prompt (or -p)                          # Interactive service selection
-  kpf --prompt -n production                    # Interactive selection in specific namespace
+  kpf -n production                             # Interactive selection in specific namespace
   kpf --all (or -A)                             # Show all services across all namespaces
   kpf --all-ports (or -l)                       # Show all services with their ports
-  kpf --prompt --check -n production            # Interactive selection with endpoint status
-  kpf --prompt -0                               # Listen on 0.0.0.0 (all interfaces)
+  kpf --check -n production                     # Interactive selection with endpoint status
+  kpf -0                                        # Listen on 0.0.0.0 (all interfaces)
 ```
 
 ## Examples
@@ -136,7 +135,7 @@ Example usage:
 Fast mode (without endpoint checking):
 
 ```bash
-$ kpf --prompt -n kube-system
+$ kpf -n kube-system
 
 Services in namespace: kube-system
 
@@ -152,7 +151,7 @@ Local port (press Enter for 53): 5353
 With endpoint status checking:
 
 ```bash
-$ kpf --prompt --check -n kube-system
+$ kpf --check -n kube-system
 
 Services in namespace: kube-system
 
