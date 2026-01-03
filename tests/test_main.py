@@ -1253,12 +1253,12 @@ class TestHttpTimeoutRestart:
             # Should print connectivity restored message
             calls = [str(call) for call in mock_print.call_args_list]
             assert any("connectivity restored" in call for call in calls)
-            
+
             # Should NOT print HTTP resolved message
             assert not any("HTTP timeouts resolved" in call for call in calls)
 
         # Verify connectivity state is reset
         assert src.kpf.main._connectivity_failure_start_time is None
-        
+
         # Verify HTTP timeout state is preserved
         assert src.kpf.main._http_timeout_start_time == 1002.0
