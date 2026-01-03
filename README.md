@@ -1,6 +1,6 @@
 # kpf - A better way to port-forward with kubectl
 
-This is a Python utility that (attempts) to dramatically improve the experience of port-forwarding with kubectl.
+This is a Python utility that (attempts to) dramatically improve the experience of port-forwarding with kubectl.
 
 It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic reconnect when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
 
@@ -9,13 +9,15 @@ It is essentially a wrapper around `kubectl port-forward` that adds an interacti
 - 🔄 **Automatic Restart**: Monitors endpoint changes and restarts port-forward automatically
 - 🎯 **Interactive Selection**: Choose services with a colorful, intuitive interface
 - 🌈 **Color-coded Status**: Green for services with endpoints, red for those without
-- 🔍 **Multi-resource Support**: Services, pods, deployments, and more
-- 📊 **Rich Tables**: Beautiful formatted output with port information
-- 🏷️ **Namespace Aware**: Work with specific namespaces or across all namespaces
+- 🔍 **Multi-resource Support**: Services, pods, deployments, etc.
 
 ## Installation
 
-**Note**: `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. If you prefer this tool, you can alias at the bottom of your `~/.zshrc` file or use a different alias.
+**Note**: The `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. You must unalias `kpf` before using this tool.
+
+```sh
+echo "unalias kpf" >> ~/.zshrc
+```
 
 ### Homebrew (Recommended)
 
@@ -50,10 +52,11 @@ pipx install uv
 
 **Warm Tip**: You can use the interactive mode to find the service you want, and it will output the command to connect to that service directly next time.
 
-**Note**: You might think that "warm tip" is something that AI wrote, but that's not the case. It really is just a little bit less than a hot tip.
+**Note**: You might think that "warm tip" is something that AI wrote, but that's not the case. It really is just a little bit cooler than a hot tip.
 
 ![screenshot1](kpf-screenshot1.png)
 ![screenshot2](kpf-screenshot2.png)
+![screenshot3](kpf-screenshot3.png)
 
 Select services interactively:
 
@@ -103,7 +106,7 @@ kpf --all-ports --check
 
 ### Legacy Mode
 
-Direct port-forward (backward compatible):
+Direct port-forward (maintain expected behavior):
 
 ```bash
 # Traditional kubectl port-forward syntax
@@ -117,7 +120,7 @@ kpf pod/my-pod 3000:3000
 There is no default command. You must specify one of the arguments below.
 
 Example usage:
-  kpf svc/frontend 8080:8080 -n production      # Direct port-forward (backwards compatible with kpf alias)
+  kpf svc/frontend 8080:8080 -n production      # Direct port-forward (maintain expected behavior)
   kpf --prompt (or -p)                          # Interactive service selection
   kpf --prompt -n production                    # Interactive selection in specific namespace
   kpf --all (or -A)                             # Show all services across all namespaces
