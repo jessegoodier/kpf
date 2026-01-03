@@ -483,9 +483,9 @@ def _test_socket_connectivity(local_port: int) -> Tuple[bool, str]:
                     f"Socket connectivity test: Connection [red]refused - port-forward working, service may be down (code: {result})[/red]"
                 )
                 return (
-                    True,
+                    False,
                     "connection_refused",
-                )  # but there is a port-forward working
+                )  # Treated as failure to trigger restart if persistent
             else:
                 debug.print(f"Socket connectivity test failed (code: {result})")
                 return False, f"connection_error_{result}"
@@ -616,14 +616,6 @@ def _check_port_connectivity(local_port: int) -> bool:
             # but we still consider the port-forward itself healthy.
             _mark_connectivity_success()
             return True
-    else:
-        # Socket connection was refused - port-forward is working
-        # but service is not responding (which is OK)
-        debug.print(
-            "[yellow]Connection refused - port-forward working, service not responding[/yellow]"
-        )
-        _mark_connectivity_success()
-        return True
 
 
 def _mark_connectivity_failure(reason: str):

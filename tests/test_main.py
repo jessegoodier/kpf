@@ -974,7 +974,7 @@ class TestConnectivityTesting:
             mock_socket.return_value.__enter__.return_value = mock_sock_instance
 
             success, description = _test_socket_connectivity(8080)
-            assert success is True  # Connection refused still means port-forward works
+            assert success is False
             assert description == "connection_refused"
 
     def test_test_socket_connectivity_failure(self):
