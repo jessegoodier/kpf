@@ -1237,8 +1237,8 @@ class TestHttpTimeoutRestart:
         assert result is False
 
     @patch("time.time")
-    def test_mark_connectivity_success_resets_http_timeout(self, mock_time):
-        """Test that successful connectivity resets HTTP timeout tracking."""
+    def test_mark_connectivity_success_does_not_reset_http_timeout(self, mock_time):
+        """Test that successful connectivity does NOT reset HTTP timeout tracking."""
         import src.kpf.main
         from src.kpf.main import _mark_connectivity_success
 
@@ -1250,11 +1250,15 @@ class TestHttpTimeoutRestart:
         with patch("src.kpf.main.debug.print") as mock_print:
             _mark_connectivity_success()
 
-            # Should print both reset messages
+            # Should print connectivity restored message
             calls = [str(call) for call in mock_print.call_args_list]
             assert any("connectivity restored" in call for call in calls)
-            assert any("HTTP timeouts resolved" in call for call in calls)
+            
+            # Should NOT print HTTP resolved message
+            assert not any("HTTP timeouts resolved" in call for call in calls)
 
-        # Verify both global states are reset
+        # Verify connectivity state is reset
         assert src.kpf.main._connectivity_failure_start_time is None
-        assert src.kpf.main._http_timeout_start_time is None
+        
+        # Verify HTTP timeout state is preserved
+        assert src.kpf.main._http_timeout_start_time == 1002.0
