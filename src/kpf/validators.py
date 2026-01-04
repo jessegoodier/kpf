@@ -149,7 +149,7 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
     """Validate that the target service exists and has endpoints."""
     try:
         # Extract namespace and resource info
-        namespace = "default"
+        namespace = None
         resource_type = None
         resource_name = None
 
@@ -159,7 +159,11 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
             if n_index + 1 < len(port_forward_args):
                 namespace = port_forward_args[n_index + 1]
         except ValueError:
-            pass
+            # Use current context namespace
+            from .kubernetes import KubernetesClient
+
+            k8s_client = KubernetesClient()
+            namespace = k8s_client.get_current_namespace()
 
         # Find resource
         for arg in port_forward_args:
