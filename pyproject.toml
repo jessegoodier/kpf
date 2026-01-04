@@ -1,6 +1,6 @@
 [project]
 name = "kpf"
-version = "0.5.1"
+version = "0.5.2"
 description = "A terminal utility with a better UX for kubectl port-forward"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -94,7 +94,7 @@ filterwarnings = [
 ]
 
 [tool.bumpversion]
-current_version = "0.5.1"
+current_version = "0.5.2"
 commit = true
 tag = true
 allow_dirty = false
