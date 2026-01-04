@@ -21,7 +21,7 @@ class TestCLIIntegration:
         assert result.returncode == 0
         assert "kpf" in result.stdout
         assert "kubectl port-forward" in result.stdout.lower()
-        assert "--prompt" in result.stdout
+        # assert "--prompt" in result.stdout # Prompt flag is removed
         assert "--check" in result.stdout
 
     def test_version_output(self):
@@ -38,9 +38,9 @@ class TestCLIIntegration:
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "--prompt"])
+    @patch("sys.argv", ["kpf"])
     def test_prompt_mode_integration(self, mock_run_pf, mock_handle_prompt):
-        """Test prompt mode integration."""
+        """Test prompt mode integration (default behavior)."""
         mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "default"]
 
         # Import and call main directly instead of using subprocess

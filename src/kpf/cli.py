@@ -40,12 +40,6 @@ Example usage:
 
     parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
 
-    parser.add_argument(
-        "--prompt",
-        "-p",
-        action="store_true",
-        help="Interactive service selection with colored table",
-    )
 
     parser.add_argument(
         "--namespace",
@@ -272,7 +266,7 @@ def main():
         port_forward_args = None
 
         # Handle interactive modes
-        if args.prompt or args.all or args.all_ports or args.check:
+        if args.all or args.all_ports or args.check:
             port_forward_args = handle_prompt_mode(
                 namespace=args.namespace,
                 show_all=args.all,
@@ -297,7 +291,6 @@ def main():
 
         else:
             # Default to interactive mode if no arguments are provided
-            # This is equivalent to running `kpf -p` or `kpf --prompt`
             port_forward_args = handle_prompt_mode(
                 namespace=args.namespace,
                 show_all=args.all,

@@ -30,22 +30,14 @@ class TestArgumentParser:
         with pytest.raises(SystemExit):
             parser.parse_args(["--help"])
 
-    def test_parser_prompt_argument(self):
-        """Test --prompt argument."""
-        parser = create_parser()
-        args = parser.parse_args(["--prompt"])
-
-        assert args.prompt is True
-        assert args.all is False
-        assert args.check is False
-
     def test_parser_all_argument(self):
         """Test --all argument."""
         parser = create_parser()
         args = parser.parse_args(["--all"])
 
         assert args.all is True
-        assert args.prompt is False
+        # Prompt attribute is removed
+
 
     def test_parser_namespace_argument(self):
         """Test --namespace argument."""
@@ -78,9 +70,8 @@ class TestArgumentParser:
     def test_parser_combined_arguments(self):
         """Test multiple arguments together."""
         parser = create_parser()
-        args = parser.parse_args(["--prompt", "--check", "-n", "kube-system", "--debug"])
+        args = parser.parse_args(["--check", "-n", "kube-system", "--debug"])
 
-        assert args.prompt is True
         assert args.check is True
         assert args.namespace == "kube-system"
         assert args.debug is True
@@ -96,15 +87,15 @@ class TestArgumentParser:
         assert args.args == ["svc/frontend", "8080:8080"]
         assert args.namespace == "production"
         assert unknown_args == []
-        assert args.prompt is False
+        # args.prompt check removed
         assert args.all is False
 
     def test_parser_short_flags(self):
         """Test short flag versions."""
         parser = create_parser()
-        args, unknown_args = parser.parse_known_args(["-p", "-c", "-A", "-l", "-n", "test", "-d"])
+        # Removed -p flag
+        args, unknown_args = parser.parse_known_args(["-c", "-A", "-l", "-n", "test", "-d"])
 
-        assert args.prompt is True
         assert args.check is True
         assert args.all is True
         assert args.all_ports is True
@@ -312,9 +303,9 @@ class TestMainFunction:
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "--prompt"])
-    def test_main_prompt_mode(self, mock_run_pf, mock_handle_prompt):
-        """Test main function with --prompt."""
+    @patch("sys.argv", ["kpf"])
+    def test_main_prompt_mode_default(self, mock_run_pf, mock_handle_prompt):
+        """Test main function defaults to prompt mode."""
         mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "default"]
 
         main()
@@ -326,9 +317,9 @@ class TestMainFunction:
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "--prompt", "--debug"])
+    @patch("sys.argv", ["kpf", "--debug"])
     def test_main_prompt_mode_with_debug(self, mock_run_pf, mock_handle_prompt):
-        """Test main function with --prompt and --debug."""
+        """Test main function with --debug (defaults to prompt mode)."""
         mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "default"]
 
         main()
@@ -522,9 +513,9 @@ class TestMainFunction:
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
-    @patch("sys.argv", ["kpf", "--prompt"])
+    @patch("sys.argv", ["kpf"])
     def test_main_no_service_selected(self, mock_handle_prompt):
-        """Test main function when no service is selected."""
+        """Test main function when no service is selected (default mode)."""
         mock_handle_prompt.return_value = []
 
         with patch("sys.exit") as mock_exit:
@@ -547,7 +538,7 @@ class TestMainFunction:
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
-    @patch("sys.argv", ["kpf", "--prompt"])
+    @patch("sys.argv", ["kpf"])
     def test_main_keyboard_interrupt(self, mock_handle_prompt):
         """Test main function with keyboard interrupt."""
         mock_handle_prompt.side_effect = KeyboardInterrupt()
@@ -557,7 +548,7 @@ class TestMainFunction:
             mock_exit.assert_called_once_with(0)
 
     @patch("src.kpf.cli.handle_prompt_mode")
-    @patch("sys.argv", ["kpf", "--prompt"])
+    @patch("sys.argv", ["kpf"])
     def test_main_exception(self, mock_handle_prompt):
         """Test main function with general exception."""
         mock_handle_prompt.side_effect = Exception("Test error")
@@ -578,9 +569,9 @@ class TestMainFunction:
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "--prompt", "-0"])
+    @patch("sys.argv", ["kpf", "-0"])
     def test_main_zero_address_prompt(self, mock_run_pf, mock_handle_prompt):
-        """Test main function with -0 flag in prompt mode."""
+        """Test main function with -0 flag in prompt mode (default)."""
         mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "default"]
 
         main()
