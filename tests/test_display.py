@@ -345,3 +345,49 @@ class TestServiceSelectorIntegration:
             call for call in mock_print.call_args_list if "No resources found" in str(call)
         ]
         assert len(no_resources_calls) > 0
+
+    def test_select_namespace_basic(self, mock_k8s_client_with_services):
+        """Test select_namespace with namespaces available."""
+        mock_k8s_client_with_services.get_all_namespaces.return_value = ["default", "kube-system"]
+
+        with (
+            patch.object(ServiceSelector, "_check_kubectl"),
+            patch.object(
+                ServiceSelector, "_prompt_for_namespace_selection", return_value="default"
+            ),
+        ):
+            selector = ServiceSelector(mock_k8s_client_with_services)
+            result = selector.select_namespace()
+
+        assert result == "default"
+
+    def test_select_namespace_empty(self, mock_k8s_client_with_services):
+        """Test select_namespace when no namespaces found."""
+        mock_k8s_client_with_services.get_all_namespaces.return_value = []
+
+        with (
+            patch.object(ServiceSelector, "_check_kubectl"),
+            patch("rich.console.Console.print") as mock_print,
+        ):
+            selector = ServiceSelector(mock_k8s_client_with_services)
+            result = selector.select_namespace()
+
+        assert result is None
+        mock_print.assert_called()
+        no_ns_calls = [
+            call for call in mock_print.call_args_list if "No namespaces found" in str(call)
+        ]
+        assert len(no_ns_calls) > 0
+
+    def test_select_namespace_cancelled(self, mock_k8s_client_with_services):
+        """Test select_namespace when cancelled."""
+        mock_k8s_client_with_services.get_all_namespaces.return_value = ["default"]
+
+        with (
+            patch.object(ServiceSelector, "_check_kubectl"),
+            patch.object(ServiceSelector, "_prompt_for_namespace_selection", return_value=None),
+        ):
+            selector = ServiceSelector(mock_k8s_client_with_services)
+            result = selector.select_namespace()
+
+        assert result is None

@@ -48,6 +48,13 @@ Example usage:
     )
 
     parser.add_argument(
+        "--prompt-namespace",
+        "-pn",
+        action="store_true",
+        help="Interactively select a namespace before service selection",
+    )
+
+    parser.add_argument(
         "--all",
         "-A",
         action="store_true",
@@ -263,6 +270,21 @@ def main():
 
     try:
         port_forward_args = None
+
+        # Handle interactive namespace selection if requested
+        if args.prompt_namespace:
+            # We need a client to check namespaces
+            # Reuse the client from handle_prompt_mode or create a new one?
+            # Creating a new one here is cleaner for flow control
+            k8s_client = KubernetesClient()
+            selector = ServiceSelector(k8s_client)
+            selected_ns = selector.select_namespace()
+            if selected_ns:
+                args.namespace = selected_ns
+            else:
+                # User cancelled namespace selection
+                console.print("Namespace selection cancelled. Exiting.", style="dim")
+                sys.exit(0)
 
         # Handle interactive modes
         if args.all or args.all_ports or args.check:
