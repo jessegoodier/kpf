@@ -611,3 +611,167 @@ class ServiceSelector:
         except KeyboardInterrupt:
             self.console.print("\n[yellow]Port input cancelled (Ctrl+C)[/yellow]")
             sys.exit(0)
+
+    def select_namespace(self) -> Optional[str]:
+        """Select a namespace interactively."""
+        self.console.print("\n[bold cyan]Getting namespaces...[/bold cyan]")
+
+        # Get all namespaces
+        namespaces = self.k8s_client.get_all_namespaces()
+
+        if not namespaces:
+            self.console.print("[yellow]No namespaces found[/yellow]")
+            return None
+
+        return self._prompt_for_namespace_selection(namespaces)
+
+    def _build_namespace_table(
+        self, namespaces: List[str], selected_index: Optional[int] = None, row_index_offset: int = 0
+    ) -> Table:
+        """Build namespace selection table."""
+        table = Table(
+            title="Select a namespace",
+            title_justify="left",
+            title_style="bold bright_white not italic",
+            box=box.SIMPLE,
+            show_lines=False,
+            expand=False,
+            padding=(0, 1),
+        )
+
+        table.add_column(
+            "#",
+            header_style="bold bright_white",
+            style="bright_white",
+            width=4,
+            justify="right",
+        )
+        table.add_column(
+            "Namespace",
+            header_style="bold bright_white",
+            style="bold magenta",
+        )
+
+        for i, namespace in enumerate(namespaces, 1 + row_index_offset):
+            index_cell = f"{i}"
+            is_selected = selected_index is not None and i == selected_index
+
+            if is_selected:
+                pointer_char = ">" if self.compat_mode else "➤"
+                row_start = f"{pointer_char} {index_cell}"
+            else:
+                row_start = f"  {index_cell}"
+
+            selected_style = "reverse" if is_selected else None
+            table.add_row(row_start, namespace, style=selected_style)
+
+        return table
+
+    def _prompt_for_namespace_selection(self, namespaces: List[str]) -> Optional[str]:
+        """Prompt user to select a namespace."""
+        try:
+            # First, try an interactive keyboard navigation if available
+            selection: Optional[int] = None
+
+            # Only attempt interactive navigation in a TTY
+            if sys.stdin.isatty() and sys.stdout.isatty():
+                try:
+                    # Lazy imports (optional dependency)
+                    from readchar import key, readkey
+                    from rich.live import Live
+
+                    current_index = 1
+                    max_index = len(namespaces)
+
+                    help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
+
+                    def build_view():
+                        # Calculate a scrolling window
+                        terminal_height = self.console.size.height
+                        overhead_lines = 6  # title, headers, borders, and help
+                        visible_rows = max(1, min(max_index, terminal_height - overhead_lines))
+
+                        bottom_margin = 3
+                        pivot = max(1, visible_rows - bottom_margin)
+
+                        if current_index <= pivot:
+                            start_index = 1
+                        else:
+                            start_index = current_index - pivot
+
+                        # Clamp window to valid range
+                        start_index = min(start_index, max(1, max_index - visible_rows + 1))
+                        end_index = min(max_index, start_index + visible_rows - 1)
+
+                        window_namespaces = namespaces[start_index - 1 : end_index]
+
+                        table = self._build_namespace_table(
+                            window_namespaces,
+                            selected_index=current_index,
+                            row_index_offset=start_index - 1,
+                        )
+
+                        renders = [table, Text(help_text, style="dim")]
+                        return Group(*renders)
+
+                    with Live(
+                        build_view(),
+                        console=self.console,
+                        transient=True,
+                        auto_refresh=False,
+                    ) as live:
+                        typed_number = ""
+                        while True:
+                            ch = readkey()
+                            if ch in (key.UP, "k"):
+                                current_index = max(1, current_index - 1)
+                                typed_number = ""
+                                live.update(build_view(), refresh=True)
+                            elif ch in (key.DOWN, "j"):
+                                current_index = min(max_index, current_index + 1)
+                                typed_number = ""
+                                live.update(build_view(), refresh=True)
+                            elif ch in (key.ENTER, "\r", "\n"):
+                                selection = int(typed_number) if typed_number else current_index
+                                break
+                            elif ch in (key.ESC, "q"):
+                                selection = None
+                                break
+                            elif ch.isdigit():
+                                typed_number += ch
+                                try:
+                                    preview = int(typed_number)
+                                    if 1 <= preview <= max_index:
+                                        current_index = preview
+                                        live.update(build_view(), refresh=True)
+                                except ValueError:
+                                    pass
+                            else:
+                                # ignore other keys
+                                pass
+                except Exception:
+                    selection = None
+
+            # Fall back to numeric selection if interactive not used or cancelled
+            if selection is None:
+                # Render a single static table for numeric selection
+                # Only show top 50 if too many to avoid flooding terminal in fallback mode
+                display_namespaces = namespaces[:50]
+                if len(namespaces) > 50:
+                    self.console.print(
+                        f"[dim]Showing first 50 of {len(namespaces)} namespaces[/dim]"
+                    )
+
+                table = self._build_namespace_table(display_namespaces)
+                self.console.print(table)
+                selection = IntPrompt.ask("\nSelect a namespace", default=1, show_default=True)
+
+            if selection is None or selection < 1 or selection > len(namespaces):
+                self.console.print("[red]Invalid selection[/red]")
+                return None
+
+            return namespaces[selection - 1]
+
+        except KeyboardInterrupt:
+            self.console.print("\n[yellow]Namespace selection cancelled (Ctrl+C)[/yellow]")
+            return None

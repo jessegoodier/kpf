@@ -578,3 +578,40 @@ class TestMainFunction:
         mock_run_pf.assert_called_once_with(
             ["svc/test", "8080:8080", "-n", "default", "--address", "0.0.0.0"], debug_mode=False
         )
+
+    @patch("src.kpf.cli.KubernetesClient")
+    @patch("src.kpf.cli.ServiceSelector")
+    @patch("src.kpf.cli.handle_prompt_mode")
+    @patch("src.kpf.cli.run_port_forward")
+    @patch("sys.argv", ["kpf", "--prompt-namespace"])
+    def test_main_prompt_namespace(
+        self, mock_run_pf, mock_handle_prompt, mock_selector_class, mock_client_class
+    ):
+        """Test main function with --prompt-namespace."""
+        mock_selector = Mock()
+        mock_selector_class.return_value = mock_selector
+        mock_selector.select_namespace.return_value = "selected-ns"
+        mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "selected-ns"]
+
+        main()
+
+        mock_selector.select_namespace.assert_called_once()
+        # Should call handle_prompt_mode with the selected namespace
+        mock_handle_prompt.assert_called_once()
+        call_kwargs = mock_handle_prompt.call_args.kwargs
+        assert call_kwargs.get("namespace") == "selected-ns"
+
+    @patch("src.kpf.cli.KubernetesClient")
+    @patch("src.kpf.cli.ServiceSelector")
+    @patch("sys.argv", ["kpf", "-pn"])
+    def test_main_prompt_namespace_cancelled(self, mock_selector_class, mock_client_class):
+        """Test main function with --prompt-namespace when cancelled."""
+        mock_selector = Mock()
+        mock_selector_class.return_value = mock_selector
+        mock_selector.select_namespace.return_value = None
+
+        # When cancelled, it should call sys.exit(0)
+        with pytest.raises(SystemExit) as excinfo:
+            main()
+
+        assert excinfo.value.code == 0
