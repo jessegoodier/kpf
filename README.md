@@ -32,15 +32,21 @@ Or install directly:
 brew install jessegoodier/kpf/kpf
 ```
 
-### Using uv
-
-If you have `uv` installed, you can "install" `kpf` with:
+### Using pipx
 
 ```bash
-alias kpf="uvx kpf"
+pipx install kpf
 ```
 
-Install uv with pipx (brew can be behind):
+### Using uv
+
+If you have `uv` installed, you can install `kpf` with:
+
+```bash
+uv tool install kpf
+```
+
+Install `uv` with pipx (brew can be behind):
 
 ```bash
 pipx install uv
@@ -235,6 +241,30 @@ uv run pytest
 3. Make your changes
 4. Run tests and linting
 5. Submit a pull request
+
+## Shell Completion
+
+Shell completion scripts are available in the `completions/` directory.
+
+### Homebrew
+
+If you installed via Homebrew (and the formula is updated), completions should be installed automatically. You may need to follow Homebrew's [shell completion instructions](https://docs.brew.sh/Shell-Completion) to ensure it's loaded.
+
+### Manual Installation
+
+#### Zsh
+
+```zsh
+# Add the completions directory to your fpath
+fpath=(path/to/kpf/completions $fpath)
+autoload -U compinit; compinit
+```
+
+#### Bash
+
+```bash
+source path/to/kpf/completions/kpf.bash
+```
 
 ## License
 

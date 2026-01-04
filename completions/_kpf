@@ -1,0 +1,52 @@
+#compdef kpf
+
+_kpf() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  _arguments \
+    '(-n --namespace)'{-n,--namespace}'[Kubernetes namespace to use]:namespace:_kpf_namespaces' \
+    '(-A --all)'{-A,--all}'[Show all services across all namespaces]' \
+    '(-l --all-ports)'{-l,--all-ports}'[Include ports from pods, deployments, daemonsets, etc.]' \
+    '(-c --check)'{-c,--check}'[Check and display endpoint status in service selection table]' \
+    '(-d --debug)'{-d,--debug}'[Enable debug output for troubleshooting]' \
+    '(-t --debug-terminal)'{-t,--debug-terminal}'[Enable debug output for troubleshooting display issues]' \
+    '(-0)'{-0}'[Listen on all interfaces (0.0.0.0) instead of localhost]' \
+    '(-pn --prompt-namespace)'{-pn,--prompt-namespace}'[Interactively select a namespace before service selection]' \
+    '(-v --version)'{-v,--version}'[Show version]' \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '*: :_kpf_services_and_legacy'
+}
+
+_kpf_namespaces() {
+  local -a namespaces
+  namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)}")
+  _describe 'namespace' namespaces
+}
+
+_kpf_services_and_legacy() {
+  # If we have a namespace arg, use it
+  local ns_arg=""
+  local ns_idx=${words[(I)-n|--namespace]}
+  if (( ns_idx )); then
+    ns_arg="-n ${words[ns_idx+1]}"
+  fi
+
+  # Helper to complete services/pods
+  local -a resources
+  # Basic service completion
+  resources+=("${(@f)$(kubectl get services $ns_arg -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)}")
+  
+  # Be smart about svc/foo or pod/bar format
+  if [[ "$words[CURRENT]" == */* ]]; then
+     # Let standard file completion or simple string matching take over if user typed "svc/"
+     # Or try to dynamically fetch based on prefix
+     local type=${words[CURRENT]%%/*}
+     local name=${words[CURRENT]#*/}
+     # This is getting complex for static script, let's just stick to basic resource names
+  fi
+  
+  _describe 'service/pod' resources
+}
+
+_kpf "$@"
