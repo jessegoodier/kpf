@@ -103,7 +103,10 @@ def get_watcher_args(port_forward_args):
             namespace = port_forward_args[n_index + 1]
             debug.print(f"Found namespace in args: {namespace}")
     except ValueError:
-        # '-n' flag not found, use current context namespace
+        pass  # '-n' flag not found
+
+    # If namespace not found or incomplete, use current context namespace
+    if namespace is None:
         from .kubernetes import KubernetesClient
 
         k8s_client = KubernetesClient()

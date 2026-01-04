@@ -21,8 +21,8 @@ _kpf() {
 
 _kpf_namespaces() {
   local -a namespaces
-  namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)}")
-  
+  namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
+
   # Use compadd directly which handles prefix matching nicely
   compadd -a namespaces
 }

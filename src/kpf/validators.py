@@ -159,7 +159,10 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
             if n_index + 1 < len(port_forward_args):
                 namespace = port_forward_args[n_index + 1]
         except ValueError:
-            # Use current context namespace
+            pass  # '-n' flag not found
+
+        # If namespace not found or incomplete, use current context namespace
+        if namespace is None:
             from .kubernetes import KubernetesClient
 
             k8s_client = KubernetesClient()
