@@ -40,7 +40,7 @@ Once deployed, test the kpf tool:
 
 ```bash
 # Interactive service selection
-kpf --prompt
+kpf
 
 # Direct port-forward to the service
 kpf svc/kpf-test-app-service 8080:8080
@@ -49,7 +49,7 @@ kpf svc/kpf-test-app-service 8080:8080
 kpf svc/kpf-test-app-service 3000:8080 -n default
 
 # Test multiple ports (service has port 8080 and 9090)
-kpf --prompt -c  # Check endpoint status
+kpf --check  # Check endpoint status
 ```
 
 Then open your browser to:
