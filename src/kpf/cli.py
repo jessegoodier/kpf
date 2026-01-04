@@ -40,7 +40,6 @@ Example usage:
 
     parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
 
-
     parser.add_argument(
         "--namespace",
         "-n",

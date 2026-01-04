@@ -38,7 +38,6 @@ class TestArgumentParser:
         assert args.all is True
         # Prompt attribute is removed
 
-
     def test_parser_namespace_argument(self):
         """Test --namespace argument."""
         parser = create_parser()
