@@ -70,6 +70,13 @@ Interactive selection in specific namespace:
 
 ```bash
 kpf -n production
+```
+
+Interactive selection with namespace prompt:
+
+```bash
+kpf -pn
+```
 
 Show all services across all namespaces:
 
@@ -125,6 +132,7 @@ Example usage:
   kpf --all (or -A)                             # Show all services across all namespaces
   kpf --all-ports (or -l)                       # Show all services with their ports
   kpf --check -n production                     # Interactive selection with endpoint status
+  kpf --prompt-namespace (or -pn)               # Interactive namespace selection
   kpf -0                                        # Listen on 0.0.0.0 (all interfaces)
 ```
 
