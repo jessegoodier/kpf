@@ -11,17 +11,20 @@ _kpf() {
     '(-c --check)'{-c,--check}'[Check and display endpoint status in service selection table]' \
     '(-d --debug)'{-d,--debug}'[Enable debug output for troubleshooting]' \
     '(-t --debug-terminal)'{-t,--debug-terminal}'[Enable debug output for troubleshooting display issues]' \
-    '(-0)'{-0}'[Listen on all interfaces (0.0.0.0) instead of localhost]' \
+    '(-0)-0[Listen on all interfaces (0.0.0.0) instead of localhost]' \
     '(-pn --prompt-namespace)'{-pn,--prompt-namespace}'[Interactively select a namespace before service selection]' \
     '(-v --version)'{-v,--version}'[Show version]' \
     '(-h --help)'{-h,--help}'[Show help]' \
-    '*: :_kpf_services_and_legacy'
+    '1: :_kpf_services_and_legacy' \
+    '2: :_kpf_ports'
 }
 
 _kpf_namespaces() {
   local -a namespaces
-  namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)}")
-  _describe 'namespace' namespaces
+  namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
+
+  # Use compadd directly which handles prefix matching nicely
+  compadd -a namespaces
 }
 
 _kpf_services_and_legacy() {
@@ -32,21 +35,64 @@ _kpf_services_and_legacy() {
     ns_arg="-n ${words[ns_idx+1]}"
   fi
 
-  # Helper to complete services/pods
+  # Helper to complete services
   local -a resources
-  # Basic service completion
-  resources+=("${(@f)$(kubectl get services $ns_arg -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)}")
-  
-  # Be smart about svc/foo or pod/bar format
-  if [[ "$words[CURRENT]" == */* ]]; then
-     # Let standard file completion or simple string matching take over if user typed "svc/"
-     # Or try to dynamically fetch based on prefix
-     local type=${words[CURRENT]%%/*}
-     local name=${words[CURRENT]#*/}
-     # This is getting complex for static script, let's just stick to basic resource names
+  local -a services
+  services=("${(@f)$(kubectl get services $ns_arg -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
+
+  # Prepend svc/ to each service
+  for s in $services; do
+    resources+=("svc/$s")
+  done
+
+  # Use compadd directly for better experience
+  compadd -a resources
+}
+
+_kpf_ports() {
+  # Get the service name from the first positional argument
+  local service="${words[2]}"
+
+  # Strip svc/ prefix if present
+  service="${service#svc/}"
+
+  # Return early if no service specified yet
+  [[ -z "$service" ]] && return 0
+
+  # Get namespace if specified
+  local ns_arg=""
+  local ns_idx=${words[(I)-n|--namespace]}
+  if (( ns_idx )); then
+    ns_arg="-n ${words[ns_idx+1]}"
   fi
-  
-  _describe 'service/pod' resources
+
+  # Get ports for the service
+  local -a ports
+  local -a port_descriptions
+
+  # Fetch port information: port/protocol
+  local port_data
+  port_data=$(kubectl get service "$service" $ns_arg -o jsonpath='{range .spec.ports[*]}{.port}{"/"}{.protocol}{" "}{.name}{"\n"}{end}' 2>/dev/null)
+
+  # Parse and format ports
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local port_proto="${line%% *}"
+    local port_name="${line#* }"
+    local port="${port_proto%%/*}"
+
+    # Format as port:port for kubectl port-forward syntax
+    if [[ -n "$port_name" && "$port_name" != "$port_proto" ]]; then
+      port_descriptions+=("$port\:$port:$port_name ($port_proto)")
+    else
+      port_descriptions+=("$port\:$port:$port_proto")
+    fi
+  done <<< "$port_data"
+
+  # Offer completions with descriptions
+  if (( ${#port_descriptions[@]} > 0 )); then
+    _describe 'port' port_descriptions
+  fi
 }
 
 _kpf "$@"

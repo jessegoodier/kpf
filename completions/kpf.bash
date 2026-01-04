@@ -17,16 +17,13 @@ _kpf_completion() {
     case ${prev} in
         -n|--namespace)
             # Complete namespaces
-            local namespaces=$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)
+            local namespaces=$(kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
             COMPREPLY=( $(compgen -W "${namespaces}" -- ${cur}) )
             return 0
             ;;
     esac
 
-    # Positional args (Services/Pods)
-    # If we are here, we are not completing a flag or a flag argument
-    # We could try to complete services in the current context
-    # Use -n if present in the command line
+    # Extract namespace if specified
     local ns_arg=""
     for ((i=1; i<COMP_CWORD; i++)); do
         if [[ "${COMP_WORDS[i]}" == "-n" || "${COMP_WORDS[i]}" == "--namespace" ]]; then
@@ -35,10 +32,56 @@ _kpf_completion() {
         fi
     done
 
-    # Basic resource completion if it looks like a resource or just a name
-    # We'll just complete existing service names for simplicity
-    local services=$(kubectl get services $ns_arg -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)
-    COMPREPLY=( $(compgen -W "${services}" -- ${cur}) )
+    # Count non-flag positional arguments
+    local pos_count=0
+    local first_service=""
+    for ((i=1; i<COMP_CWORD; i++)); do
+        local word="${COMP_WORDS[i]}"
+        # Skip flags and their arguments
+        if [[ "$word" == -* ]]; then
+            # Skip next word if this is a flag that takes an argument
+            if [[ "$word" == "-n" || "$word" == "--namespace" ]]; then
+                ((i++))
+            fi
+            continue
+        fi
+        ((pos_count++))
+        if [[ $pos_count -eq 1 ]]; then
+            first_service="$word"
+        fi
+    done
+
+    # First positional argument: complete services
+    if [[ $pos_count -eq 0 ]]; then
+        local services=$(kubectl get services $ns_arg -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
+        local svc_completions=()
+        while IFS= read -r svc; do
+            [[ -z "$svc" ]] && continue
+            svc_completions+=("svc/$svc")
+        done <<< "$services"
+        COMPREPLY=( $(compgen -W "${svc_completions[*]}" -- ${cur}) )
+        return 0
+    fi
+
+    # Second positional argument: complete ports for the selected service
+    if [[ $pos_count -eq 1 ]]; then
+        # Strip svc/ prefix if present
+        local service_name="${first_service#svc/}"
+
+        # Get ports for the service
+        local port_data=$(kubectl get service "$service_name" $ns_arg -o jsonpath='{range .spec.ports[*]}{.port}{"/"}{.protocol}{" "}{.name}{"\n"}{end}' 2>/dev/null)
+
+        local port_completions=()
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            local port_proto="${line%% *}"
+            local port="${port_proto%%/*}"
+            port_completions+=("$port:$port")
+        done <<< "$port_data"
+
+        COMPREPLY=( $(compgen -W "${port_completions[*]}" -- ${cur}) )
+        return 0
+    fi
 }
 
 complete -F _kpf_completion kpf

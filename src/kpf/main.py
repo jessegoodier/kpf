@@ -93,7 +93,7 @@ def get_watcher_args(port_forward_args):
     Example: `['svc/frontend', '9090:9090', '-n', 'kubecost']` -> namespace='kubecost', resource_name='frontend'
     """
     debug.print(f"Parsing port-forward args: {port_forward_args}")
-    namespace = "default"
+    namespace = None
     resource_name = None
 
     # Find namespace
@@ -103,8 +103,15 @@ def get_watcher_args(port_forward_args):
             namespace = port_forward_args[n_index + 1]
             debug.print(f"Found namespace in args: {namespace}")
     except ValueError:
-        # '-n' flag not found, use default namespace
-        debug.print("No namespace specified, using 'default'")
+        pass  # '-n' flag not found
+
+    # If namespace not found or incomplete, use current context namespace
+    if namespace is None:
+        from .kubernetes import KubernetesClient
+
+        k8s_client = KubernetesClient()
+        namespace = k8s_client.get_current_namespace()
+        debug.print(f"No namespace specified, using current context namespace: '{namespace}'")
 
     # Find resource name (e.g., 'svc/frontend')
     for arg in port_forward_args:

@@ -49,7 +49,11 @@ class TestArgumentParsing:
     def test_get_watcher_args_service_default_namespace(self):
         """Test get_watcher_args with service but no namespace."""
         args = ["svc/api-service", "8080:8080"]
-        namespace, resource_name = get_watcher_args(args)
+
+        # Mock the KubernetesClient to return a known namespace
+        with patch("src.kpf.kubernetes.KubernetesClient") as mock_client:
+            mock_client.return_value.get_current_namespace.return_value = "default"
+            namespace, resource_name = get_watcher_args(args)
 
         assert namespace == "default"
         assert resource_name == "api-service"
@@ -65,7 +69,11 @@ class TestArgumentParsing:
     def test_get_watcher_args_deployment(self):
         """Test get_watcher_args with deployment resource."""
         args = ["deployment/my-deploy", "8080:8080"]
-        namespace, resource_name = get_watcher_args(args)
+
+        # Mock the KubernetesClient to return a known namespace
+        with patch("src.kpf.kubernetes.KubernetesClient") as mock_client:
+            mock_client.return_value.get_current_namespace.return_value = "default"
+            namespace, resource_name = get_watcher_args(args)
 
         assert namespace == "default"
         assert resource_name == "my-deploy"
@@ -73,7 +81,11 @@ class TestArgumentParsing:
     def test_get_watcher_args_service_full_name(self):
         """Test get_watcher_args with full 'service' name."""
         args = ["service/web-service", "80:8080"]
-        namespace, resource_name = get_watcher_args(args)
+
+        # Mock the KubernetesClient to return a known namespace
+        with patch("src.kpf.kubernetes.KubernetesClient") as mock_client:
+            mock_client.return_value.get_current_namespace.return_value = "default"
+            namespace, resource_name = get_watcher_args(args)
 
         assert namespace == "default"
         assert resource_name == "web-service"
@@ -90,9 +102,12 @@ class TestArgumentParsing:
         """Test get_watcher_args with namespace flag at the end."""
         args = ["svc/backend", "9090:9090", "-n"]
 
-        # Should handle incomplete -n flag gracefully
-        namespace, resource_name = get_watcher_args(args)
-        assert namespace == "default"  # Falls back to default
+        # Should handle incomplete -n flag gracefully and fall back to current context
+        with patch("src.kpf.kubernetes.KubernetesClient") as mock_client:
+            mock_client.return_value.get_current_namespace.return_value = "default"
+            namespace, resource_name = get_watcher_args(args)
+
+        assert namespace == "default"  # Falls back to current context namespace
         assert resource_name == "backend"
 
 
