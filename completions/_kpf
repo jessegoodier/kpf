@@ -4,7 +4,7 @@ _kpf() {
   local context state state_descr line
   typeset -A opt_args
 
-  _arguments \
+  _arguments -S -C \
     '(-n --namespace)'{-n,--namespace}'[Kubernetes namespace to use]:namespace:_kpf_namespaces' \
     '(-A --all)'{-A,--all}'[Show all services across all namespaces]' \
     '(-l --all-ports)'{-l,--all-ports}'[Include ports from pods, deployments, daemonsets, etc.]' \
@@ -15,77 +15,98 @@ _kpf() {
     '(-pn --prompt-namespace)'{-pn,--prompt-namespace}'[Interactively select a namespace before service selection]' \
     '(-v --version)'{-v,--version}'[Show version]' \
     '(-h --help)'{-h,--help}'[Show help]' \
-    '1: :_kpf_services_and_legacy' \
-    '2: :_kpf_ports'
+    '1:service:->services' \
+    '2:port:->ports'
+
+  case $state in
+    services)
+      _kpf_services
+      ;;
+    ports)
+      _kpf_ports
+      ;;
+  esac
 }
 
 _kpf_namespaces() {
   local -a namespaces
   namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
-
-  # Use compadd directly which handles prefix matching nicely
-  compadd -a namespaces
+  
+  if (( ${#namespaces[@]} > 0 )); then
+    _describe 'namespace' namespaces
+  fi
 }
 
-_kpf_services_and_legacy() {
-  # If we have a namespace arg, use it
-  local ns_arg=""
-  local ns_idx=${words[(I)-n|--namespace]}
-  if (( ns_idx )); then
-    ns_arg="-n ${words[ns_idx+1]}"
+_kpf_get_ns_opts() {
+  # This function expects 'ns_opts' to be defined in the caller's scope
+  ns_opts=()
+  if (( ${words[(I)-A|--all]} )); then
+    ns_opts=(-A)
+    return
   fi
 
-  # Helper to complete services
-  local -a resources
-  local -a services
-  services=("${(@f)$(kubectl get services $ns_arg -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
+  local ns=${opt_args[-n]:-${opt_args[--namespace]}}
+  if [[ -z "$ns" ]]; then
+    local ns_idx=${words[(I)-n|--namespace]}
+    if (( ns_idx && ns_idx < CURRENT )); then
+      ns=${words[ns_idx+1]}
+    fi
+  fi
+  
+  if [[ -n "$ns" && "$ns" != "$PREFIX" ]]; then
+    ns_opts=(-n "$ns")
+  fi
+}
 
-  # Prepend svc/ to each service
+_kpf_services() {
+  local -a ns_opts
+  _kpf_get_ns_opts
+
+  local -a services
+  services=("${(@f)$(kubectl get services "${ns_opts[@]}" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
+
+  local -a resources
   for s in $services; do
-    resources+=("svc/$s")
+    [[ -n "$s" ]] && resources+=("svc/$s")
   done
 
-  # Use compadd directly for better experience
-  compadd -a resources
+  if (( ${#resources[@]} > 0 )); then
+    _describe 'service' resources
+  fi
 }
 
 _kpf_ports() {
-  # Get the service name from the first positional argument
-  local service="${words[2]}"
-
+  # The service name is the first positional argument
+  # When using _arguments -C, 'line' contains positional args
+  local service="${line[1]}"
+  
   # Strip svc/ prefix if present
   service="${service#svc/}"
 
   # Return early if no service specified yet
   [[ -z "$service" ]] && return 0
 
-  # Get namespace if specified
-  local ns_arg=""
-  local ns_idx=${words[(I)-n|--namespace]}
-  if (( ns_idx )); then
-    ns_arg="-n ${words[ns_idx+1]}"
-  fi
+  local -a ns_opts
+  _kpf_get_ns_opts
 
   # Get ports for the service
-  local -a ports
   local -a port_descriptions
-
-  # Fetch port information: port/protocol
   local port_data
-  port_data=$(kubectl get service "$service" $ns_arg -o jsonpath='{range .spec.ports[*]}{.port}{"/"}{.protocol}{" "}{.name}{"\n"}{end}' 2>/dev/null)
+  port_data=$(kubectl get service "$service" "${ns_opts[@]}" -o jsonpath='{range .spec.ports[*]}{.port}{"/"}{.protocol}{" "}{.name}{"\n"}{end}' 2>/dev/null)
 
   # Parse and format ports
-  while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    local port_proto="${line%% *}"
-    local port_name="${line#* }"
+  while IFS= read -r line_out; do
+    [[ -z "$line_out" ]] && continue
+    local port_proto="${line_out%% *}"
+    local port_name="${line_out#* }"
     local port="${port_proto%%/*}"
 
     # Format as port:port for kubectl port-forward syntax
+    # Use backslash to escape the colon for _describe
     if [[ -n "$port_name" && "$port_name" != "$port_proto" ]]; then
-      port_descriptions+=("$port\:$port:$port_name ($port_proto)")
+      port_descriptions+=("${port}\:${port}:${port_name} (${port_proto})")
     else
-      port_descriptions+=("$port\:$port:$port_proto")
+      port_descriptions+=("${port}\:${port}:${port_proto}")
     fi
   done <<< "$port_data"
 
@@ -96,3 +117,5 @@ _kpf_ports() {
 }
 
 _kpf "$@"
+
+
