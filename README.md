@@ -10,6 +10,7 @@ It is essentially a wrapper around `kubectl port-forward` that adds an interacti
 - 🎯 **Interactive Selection**: Choose services with a colorful, intuitive interface
 - 🌈 **Color-coded Status**: Green for services with endpoints, red for those without
 - 🔍 **Multi-resource Support**: Services, pods, deployments, etc.
+- 🔐 **Smart Port Handling**: Automatically detects privileged port issues (< 1024) and suggests alternatives
 
 ## Installation
 
@@ -194,6 +195,31 @@ Services across all namespaces
 4    production   SERVICE  backend       8080         ✗
 ```
 
+### Smart Low Port Handling
+
+When you try to use privileged ports (< 1024), `kpf` will detect the permission issue and offer to use a higher port automatically:
+
+```bash
+$ kpf -n monitoring svc/grafana 80:80
+
+Error: Port 80 requires elevated privileges (root/sudo)
+Low ports (< 1024) require administrator permissions on most systems
+
+Suggested alternative: Use port 1080 instead?
+This would forward: localhost:1080 -> service:80
+
+Use suggested port? [Y/n]: y
+Updated port mapping to 1080:80
+
+Direct command: kpf svc/grafana 1080:80 -n monitoring
+
+http://localhost:1080
+
+🚀 port-forward started 🚀
+```
+
+This feature prevents confusing "port already in use" errors when the real issue is insufficient permissions.
+
 ## How It Works
 
 1. **Port-Forward Thread**: Runs kubectl port-forward in a separate thread
@@ -269,3 +295,9 @@ source path/to/kpf/completions/kpf.bash
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/jessegoodier">
+    <img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=jessegoodier&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" />
+  </a>
+</p>

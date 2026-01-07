@@ -474,8 +474,9 @@ class TestPortValidation:
 
         # Use a high port number that's likely to be available
         high_port = 19998
-        result = is_port_available(high_port)
-        assert result is True
+        is_available, error_reason = is_port_available(high_port)
+        assert is_available is True
+        assert error_reason == ""
 
     def test_is_port_available_bound_port(self):
         """Test port availability check with a bound port."""
@@ -485,8 +486,9 @@ class TestPortValidation:
         test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             test_socket.bind(("localhost", test_port))
-            result = is_port_available(test_port)
-            assert result is False
+            is_available, error_reason = is_port_available(test_port)
+            assert is_available is False
+            assert error_reason == "in_use"
         finally:
             test_socket.close()
 

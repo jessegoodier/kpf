@@ -29,14 +29,33 @@ def extract_local_port(port_forward_args):
     return None
 
 
-def is_port_available(port: int) -> bool:
-    """Check if a port is available on localhost."""
+def is_port_available(port: int) -> tuple[bool, str]:
+    """Check if a port is available on localhost.
+
+    Returns:
+        tuple[bool, str]: (is_available, error_reason)
+        error_reason can be 'permission', 'in_use', or ''
+    """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind(("localhost", port))
-            return True
-    except OSError:
-        return False
+            return True, ""
+    except OSError as e:
+        # Check if it's a permission error
+        # errno 1 (EPERM) - Operation not permitted
+        # errno 13 (EACCES) - Permission denied (Unix)
+        # errno 10013 (WSAEACCES) - Permission denied (Windows)
+        if e.errno in (1, 13, 10013):
+            return False, "permission"
+        # errno 98 (EADDRINUSE) - Address already in use (Unix)
+        # errno 10048 (WSAEADDRINUSE) - Address already in use (Windows)
+        elif e.errno in (98, 10048):
+            return False, "in_use"
+        # For other errors on low ports, assume it might be a permission issue
+        elif port < 1024:
+            return False, "permission"
+        else:
+            return False, "in_use"
 
 
 def validate_port_format(port_forward_args):
@@ -323,20 +342,101 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
 
 
 def validate_port_availability(port_forward_args, debug_callback=None):
-    """Validate that the local port in port-forward args is available."""
+    """Validate that the local port in port-forward args is available.
+
+    Args:
+        port_forward_args: List of port-forward arguments (will be modified if user accepts alternative)
+        debug_callback: Optional debug callback function
+
+    Returns:
+        bool: True if port is available or user accepts alternative, False otherwise
+    """
     local_port = extract_local_port(port_forward_args)
     if local_port is None:
         if debug_callback:
             debug_callback("Could not extract local port from arguments")
         return True  # Can't validate, let kubectl handle it
 
-    if not is_port_available(local_port):
+    is_available, error_reason = is_port_available(local_port)
+
+    if is_available:
+        if debug_callback:
+            debug_callback(f"[green]Port {local_port} is available[/green]")
+        return True
+
+    # Port is not available - check if it's a low port permission issue
+    if error_reason == "permission" and local_port < 1024:
+        suggested_port = local_port + 1000
+        console.print(
+            f"[yellow]Error: Port {local_port} requires elevated privileges (root/sudo)[/yellow]"
+        )
+        console.print(
+            f"[cyan]Low ports (< 1024) require administrator permissions on most systems[/cyan]"
+        )
+
+        # Check if suggested port is available
+        suggested_available, _ = is_port_available(suggested_port)
+        if suggested_available:
+            console.print(
+                f"\n[green]Suggested alternative: Use port {suggested_port} instead?[/green]"
+            )
+            console.print(
+                f"[dim]This would forward: localhost:{suggested_port} -> service:{local_port}[/dim]"
+            )
+
+            response = (
+                input("\nUse suggested port? [Y/n]: ").strip().lower() or "y"
+            )  # Default to 'y' if empty
+
+            if response in ["y", "yes"]:
+                # Update port_forward_args in place
+                _update_port_mapping(port_forward_args, local_port, suggested_port)
+                console.print(
+                    f"[green]Updated port mapping to {suggested_port}:{local_port}[/green]"
+                )
+                return True
+            else:
+                console.print("[yellow]Port change declined. Exiting.[/yellow]")
+                return False
+        else:
+            console.print(
+                f"[yellow]Suggested port {suggested_port} is also unavailable[/yellow]"
+            )
+            console.print(
+                "[yellow]Please choose a different port or run with elevated privileges (sudo)[/yellow]"
+            )
+            return False
+
+    # Regular "port in use" error
+    elif error_reason == "in_use":
         console.print(f"[red]Error: Local port {local_port} is already in use[/red]")
         console.print(
             f"[yellow]Please choose a different port or free up port {local_port}[/yellow]"
         )
         return False
 
-    if debug_callback:
-        debug_callback(f"[green]Port {local_port} is available[/green]")
-    return True
+    # Unknown error
+    else:
+        console.print(f"[red]Error: Local port {local_port} is not available[/red]")
+        console.print(f"[yellow]Reason: {error_reason}[/yellow]")
+        return False
+
+
+def _update_port_mapping(port_forward_args, old_local_port, new_local_port):
+    """Update the port mapping in port_forward_args list in place.
+
+    Args:
+        port_forward_args: List of arguments to modify
+        old_local_port: The old local port to replace
+        new_local_port: The new local port to use
+    """
+    for i, arg in enumerate(port_forward_args):
+        if ":" in arg and not arg.startswith("-"):
+            parts = arg.split(":", 1)
+            try:
+                if int(parts[0]) == old_local_port:
+                    # Replace with new mapping
+                    port_forward_args[i] = f"{new_local_port}:{parts[1]}"
+                    return
+            except ValueError:
+                continue

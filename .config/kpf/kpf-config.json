@@ -1,0 +1,6 @@
+{
+    "showDirectCommand": true,
+    "showDirectCommandIncludeContext": false,
+    "captureUsageDetails": true,
+    "usageDetailFolder": "${HOME}/.config/kpf/usage-details"
+}
