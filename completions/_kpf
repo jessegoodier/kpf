@@ -11,8 +11,18 @@ _kpf() {
     '(-c --check)'{-c,--check}'[Check and display endpoint status in service selection table]' \
     '(-d --debug)'{-d,--debug}'[Enable debug output for troubleshooting]' \
     '(-t --debug-terminal)'{-t,--debug-terminal}'[Enable debug output for troubleshooting display issues]' \
+    '--run-http-health-checks[Enable HTTP connectivity health checks (disabled by default)]' \
     '(-0)-0[Listen on all interfaces (0.0.0.0) instead of localhost]' \
     '(-pn --prompt-namespace)'{-pn,--prompt-namespace}'[Interactively select a namespace before service selection]' \
+    '--auto-reconnect[Automatically reconnect on failure]' \
+    '--auto-select-free-port[Automatically select a free local port]' \
+    '--capture-usage[Capture usage statistics]' \
+    '--multiline-command[Display command in multiple lines]' \
+    '--reconnect-attempts[Number of reconnection attempts]:attempts:' \
+    '--reconnect-delay[Delay between reconnection attempts in seconds]:delay:' \
+    '--show-context[Show Kubernetes context in output]' \
+    '--show-direct-command[Show the direct kubectl command]' \
+    '--usage-folder[Folder to store usage statistics]:folder:_directories' \
     '(-v --version)'{-v,--version}'[Show version]' \
     '(-h --help)'{-h,--help}'[Show help]' \
     '1:service:->services' \

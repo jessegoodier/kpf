@@ -1,0 +1,11 @@
+{
+    "autoSelectFreePort": true,
+    "showDirectCommand": true,
+    "showDirectCommandIncludeContext": true,
+    "directCommandMultiLine": true,
+    "autoReconnect": true,
+    "reconnectAttempts": 30,
+    "reconnectDelaySeconds": 5,
+    "captureUsageDetails": false,
+    "usageDetailFolder": "${HOME}/.config/kpf/usage-details"
+}

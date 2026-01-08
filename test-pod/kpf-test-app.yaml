@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: kpf-test-app
-        image: python:3.12-slim
+        image: docker.io/python:3.14-slim
         ports:
         - containerPort: 8080
           name: http

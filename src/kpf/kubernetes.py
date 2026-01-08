@@ -74,6 +74,23 @@ class KubernetesClient:
         except subprocess.CalledProcessError:
             return "default"
 
+    def get_current_context(self) -> str:
+        """Get the current kubectl context name.
+
+        Returns:
+            str: The current context name, or empty string if not available
+        """
+        try:
+            result = subprocess.run(
+                ["kubectl", "config", "current-context"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            return result.stdout.strip() if result.returncode == 0 else ""
+        except Exception:
+            return ""
+
     def get_all_namespaces(self) -> List[str]:
         """Get all available namespaces."""
         try:

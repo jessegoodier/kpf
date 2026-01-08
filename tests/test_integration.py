@@ -2,7 +2,7 @@
 
 import subprocess
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 
@@ -52,7 +52,10 @@ class TestCLIIntegration:
         # Verify the mocked functions were called
         mock_handle_prompt.assert_called_once()
         mock_run_pf.assert_called_once_with(
-            ["svc/test", "8080:8080", "-n", "default"], debug_mode=False
+            ["svc/test", "8080:8080", "-n", "default"],
+            debug_mode=False,
+            config=ANY,
+            run_http_health_checks=False,
         )
 
     def test_import_structure(self):

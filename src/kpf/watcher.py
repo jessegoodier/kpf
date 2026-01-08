@@ -16,6 +16,7 @@ class EndpointWatcher:
         restart_event,
         delegate_should_restart,
         debug_callback=None,
+        usage_logger=None,
     ):
         self.namespace = namespace
         self.resource_name = resource_name
@@ -25,6 +26,7 @@ class EndpointWatcher:
             delegate_should_restart  # Function to check if we can restart
         )
         self.debug_print = debug_callback if debug_callback else lambda msg, rate_limit=False: None
+        self.usage_logger = usage_logger
         self.thread = None
 
     def start(self):
@@ -100,6 +102,8 @@ class EndpointWatcher:
                             console.print(
                                 "[green][Watcher] Endpoint change detected, restarting port-forward...[/green]"
                             )
+                            if self.usage_logger:
+                                self.usage_logger.increment_endpoint_changes()
                             self.restart_event.set()
                         else:
                             self.debug_print(

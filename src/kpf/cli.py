@@ -11,12 +11,25 @@ from typing import List, Optional
 from rich.console import Console
 
 from . import __version__
+from .config import get_config
 from .display import ServiceSelector
 from .kubernetes import KubernetesClient
 from .main import run_port_forward
 
 # Initialize Rich console
 console = Console()
+
+
+def str_to_bool(value):
+    """Convert string to boolean for CLI arguments."""
+    if isinstance(value, bool):
+        return value
+    if value.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif value.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError(f"Boolean value expected, got: {value}")
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -91,16 +104,137 @@ Example usage:
     )
 
     parser.add_argument(
+        "--run-http-health-checks",
+        action="store_true",
+        help="Enable HTTP connectivity health checks (disabled by default)",
+    )
+
+    parser.add_argument(
         "-0",
         dest="address_zero",
         action="store_true",
         help="Listen on all interfaces (0.0.0.0) instead of localhost",
     )
 
+    # Configuration override arguments
+    config_group = parser.add_argument_group("configuration overrides")
+
+    # Boolean flags with explicit values
+    config_group.add_argument(
+        "--auto-select-free-port",
+        dest="auto_select_free_port",
+        type=str_to_bool,
+        default=None,
+        metavar="BOOL",
+        help="Automatically select next free port if requested port is busy (true/false, default: from config)",
+    )
+
+    config_group.add_argument(
+        "--show-direct-command",
+        dest="show_direct_command",
+        type=str_to_bool,
+        default=None,
+        metavar="BOOL",
+        help="Show the direct kpf command for future use (true/false, default: from config)",
+    )
+
+    config_group.add_argument(
+        "--show-context",
+        dest="show_context",
+        type=str_to_bool,
+        default=None,
+        metavar="BOOL",
+        help="Include --context in direct command output (true/false, default: from config)",
+    )
+
+    config_group.add_argument(
+        "--multiline-command",
+        dest="multiline_command",
+        type=str_to_bool,
+        default=None,
+        metavar="BOOL",
+        help="Format direct command across multiple lines (true/false, default: from config)",
+    )
+
+    config_group.add_argument(
+        "--auto-reconnect",
+        dest="auto_reconnect",
+        type=str_to_bool,
+        default=None,
+        metavar="BOOL",
+        help="Automatically reconnect when connection drops (true/false, default: from config)",
+    )
+
+    config_group.add_argument(
+        "--capture-usage",
+        dest="capture_usage",
+        type=str_to_bool,
+        default=None,
+        metavar="BOOL",
+        help="Log usage details to files for analytics (true/false, default: from config)",
+    )
+
+    # Integer/String arguments
+    config_group.add_argument(
+        "--reconnect-attempts",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Number of reconnection attempts before giving up (default: 30)",
+    )
+
+    config_group.add_argument(
+        "--reconnect-delay",
+        type=int,
+        default=None,
+        metavar="SECONDS",
+        help="Delay in seconds between reconnection attempts (default: 5)",
+    )
+
+    config_group.add_argument(
+        "--usage-folder",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Folder to store usage detail logs (default: from config)",
+    )
+
     # Positional arguments for legacy port-forward syntax
     parser.add_argument("args", nargs="*", help="kubectl port-forward arguments (legacy mode)")
 
     return parser
+
+
+def merge_config_with_cli_args(config, args):
+    """Merge CLI arguments with config, CLI args take precedence.
+
+    Args:
+        config: KpfConfig instance
+        args: argparse.Namespace with CLI arguments
+
+    Returns:
+        dict: Merged configuration with CLI args overriding config file values
+    """
+    merged = config.config.copy()
+
+    arg_mapping = {
+        "auto_select_free_port": "autoSelectFreePort",
+        "show_direct_command": "showDirectCommand",
+        "show_context": "showDirectCommandIncludeContext",
+        "multiline_command": "directCommandMultiLine",
+        "auto_reconnect": "autoReconnect",
+        "reconnect_attempts": "reconnectAttempts",
+        "reconnect_delay": "reconnectDelaySeconds",
+        "capture_usage": "captureUsageDetails",
+        "usage_folder": "usageDetailFolder",
+    }
+
+    for arg_name, config_key in arg_mapping.items():
+        arg_value = getattr(args, arg_name, None)
+        if arg_value is not None:  # Only override if explicitly provided
+            merged[config_key] = arg_value
+
+    return merged
 
 
 def handle_prompt_mode(
@@ -269,6 +403,10 @@ def main():
         print("Debug mode enabled")
         _debug_display_terminal_capabilities()
 
+    # Load configuration and merge with CLI args
+    config = get_config()
+    merged_config = merge_config_with_cli_args(config, args)
+
     try:
         port_forward_args = None
 
@@ -331,7 +469,12 @@ def main():
 
         # Run the port-forward utility (should only reach here if port_forward_args is set)
         if port_forward_args:
-            run_port_forward(port_forward_args, debug_mode=args.debug)
+            run_port_forward(
+                port_forward_args,
+                debug_mode=args.debug,
+                config=merged_config,
+                run_http_health_checks=args.run_http_health_checks,
+            )
 
     except KeyboardInterrupt:
         console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")
