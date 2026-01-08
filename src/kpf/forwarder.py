@@ -13,11 +13,21 @@ console = Console()
 
 
 class PortForwarder:
-    def __init__(self, port_forward_args, shutdown_event, restart_event, debug_callback=None):
+    def __init__(
+        self,
+        port_forward_args,
+        shutdown_event,
+        restart_event,
+        debug_callback=None,
+        config=None,
+        usage_logger=None,
+    ):
         self.port_forward_args = port_forward_args
         self.shutdown_event = shutdown_event
         self.restart_event = restart_event
         self.debug_print = debug_callback if debug_callback else lambda msg, rate_limit=False: None
+        self.config = config
+        self.usage_logger = usage_logger
 
         self.local_port = extract_local_port(port_forward_args)
         self.connectivity_checker = ConnectivityChecker(debug_callback)
@@ -26,6 +36,17 @@ class PortForwarder:
         self.last_restart_time = 0
         self.RESTART_THROTTLE_SECONDS = 5
         self.pending_restart = False
+
+        # Reconnection config
+        self.reconnect_attempts_made = 0
+        if config:
+            self.auto_reconnect = config.get("autoReconnect", True)
+            self.max_reconnect_attempts = config.get("reconnectAttempts", 30)
+            self.reconnect_delay = config.get("reconnectDelaySeconds", 5)
+        else:
+            self.auto_reconnect = True
+            self.max_reconnect_attempts = 30
+            self.reconnect_delay = 5
 
         self.thread = None
 
@@ -73,10 +94,53 @@ class PortForwarder:
         proc = None
         args = self.port_forward_args
         local_port = self.local_port
+        first_run = True
 
         while not self.shutdown_event.is_set():
             try:
-                console.print(f"\nDirect command: [cyan]kpf {' '.join(args)}[/cyan]\n")
+                # Track restarts (skip first run)
+                if not first_run and self.usage_logger:
+                    self.usage_logger.increment_restarts()
+                first_run = False
+                # Show direct command if configured (default: True)
+                show_direct_command = True
+                if self.config:
+                    show_direct_command = self.config.get("showDirectCommand", True)
+
+                if show_direct_command:
+                    cmd_parts = ["kpf"] + args
+
+                    # Add context if configured
+                    if self.config and self.config.get("showDirectCommandIncludeContext", True):
+                        from .kubernetes import KubernetesClient
+
+                        k8s = KubernetesClient()
+                        context = k8s.get_current_context()
+                        if context:
+                            cmd_parts.extend(["--context", context])
+
+                    # Format as multiline if configured
+                    if self.config and self.config.get("directCommandMultiLine", True):
+                        formatted_cmd = "  kpf"
+                        for i, part in enumerate(args):
+                            if i == 0:
+                                formatted_cmd += f" {part}"
+                            elif part.startswith("-"):
+                                formatted_cmd += f" \\\n      {part}"
+                            else:
+                                formatted_cmd += f" {part}"
+                        # Add context at the end if present
+                        if self.config.get("showDirectCommandIncludeContext", False):
+                            from .kubernetes import KubernetesClient
+
+                            k8s = KubernetesClient()
+                            context = k8s.get_current_context()
+                            if context:
+                                formatted_cmd += f" \\\n      --context {context}"
+                        console.print(f"\nDirect command:\n[cyan]{formatted_cmd}[/cyan]\n")
+                    else:
+                        console.print(f"\nDirect command: [cyan]{' '.join(cmd_parts)}[/cyan]\n")
+
                 if local_port:
                     console.print(
                         f"[light_blue][link=http://localhost:{local_port}]http://localhost:{local_port}[/link][/light_blue]"
@@ -163,10 +227,45 @@ class PortForwarder:
                                 console.print(
                                     f"[red]  • Port {local_port} is being blocked or intercepted[/red]"
                                 )
+
+                                # Check auto-reconnect settings
+                                if not self.auto_reconnect:
+                                    console.print(
+                                        "[yellow]Auto-reconnect is disabled, exiting[/yellow]"
+                                    )
+                                    self.shutdown_event.set()
+                                    return
+
+                                self.reconnect_attempts_made += 1
+                                if self.usage_logger:
+                                    self.usage_logger.increment_reconnect_attempts()
+
+                                if self.reconnect_attempts_made >= self.max_reconnect_attempts:
+                                    console.print(
+                                        f"[red]Max reconnection attempts ({self.max_reconnect_attempts}) reached[/red]"
+                                    )
+                                    console.print(
+                                        "[yellow]Exiting kpf. Please check your service and cluster status.[/yellow]"
+                                    )
+                                    self.shutdown_event.set()
+                                    return
+
                                 console.print(
-                                    "[yellow]Exiting kpf. Please check your service and cluster status.[/yellow]"
+                                    f"[yellow]Reconnection attempt {self.reconnect_attempts_made}/{self.max_reconnect_attempts}[/yellow]"
                                 )
-                                self.shutdown_event.set()
+                                console.print(
+                                    f"[yellow]Waiting {self.reconnect_delay}s before reconnecting...[/yellow]"
+                                )
+
+                                # Interruptible sleep
+                                for _ in range(self.reconnect_delay):
+                                    if self.shutdown_event.is_set():
+                                        return
+                                    time.sleep(1)
+
+                                if self.should_restart_port_forward():
+                                    self.restart_event.set()
+                                    break
                                 return
 
                             # Check if we should restart (throttling)
@@ -178,6 +277,13 @@ class PortForwarder:
                                     f"[yellow]Restart throttled, will retry connectivity check in {self.connectivity_checker.CONNECTIVITY_CHECK_INTERVAL}s[/yellow]"
                                 )
                         else:
+                            # Reset reconnect attempts on successful connection
+                            if self.reconnect_attempts_made > 0:
+                                console.print(
+                                    "[green]Connection restored, resetting reconnect counter[/green]"
+                                )
+                                self.reconnect_attempts_made = 0
+
                             self.debug_print(
                                 f"Port connectivity check passed on port {local_port}",
                                 rate_limit=True,

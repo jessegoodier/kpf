@@ -45,17 +45,19 @@ def extract_zsh_completion_flags():
 
     # Match patterns like '(-n --namespace)'{-n,--namespace}
     # or '(-0)-0[...]' for special flags
+    # or '--flag[...]' for standalone flags
     patterns = [
         r"'\(([^)]+)\)'\{([^}]+)\}",  # Grouped flags like (-n --namespace)'{-n,--namespace}
         r"'\([^)]+\)(-\d+)\[",  # Special flags like '(-0)-0[...]'
+        r"'(--[a-z-]+)\[",  # Standalone flags like '--auto-reconnect[...]'
     ]
 
     for pattern in patterns:
         matches = re.finditer(pattern, content)
         for match in matches:
-            if len(match.groups()) > 1:
+            if len(match.groups()) > 1 and match.group(2):
                 # For grouped flags, extract from the braces
-                flags_group = match.group(2) if match.group(2) else match.group(1)
+                flags_group = match.group(2)
             else:
                 flags_group = match.group(1)
 

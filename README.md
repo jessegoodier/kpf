@@ -231,6 +231,58 @@ This feature prevents confusing "port already in use" errors when the real issue
 
 - kubectl configured with cluster access
 
+## Configuration
+
+kpf can be configured via `~/.config/kpf/kpf.json` (follows [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)).
+
+All settings are optional with sensible defaults:
+
+```json
+{
+    "autoSelectFreePort": true,
+    "showDirectCommand": true,
+    "showDirectCommandIncludeContext": true,
+    "directCommandMultiLine": true,
+    "autoReconnect": true,
+    "reconnectAttempts": 30,
+    "reconnectDelaySeconds": 5,
+    "captureUsageDetails": false,
+    "usageDetailFolder": "${HOME}/.config/kpf/usage-details"
+}
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `autoSelectFreePort` | boolean | `true` | When requested port is busy, automatically try next ports (9091, 9092, etc.) |
+| `showDirectCommand` | boolean | `true` | Show the direct `kpf` command for future use |
+| `showDirectCommandIncludeContext` | boolean | `true` | Include kubectl context in the command display |
+| `directCommandMultiLine` | boolean | `true` | Format direct command across multiple lines for readability |
+| `autoReconnect` | boolean | `true` | Automatically reconnect when connection drops |
+| `reconnectAttempts` | integer | `30` | Number of reconnection attempts before giving up |
+| `reconnectDelaySeconds` | integer | `5` | Delay in seconds between reconnection attempts |
+| `captureUsageDetails` | boolean | `false` | Capture usage details locally for debugging (not sent anywhere) |
+| `usageDetailFolder` | string | `${HOME}/.config/kpf/usage-details` | Where to store usage detail logs |
+
+**Notes:**
+- All settings are optional - kpf will use defaults if the config file doesn't exist
+- Environment variables like `${HOME}` are expanded automatically
+- The config file location respects the `XDG_CONFIG_HOME` environment variable
+- Invalid JSON or unknown keys will show warnings but won't prevent kpf from running
+- CLI arguments override config file values when provided
+
+### Example: Minimal Configuration
+
+If you only want to change specific settings:
+
+```json
+{
+    "showDirectCommand": false,
+    "reconnectAttempts": 10
+}
+```
+
 ## Development
 
 ### Setup Development Environment

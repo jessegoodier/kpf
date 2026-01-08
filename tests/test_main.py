@@ -509,7 +509,9 @@ class TestPortValidation:
             args = ["svc/test", f"{test_port}:80", "-n", "default"]
 
             with patch("src.kpf.validators.console.print") as mock_print:
-                result = validate_port_availability(args)
+                # Disable auto-select to test the error case
+                config = {"autoSelectFreePort": False}
+                result = validate_port_availability(args, config=config)
                 assert result is False
 
                 # Check that error message was printed

@@ -58,6 +58,27 @@ def is_port_available(port: int) -> tuple[bool, str]:
             return False, "in_use"
 
 
+def find_next_free_port(start_port: int, max_attempts: int = 10):
+    """Find the next available port starting from start_port.
+
+    Args:
+        start_port: Port number to start searching from
+        max_attempts: Maximum number of ports to try (default: 10)
+
+    Returns:
+        int or None: The next available port, or None if no port found
+    """
+    for offset in range(max_attempts):
+        port = start_port + offset
+        if port > 65535:
+            return None
+        is_available, error_reason = is_port_available(port)
+        # Only use ports that are truly available (not permission issues)
+        if is_available:
+            return port
+    return None
+
+
 def validate_port_format(port_forward_args):
     """Validate that port mappings in arguments are valid integers."""
     for arg in port_forward_args:
@@ -341,12 +362,13 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
         return False
 
 
-def validate_port_availability(port_forward_args, debug_callback=None):
+def validate_port_availability(port_forward_args, debug_callback=None, config=None):
     """Validate that the local port in port-forward args is available.
 
     Args:
         port_forward_args: List of port-forward arguments (will be modified if user accepts alternative)
         debug_callback: Optional debug callback function
+        config: Optional config dict for auto-select feature
 
     Returns:
         bool: True if port is available or user accepts alternative, False otherwise
@@ -371,7 +393,7 @@ def validate_port_availability(port_forward_args, debug_callback=None):
             f"[yellow]Error: Port {local_port} requires elevated privileges (root/sudo)[/yellow]"
         )
         console.print(
-            f"[cyan]Low ports (< 1024) require administrator permissions on most systems[/cyan]"
+            "[cyan]Low ports (< 1024) require administrator permissions on most systems[/cyan]"
         )
 
         # Check if suggested port is available
@@ -399,9 +421,7 @@ def validate_port_availability(port_forward_args, debug_callback=None):
                 console.print("[yellow]Port change declined. Exiting.[/yellow]")
                 return False
         else:
-            console.print(
-                f"[yellow]Suggested port {suggested_port} is also unavailable[/yellow]"
-            )
+            console.print(f"[yellow]Suggested port {suggested_port} is also unavailable[/yellow]")
             console.print(
                 "[yellow]Please choose a different port or run with elevated privileges (sudo)[/yellow]"
             )
@@ -409,6 +429,28 @@ def validate_port_availability(port_forward_args, debug_callback=None):
 
     # Regular "port in use" error
     elif error_reason == "in_use":
+        # Check if auto-select is enabled
+        auto_select = config.get("autoSelectFreePort", True) if config else True
+
+        if auto_select:
+            next_port = find_next_free_port(local_port)
+            if next_port:
+                console.print(f"[yellow]Port {local_port} is in use[/yellow]")
+                console.print(f"[green]Auto-selecting port {next_port}[/green]")
+                # Update port_forward_args with new port
+                _update_port_mapping(port_forward_args, local_port, next_port)
+                if debug_callback:
+                    debug_callback(f"Auto-selected port {next_port}")
+                return True
+            else:
+                # Auto-select failed, fall through to error message
+                console.print(f"[yellow]Port {local_port} is in use[/yellow]")
+                console.print(
+                    f"[yellow]Could not find an available port (tried {local_port}-{local_port + 9})[/yellow]"
+                )
+                return False
+
+        # Auto-select disabled or not available - show error
         console.print(f"[red]Error: Local port {local_port} is already in use[/red]")
         console.print(
             f"[yellow]Please choose a different port or free up port {local_port}[/yellow]"
