@@ -533,7 +533,7 @@ class TestPortValidation:
         """Test port-forward health check success."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         # args variable removed as it was unused
 
@@ -551,7 +551,7 @@ class TestPortValidation:
         """Test port-forward health check timeout."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         # Mock connection failure (different error code)
         mock_sock_instance = Mock()
@@ -565,7 +565,7 @@ class TestPortValidation:
         """Test port-forward health check when no port can be extracted."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         result = checker.test_port_forward_health(None)
         assert result is True  # Should return True when can't test
@@ -1050,7 +1050,7 @@ class TestConnectivityTesting:
         """Test socket connectivity test with successful connection."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         with patch("socket.socket") as mock_socket:
             mock_sock_instance = Mock()
@@ -1065,7 +1065,7 @@ class TestConnectivityTesting:
         """Test socket connectivity test with connection refused."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         with patch("socket.socket") as mock_socket:
             mock_sock_instance = Mock()
@@ -1080,7 +1080,7 @@ class TestConnectivityTesting:
         """Test socket connectivity test with connection failure."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         with patch("socket.socket") as mock_socket:
             mock_sock_instance = Mock()
@@ -1095,7 +1095,7 @@ class TestConnectivityTesting:
         """Test socket connectivity test with socket exception."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         with patch("socket.socket") as mock_socket:
             mock_socket.side_effect = OSError("Network unreachable")
@@ -1109,7 +1109,7 @@ class TestConnectivityTesting:
         """Test HTTP connectivity test with successful response."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -1124,7 +1124,7 @@ class TestConnectivityTesting:
         """Test that HTTP 404 is considered successful connectivity."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         mock_response = Mock()
         mock_response.status_code = 404
@@ -1141,7 +1141,7 @@ class TestConnectivityTesting:
 
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         mock_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
 
@@ -1156,7 +1156,7 @@ class TestConnectivityTesting:
 
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         mock_get.side_effect = requests.exceptions.Timeout("Request timed out")
 
@@ -1170,7 +1170,7 @@ class TestConnectivityTesting:
         """Test HTTP connectivity test rate limiting."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         # Mock time to simulate recent request
         mock_time.side_effect = [1000.0, 1001.0, 1001.0, 1001.0]  # Provide enough time values
@@ -1195,7 +1195,7 @@ class TestConnectivityTesting:
         """Test enhanced connectivity check with socket failure."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         mock_socket.return_value = (False, "connection_error_111")
 
@@ -1210,7 +1210,7 @@ class TestConnectivityTesting:
         """Test enhanced connectivity check with socket connected and HTTP success."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         mock_socket.return_value = (True, "connected")
         mock_http.return_value = (ConnectivityTestResult.SUCCESS, "http_response_200")
@@ -1223,7 +1223,7 @@ class TestConnectivityTesting:
         """Test enhanced connectivity check with no port specified."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         result = checker.check_port_connectivity(None)
         assert result is True
@@ -1335,7 +1335,7 @@ class TestHttpTimeoutRestart:
         """Test HTTP timeout restart check when threshold not met."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         # Set timeout start time
         checker.http_timeout_start_time = 1000.0
@@ -1366,7 +1366,7 @@ class TestHttpTimeoutRestart:
         """Test HTTP timeout restart check when timeout not set."""
         from src.kpf.connectivity import ConnectivityChecker
 
-        checker = ConnectivityChecker()
+        checker = ConnectivityChecker(run_http_health_checks=True)
 
         result = checker.check_http_timeout_restart()
         assert result is False

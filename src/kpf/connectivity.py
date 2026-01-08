@@ -22,9 +22,9 @@ class ConnectivityTestResult(Enum):
 
 
 class ConnectivityChecker:
-    def __init__(self, debug_callback=None, no_health_check: bool = False):
+    def __init__(self, debug_callback=None, run_http_health_checks: bool = False):
         self.debug_print = debug_callback if debug_callback else lambda msg, rate_limit=False: None
-        self.no_health_check = no_health_check
+        self.run_http_health_checks = run_http_health_checks
 
         # Track connectivity failure state
         self.connectivity_failure_start_time = None
@@ -97,7 +97,7 @@ class ConnectivityChecker:
 
     def test_port_forward_health(self, local_port: int, timeout: int = 10):
         """Test if port-forward is working by checking if the local port becomes active."""
-        if self.no_health_check:
+        if not self.run_http_health_checks:
             self.debug_print("Health checks disabled, skipping port-forward health test")
             return True  # Assume it's working when health checks are disabled
 
@@ -291,7 +291,7 @@ class ConnectivityChecker:
 
     def check_port_connectivity(self, local_port: int) -> bool:
         """Check port-forward connectivity using socket and HTTP tests."""
-        if self.no_health_check:
+        if not self.run_http_health_checks:
             self.debug_print("Health checks disabled, skipping connectivity check")
             return True  # Assume it's working when health checks are disabled
 

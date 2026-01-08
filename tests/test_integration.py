@@ -55,7 +55,7 @@ class TestCLIIntegration:
             ["svc/test", "8080:8080", "-n", "default"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     def test_import_structure(self):

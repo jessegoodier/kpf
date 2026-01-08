@@ -11,7 +11,7 @@ _kpf() {
     '(-c --check)'{-c,--check}'[Check and display endpoint status in service selection table]' \
     '(-d --debug)'{-d,--debug}'[Enable debug output for troubleshooting]' \
     '(-t --debug-terminal)'{-t,--debug-terminal}'[Enable debug output for troubleshooting display issues]' \
-    '--no-health-check[Disable connectivity health checks (useful for non-HTTP services like databases)]' \
+    '--run-http-health-checks[Enable HTTP connectivity health checks (disabled by default)]' \
     '(-0)-0[Listen on all interfaces (0.0.0.0) instead of localhost]' \
     '(-pn --prompt-namespace)'{-pn,--prompt-namespace}'[Interactively select a namespace before service selection]' \
     '--auto-reconnect[Automatically reconnect on failure]' \

@@ -104,9 +104,9 @@ Example usage:
     )
 
     parser.add_argument(
-        "--no-health-check",
+        "--run-http-health-checks",
         action="store_true",
-        help="Disable connectivity health checks (useful for non-HTTP services like databases)",
+        help="Enable HTTP connectivity health checks (disabled by default)",
     )
 
     parser.add_argument(
@@ -473,7 +473,7 @@ def main():
                 port_forward_args,
                 debug_mode=args.debug,
                 config=merged_config,
-                no_health_check=args.no_health_check,
+                run_http_health_checks=args.run_http_health_checks,
             )
 
     except KeyboardInterrupt:

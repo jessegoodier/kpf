@@ -33,7 +33,7 @@ class PortForwarder:
 
         self.local_port = extract_local_port(port_forward_args)
         self.connectivity_checker = ConnectivityChecker(
-            debug_callback, no_health_check=no_health_check
+            debug_callback, run_http_health_checks=not no_health_check
         )
 
         # State
@@ -134,7 +134,7 @@ class PortForwarder:
                             else:
                                 formatted_cmd += f" {part}"
                         # Add context at the end if present
-                        if self.config.get("showDirectCommandIncludeContext", False):
+                        if self.config.get("showDirectCommandIncludeContext", True):
                             from .kubernetes import KubernetesClient
 
                             k8s = KubernetesClient()

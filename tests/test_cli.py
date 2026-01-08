@@ -314,7 +314,7 @@ class TestMainFunction:
             ["svc/test", "8080:8080", "-n", "default"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
@@ -330,7 +330,7 @@ class TestMainFunction:
             ["svc/test", "8080:8080", "-n", "default"],
             debug_mode=True,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -340,7 +340,10 @@ class TestMainFunction:
         main()
 
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080"], debug_mode=False, config=ANY, no_health_check=False
+            ["svc/frontend", "8080:8080"],
+            debug_mode=False,
+            config=ANY,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -353,7 +356,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "-n", "production"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -366,7 +369,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "-n", "production"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -390,7 +393,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "--address", "0.0.0.0", "-n", "production"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -403,7 +406,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "--pod-running-timeout", "2m"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -438,7 +441,7 @@ class TestMainFunction:
             ],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -454,7 +457,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "--address", "0.0.0.0"],
             debug_mode=True,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -468,7 +471,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "-n", "ignored"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -494,7 +497,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "-n", "kpf-arg"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -527,7 +530,7 @@ class TestMainFunction:
             ],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -542,7 +545,7 @@ class TestMainFunction:
             ["0.0.0.0", "svc/frontend", "8080:8080", "--address"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
@@ -570,7 +573,7 @@ class TestMainFunction:
             ["svc/test", "8080:8080", "-n", "default"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
@@ -603,7 +606,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "--address", "0.0.0.0"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
@@ -619,7 +622,7 @@ class TestMainFunction:
             ["svc/test", "8080:8080", "-n", "default", "--address", "0.0.0.0"],
             debug_mode=False,
             config=ANY,
-            no_health_check=False,
+            run_http_health_checks=False,
         )
 
     @patch("src.kpf.cli.KubernetesClient")

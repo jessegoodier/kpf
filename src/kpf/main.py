@@ -135,7 +135,7 @@ def get_watcher_args(port_forward_args):
 
 
 def run_port_forward(
-    port_forward_args, debug_mode: bool = False, config=None, no_health_check: bool = False
+    port_forward_args, debug_mode: bool = False, config=None, run_http_health_checks: bool = False
 ):
     """
     The main function to orchestrate the two threads.
@@ -144,7 +144,7 @@ def run_port_forward(
         port_forward_args: Arguments for kubectl port-forward
         debug_mode: Enable debug output
         config: KpfConfig instance (optional)
-        no_health_check: Disable connectivity health checks (optional)
+        run_http_health_checks: Enable HTTP connectivity health checks (optional, default: False)
     """
     global _debug_enabled
     _debug_enabled = debug_mode
@@ -216,7 +216,7 @@ def run_port_forward(
         debug_callback=debug.print,
         config=config,
         usage_logger=usage_logger,
-        no_health_check=no_health_check,
+        no_health_check=not run_http_health_checks,
     )
 
     # define delegate method for watcher to check if it should trigger restart on forwarder
