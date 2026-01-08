@@ -112,16 +112,11 @@ class PortForwarder:
                     show_direct_command = self.config.get("showDirectCommand", True)
 
                 if show_direct_command:
-                    cmd_parts = ["kpf"] + args
-
-                    # Add context if configured
+                    context = None
                     if self.config and self.config.get("showDirectCommandIncludeContext", True):
                         from .kubernetes import KubernetesClient
-
                         k8s = KubernetesClient()
                         context = k8s.get_current_context()
-                        if context:
-                            cmd_parts.extend(["--context", context])
 
                     # Format as multiline if configured
                     if self.config and self.config.get("directCommandMultiLine", True):
@@ -133,16 +128,15 @@ class PortForwarder:
                                 formatted_cmd += f" \\\n      {part}"
                             else:
                                 formatted_cmd += f" {part}"
-                        # Add context at the end if present
-                        if self.config.get("showDirectCommandIncludeContext", True):
-                            from .kubernetes import KubernetesClient
-
-                            k8s = KubernetesClient()
-                            context = k8s.get_current_context()
-                            if context:
-                                formatted_cmd += f" \\\n      --context {context}"
+                        
+                        if context:
+                            formatted_cmd += f" \\\n      --context {context}"
+                        
                         console.print(f"\nDirect command:\n[cyan]{formatted_cmd}[/cyan]\n")
                     else:
+                        cmd_parts = ["kpf"] + args
+                        if context:
+                            cmd_parts.extend(["--context", context])
                         console.print(f"\nDirect command: [cyan]{' '.join(cmd_parts)}[/cyan]\n")
 
                 if local_port:
