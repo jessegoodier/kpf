@@ -43,15 +43,15 @@ class ServiceInfo:
 class KubernetesClient:
     """Client for interacting with Kubernetes via kubectl."""
 
-    # def __init__(self):
-    #     self._check_kubectl()
+    def __init__(self):
+        self._check_kubectl()
 
-    # def _check_kubectl(self):
-    #     """Check if kubectl is available."""
-    #     try:
-    #         subprocess.run(["kubectl", "version"], capture_output=True, check=True)
-    #     except (subprocess.CalledProcessError, FileNotFoundError):
-    #         raise RuntimeError("kubectl is not available or not configured properly")
+    def _check_kubectl(self):
+        """Check if kubectl is available."""
+        try:
+            subprocess.run(["kubectl", "version"], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            raise RuntimeError("kubectl is not available or not configured properly")
 
     def get_current_namespace(self) -> str:
         """Get the current namespace from kubectl context."""

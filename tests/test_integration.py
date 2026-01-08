@@ -115,12 +115,9 @@ class TestEndToEndScenarios:
         from src.kpf.display import ServiceSelector
         from src.kpf.kubernetes import KubernetesClient
 
-        # KubernetesClient should work without kubectl check
-        client = KubernetesClient()
-
-        # ServiceSelector should fail when kubectl is not available
-        with pytest.raises(RuntimeError, match="kubectl command not found"):
-            ServiceSelector(client)
+        # KubernetesClient should fail when kubectl is not available
+        with pytest.raises(RuntimeError, match="kubectl is not available"):
+            KubernetesClient()
 
     @patch("subprocess.run")
     def test_kubectl_connection_error(self, mock_run):

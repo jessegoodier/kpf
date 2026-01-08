@@ -38,7 +38,10 @@ class PortForwarder:
 
         # State
         self.last_restart_time = 0
-        self.RESTART_THROTTLE_SECONDS = 5
+        if config:
+            self.RESTART_THROTTLE_SECONDS = config.get("restartThrottleSeconds", 5)
+        else:
+            self.RESTART_THROTTLE_SECONDS = 5
         self.pending_restart = False
 
         # Reconnection config
@@ -88,7 +91,7 @@ class PortForwarder:
             return True
         return False
 
-    def port_forward_thread(self):
+    def port_forward_thread(self) -> None:
         """
         This thread runs the kubectl port-forward command.
         It listens for the `restart_event` and restarts the process when it's set.

@@ -83,7 +83,7 @@ def get_port_forward_args(args):
     Parses command-line arguments to extract the port-forward arguments.
     """
     if not args:
-        print("Usage: python kpf.py <kubectl port-forward args>")
+        console.print("Usage: python kpf.py <kubectl port-forward args>")
         sys.exit(1)
     return args
 

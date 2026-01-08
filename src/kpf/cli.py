@@ -400,7 +400,7 @@ def main():
     parser = create_parser()
     args, unknown_args = parser.parse_known_args()
     if args.debug_terminal:
-        print("Debug mode enabled")
+        console.print("Debug mode enabled", style="dim cyan")
         _debug_display_terminal_capabilities()
 
     # Load configuration and merge with CLI args
