@@ -52,7 +52,10 @@ class TestCLIIntegration:
         # Verify the mocked functions were called
         mock_handle_prompt.assert_called_once()
         mock_run_pf.assert_called_once_with(
-            ["svc/test", "8080:8080", "-n", "default"], debug_mode=False, config=ANY
+            ["svc/test", "8080:8080", "-n", "default"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     def test_import_structure(self):

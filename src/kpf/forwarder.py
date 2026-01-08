@@ -325,7 +325,7 @@ class PortForwarder:
                         self.restart_event.set()
                         break
 
-                    time.sleep(0.1)  # Short sleep for responsive shutdown
+                    time.sleep(1.0)  # Sleep for 1 second between loop iterations
 
                 if proc and (self.restart_event.is_set() or self.shutdown_event.is_set()):
                     if self.restart_event.is_set():

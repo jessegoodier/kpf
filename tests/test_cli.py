@@ -311,7 +311,10 @@ class TestMainFunction:
 
         mock_handle_prompt.assert_called_once()
         mock_run_pf.assert_called_once_with(
-            ["svc/test", "8080:8080", "-n", "default"], debug_mode=False, config=ANY
+            ["svc/test", "8080:8080", "-n", "default"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
@@ -324,7 +327,10 @@ class TestMainFunction:
         main()
 
         mock_run_pf.assert_called_once_with(
-            ["svc/test", "8080:8080", "-n", "default"], debug_mode=True, config=ANY
+            ["svc/test", "8080:8080", "-n", "default"],
+            debug_mode=True,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -334,7 +340,7 @@ class TestMainFunction:
         main()
 
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080"], debug_mode=False, config=ANY
+            ["svc/frontend", "8080:8080"], debug_mode=False, config=ANY, no_health_check=False
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -344,7 +350,10 @@ class TestMainFunction:
         main()
 
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080", "-n", "production"], debug_mode=False, config=ANY
+            ["svc/frontend", "8080:8080", "-n", "production"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -354,7 +363,10 @@ class TestMainFunction:
         main()
 
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080", "-n", "production"], debug_mode=False, config=ANY
+            ["svc/frontend", "8080:8080", "-n", "production"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -378,6 +390,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "--address", "0.0.0.0", "-n", "production"],
             debug_mode=False,
             config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -390,6 +403,7 @@ class TestMainFunction:
             ["svc/frontend", "8080:8080", "--pod-running-timeout", "2m"],
             debug_mode=False,
             config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -424,6 +438,7 @@ class TestMainFunction:
             ],
             debug_mode=False,
             config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -436,7 +451,10 @@ class TestMainFunction:
         main()
 
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080", "--address", "0.0.0.0"], debug_mode=True, config=ANY
+            ["svc/frontend", "8080:8080", "--address", "0.0.0.0"],
+            debug_mode=True,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -447,7 +465,10 @@ class TestMainFunction:
 
         # kpf's --namespace should be parsed as a known argument and added as -n
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080", "-n", "ignored"], debug_mode=False, config=ANY
+            ["svc/frontend", "8080:8080", "-n", "ignored"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -470,7 +491,10 @@ class TestMainFunction:
         # When both -n and --namespace are specified, --namespace (kpf's option) takes precedence
         # This is the expected argparse behavior - later arguments override earlier ones
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080", "-n", "kpf-arg"], debug_mode=False, config=ANY
+            ["svc/frontend", "8080:8080", "-n", "kpf-arg"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -503,6 +527,7 @@ class TestMainFunction:
             ],
             debug_mode=False,
             config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.run_port_forward")
@@ -514,7 +539,10 @@ class TestMainFunction:
         # Note: When --address appears before resource, argparse treats "0.0.0.0" as positional arg
         # This matches kubectl behavior where options should come after resource and port specs
         mock_run_pf.assert_called_once_with(
-            ["0.0.0.0", "svc/frontend", "8080:8080", "--address"], debug_mode=False, config=ANY
+            ["0.0.0.0", "svc/frontend", "8080:8080", "--address"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
@@ -539,7 +567,10 @@ class TestMainFunction:
 
         mock_handle_prompt.assert_called_once()
         mock_run_pf.assert_called_once_with(
-            ["svc/test", "8080:8080", "-n", "default"], debug_mode=False, config=ANY
+            ["svc/test", "8080:8080", "-n", "default"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
@@ -569,7 +600,10 @@ class TestMainFunction:
         main()
 
         mock_run_pf.assert_called_once_with(
-            ["svc/frontend", "8080:8080", "--address", "0.0.0.0"], debug_mode=False, config=ANY
+            ["svc/frontend", "8080:8080", "--address", "0.0.0.0"],
+            debug_mode=False,
+            config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.handle_prompt_mode")
@@ -585,6 +619,7 @@ class TestMainFunction:
             ["svc/test", "8080:8080", "-n", "default", "--address", "0.0.0.0"],
             debug_mode=False,
             config=ANY,
+            no_health_check=False,
         )
 
     @patch("src.kpf.cli.KubernetesClient")
