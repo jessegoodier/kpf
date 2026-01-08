@@ -21,6 +21,7 @@ class PortForwarder:
         debug_callback=None,
         config=None,
         usage_logger=None,
+        no_health_check: bool = False,
     ):
         self.port_forward_args = port_forward_args
         self.shutdown_event = shutdown_event
@@ -28,9 +29,12 @@ class PortForwarder:
         self.debug_print = debug_callback if debug_callback else lambda msg, rate_limit=False: None
         self.config = config
         self.usage_logger = usage_logger
+        self.no_health_check = no_health_check
 
         self.local_port = extract_local_port(port_forward_args)
-        self.connectivity_checker = ConnectivityChecker(debug_callback)
+        self.connectivity_checker = ConnectivityChecker(
+            debug_callback, no_health_check=no_health_check
+        )
 
         # State
         self.last_restart_time = 0
@@ -163,20 +167,23 @@ class PortForwarder:
                     # Give port-forward a moment to start
                     time.sleep(2)
 
-                # Test if port-forward is healthy
-                if not self.connectivity_checker.test_port_forward_health(local_port):
-                    console.print("[red]Port-forward failed to start properly[/red]")
-                    console.print(
-                        "[yellow]This may indicate the service is not running or the port mapping is incorrect[/yellow]"
-                    )
-                    if proc:
-                        self.debug_print(f"Terminating failed port-forward process PID: {proc.pid}")
-                        self._kill_proc(proc)
+                # Test if port-forward is healthy (skip if health checks disabled)
+                if not self.no_health_check:
+                    if not self.connectivity_checker.test_port_forward_health(local_port):
+                        console.print("[red]Port-forward failed to start properly[/red]")
+                        console.print(
+                            "[yellow]This may indicate the service is not running or the port mapping is incorrect[/yellow]"
+                        )
+                        if proc:
+                            self.debug_print(
+                                f"Terminating failed port-forward process PID: {proc.pid}"
+                            )
+                            self._kill_proc(proc)
 
-                    # Instead of shutting down immediately, set restart event to try again
-                    console.print("[yellow]Will retry port-forward in a moment...[/yellow]")
-                    self.restart_event.set()
-                    continue
+                        # Instead of shutting down immediately, set restart event to try again
+                        console.print("[yellow]Will retry port-forward in a moment...[/yellow]")
+                        self.restart_event.set()
+                        continue
 
                 console.print("\n🚀 [green]port-forward started[/green] 🚀")
 
@@ -187,8 +194,10 @@ class PortForwarder:
                     current_time = time.time()
 
                     # Check if it's time to test connectivity (minimum 2 seconds between checks)
+                    # Skip connectivity checks if health checks are disabled
                     if (
-                        current_time - last_connectivity_check
+                        not self.no_health_check
+                        and current_time - last_connectivity_check
                         >= self.connectivity_checker.CONNECTIVITY_CHECK_INTERVAL
                     ):
                         self.debug_print(
@@ -290,7 +299,10 @@ class PortForwarder:
                             )
 
                         # Check if HTTP timeouts have persisted for too long and trigger restart
-                        if self.connectivity_checker.check_http_timeout_restart():
+                        if (
+                            not self.no_health_check
+                            and self.connectivity_checker.check_http_timeout_restart()
+                        ):
                             console.print(
                                 "[yellow]HTTP connectivity timeouts persisting, restarting port-forward[/yellow]"
                             )
@@ -302,6 +314,7 @@ class PortForwarder:
                                     f"[yellow]Restart throttled, will retry connectivity check in {self.connectivity_checker.CONNECTIVITY_CHECK_INTERVAL}s[/yellow]"
                                 )
 
+                        # Update last connectivity check time
                         last_connectivity_check = current_time
 
                     # Check if there's a pending restart that can now be executed

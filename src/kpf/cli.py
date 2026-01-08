@@ -104,6 +104,12 @@ Example usage:
     )
 
     parser.add_argument(
+        "--no-health-check",
+        action="store_true",
+        help="Disable connectivity health checks (useful for non-HTTP services like databases)",
+    )
+
+    parser.add_argument(
         "-0",
         dest="address_zero",
         action="store_true",
@@ -463,7 +469,12 @@ def main():
 
         # Run the port-forward utility (should only reach here if port_forward_args is set)
         if port_forward_args:
-            run_port_forward(port_forward_args, debug_mode=args.debug, config=merged_config)
+            run_port_forward(
+                port_forward_args,
+                debug_mode=args.debug,
+                config=merged_config,
+                no_health_check=args.no_health_check,
+            )
 
     except KeyboardInterrupt:
         console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")

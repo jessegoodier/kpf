@@ -1,9 +1,11 @@
 import socket
+import ssl
 import time
 from enum import Enum
 from typing import Tuple
 
 import requests
+from requests.exceptions import SSLError
 from rich.console import Console
 
 console = Console()
@@ -20,8 +22,9 @@ class ConnectivityTestResult(Enum):
 
 
 class ConnectivityChecker:
-    def __init__(self, debug_callback=None):
+    def __init__(self, debug_callback=None, no_health_check: bool = False):
         self.debug_print = debug_callback if debug_callback else lambda msg, rate_limit=False: None
+        self.no_health_check = no_health_check
 
         # Track connectivity failure state
         self.connectivity_failure_start_time = None
@@ -94,6 +97,10 @@ class ConnectivityChecker:
 
     def test_port_forward_health(self, local_port: int, timeout: int = 10):
         """Test if port-forward is working by checking if the local port becomes active."""
+        if self.no_health_check:
+            self.debug_print("Health checks disabled, skipping port-forward health test")
+            return True  # Assume it's working when health checks are disabled
+
         if local_port is None:
             self.debug_print("Could not extract local port for health check")
             return True  # Can't test, assume it's working
@@ -163,6 +170,29 @@ class ConnectivityChecker:
             self.debug_print(f"Socket connectivity test failed with exception: {e}")
             return False, f"socket_exception_{type(e).__name__}"
 
+    def _is_non_http_protocol_error(self, error: Exception) -> bool:
+        """Check if an error indicates the service uses a non-HTTP protocol (e.g., PostgreSQL, MySQL)."""
+        error_str = str(error).lower()
+
+        # Check for SSL errors that indicate non-HTTP protocols
+        ssl_indicators = [
+            "no application protocol",
+            "tlsv1 alert no application protocol",
+            "wrong version number",  # Common when non-HTTP service responds to HTTP
+            "unknown protocol",  # Service doesn't speak HTTP
+        ]
+
+        # Check if it's an SSL error with non-HTTP indicators
+        if isinstance(error, (SSLError, ssl.SSLError)):
+            return any(indicator in error_str for indicator in ssl_indicators)
+
+        # Check ConnectionError that might wrap SSL errors
+        if isinstance(error, requests.exceptions.ConnectionError):
+            # The error message often contains the underlying SSL error
+            return any(indicator in error_str for indicator in ssl_indicators)
+
+        return False
+
     def _test_http_connectivity(self, local_port: int) -> Tuple[ConnectivityTestResult, str]:
         """Test HTTP connectivity to the port."""
         current_time = time.time()
@@ -174,8 +204,9 @@ class ConnectivityChecker:
 
         self.last_http_attempt_time = current_time
 
-        # Try both HTTP and HTTPS
+        # Try HTTP first (most common)
         urls = [f"http://localhost:{local_port}", f"https://localhost:{local_port}"]
+        non_http_detected = False
 
         for url in urls:
             try:
@@ -205,9 +236,19 @@ class ConnectivityChecker:
                 continue  # Try next URL
 
             except requests.exceptions.ConnectionError as e:
-                self.debug_print(
-                    f"HTTP connectivity test [red]connection error: {url} -> {e}[/red]"
-                )
+                # Check if this is a non-HTTP protocol (e.g., database)
+                if self._is_non_http_protocol_error(e):
+                    non_http_detected = True
+                    # Port is open but service doesn't speak HTTP - this is fine for port-forward health
+                    self.debug_print(
+                        f"Port {local_port} appears to use a non-HTTP protocol (e.g., database), skipping HTTP test"
+                    )
+                    # Don't try HTTPS if HTTP already detected non-HTTP protocol
+                    break
+                else:
+                    self.debug_print(
+                        f"HTTP connectivity test [red]connection error: {url} -> {e}[/red]"
+                    )
                 continue  # Try next URL
 
             except requests.exceptions.Timeout:
@@ -215,17 +256,45 @@ class ConnectivityChecker:
                 self._mark_http_timeout_start()  # Track timeout start
                 continue  # Try next URL
 
-            except Exception as e:
-                self.debug_print(
-                    f"HTTP connectivity test [red]unexpected error: {url} -> {e}[/red]"
-                )
+            except SSLError as e:
+                # Check if this is a non-HTTP protocol SSL error
+                if self._is_non_http_protocol_error(e):
+                    non_http_detected = True
+                    self.debug_print(
+                        f"Port {local_port} appears to use a non-HTTP protocol (e.g., database), skipping HTTP test"
+                    )
+                    break
+                else:
+                    self.debug_print(f"HTTP connectivity test [red]SSL error: {url} -> {e}[/red]")
                 continue  # Try next URL
+
+            except Exception as e:
+                # Check if this is a non-HTTP protocol error
+                if self._is_non_http_protocol_error(e):
+                    non_http_detected = True
+                    self.debug_print(
+                        f"Port {local_port} appears to use a non-HTTP protocol (e.g., database), skipping HTTP test"
+                    )
+                    break
+                else:
+                    self.debug_print(
+                        f"HTTP connectivity test [red]unexpected error: {url} -> {e}[/red]"
+                    )
+                continue  # Try next URL
+
+        # If we detected a non-HTTP protocol, consider it success (port-forward is working)
+        if non_http_detected:
+            return ConnectivityTestResult.SUCCESS, "non_http_protocol_detected"
 
         # If we get here, all HTTP attempts failed
         return ConnectivityTestResult.HTTP_CONNECTION_ERROR, "all_http_attempts_failed"
 
     def check_port_connectivity(self, local_port: int) -> bool:
         """Check port-forward connectivity using socket and HTTP tests."""
+        if self.no_health_check:
+            self.debug_print("Health checks disabled, skipping connectivity check")
+            return True  # Assume it's working when health checks are disabled
+
         if local_port is None:
             self.debug_print("No local port specified, skipping connectivity check")
             return True  # Can't test, assume it's working
