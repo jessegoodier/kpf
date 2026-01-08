@@ -420,7 +420,7 @@ wheels = [
 
 [[package]]
 name = "kpf"
-version = "0.5.3"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "prompt-toolkit" },
