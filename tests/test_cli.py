@@ -103,9 +103,9 @@ class TestArgumentParser:
         assert unknown_args == []
 
     def test_parser_zero_address(self):
-        """Test -0 argument."""
+        """Test -z argument."""
         parser = create_parser()
-        args, unknown_args = parser.parse_known_args(["-0"])
+        args, unknown_args = parser.parse_known_args(["-z"])
 
         assert args.address_zero is True
         assert unknown_args == []
@@ -597,9 +597,9 @@ class TestMainFunction:
             mock_exit.assert_called_once_with(1)
 
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "svc/frontend", "8080:8080", "-0"])
+    @patch("sys.argv", ["kpf", "svc/frontend", "8080:8080", "-z"])
     def test_main_zero_address_legacy(self, mock_run_pf):
-        """Test main function with -0 flag in legacy mode."""
+        """Test main function with -z flag in legacy mode."""
         main()
 
         mock_run_pf.assert_called_once_with(
@@ -611,9 +611,9 @@ class TestMainFunction:
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
-    @patch("sys.argv", ["kpf", "-0"])
+    @patch("sys.argv", ["kpf", "-z"])
     def test_main_zero_address_prompt(self, mock_run_pf, mock_handle_prompt):
-        """Test main function with -0 flag in prompt mode (default)."""
+        """Test main function with -z flag in prompt mode (default)."""
         mock_handle_prompt.return_value = ["svc/test", "8080:8080", "-n", "default"]
 
         main()
@@ -649,7 +649,7 @@ class TestMainFunction:
 
     @patch("src.kpf.cli.KubernetesClient")
     @patch("src.kpf.cli.ServiceSelector")
-    @patch("sys.argv", ["kpf", "-pn"])
+    @patch("sys.argv", ["kpf", "-p"])
     def test_main_prompt_namespace_cancelled(self, mock_selector_class, mock_client_class):
         """Test main function with --prompt-namespace when cancelled."""
         mock_selector = Mock()

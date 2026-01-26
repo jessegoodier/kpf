@@ -56,9 +56,10 @@ include = ["src/kpf"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kpf"]
+artifacts = ["src/kpf/completions/*"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/kpf", "completions"]
+include = ["src/kpf"]
 
 [tool.ruff]
 line-length = 100

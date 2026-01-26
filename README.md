@@ -47,10 +47,10 @@ If you have `uv` installed, you can install `kpf` with:
 uv tool install kpf
 ```
 
-Install `uv` with pipx (brew can be behind):
+from source:
 
 ```bash
-pipx install uv
+uv tool install .
 ```
 
 ## Usage
@@ -82,7 +82,7 @@ kpf -n production
 Interactive selection with namespace prompt:
 
 ```bash
-kpf -pn
+kpf -p
 ```
 
 Show all services across all namespaces:
@@ -139,8 +139,8 @@ Example usage:
   kpf --all (or -A)                             # Show all services across all namespaces
   kpf --all-ports (or -l)                       # Show all services with their ports
   kpf --check -n production                     # Interactive selection with endpoint status
-  kpf --prompt-namespace (or -pn)               # Interactive namespace selection
-  kpf -0                                        # Listen on 0.0.0.0 (all interfaces)
+  kpf --prompt-namespace (or -p)                # Interactive namespace selection
+  kpf -z                                        # Listen on 0.0.0.0 (all interfaces)
 ```
 
 ## Examples
@@ -322,7 +322,7 @@ uv run pytest
 
 ## Shell Completion
 
-Shell completion scripts are available in the `completions/` directory.
+Shell completions can be generated using the `--completions` flag.
 
 ### Homebrew
 
@@ -330,19 +330,27 @@ If you installed via Homebrew (and the formula is updated), completions should b
 
 ### Manual Installation
 
-#### Zsh
-
-```zsh
-# Add the completions directory to your fpath
-fpath=(path/to/kpf/completions $fpath)
-autoload -U compinit; compinit
-```
-
 #### Bash
 
 ```bash
-source path/to/kpf/completions/kpf.bash
+# User-local installation (recommended)
+kpf --completions bash > ~/.local/share/bash-completion/completions/kpf
+
+# Or system-wide
+kpf --completions bash | sudo tee /etc/bash_completion.d/kpf > /dev/null
 ```
+
+#### Zsh
+
+```zsh
+# Add to a directory in your fpath
+kpf --completions zsh > /usr/share/zsh/site-functions/_kpf
+
+# Or for oh-my-zsh users
+kpf --completions zsh > ~/.oh-my-zsh/completions/_kpf
+```
+
+Then reload your shell: `exec $SHELL`
 
 ## License
 

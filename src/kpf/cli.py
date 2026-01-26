@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import importlib.resources
 import locale
 import os
 import platform
@@ -47,12 +48,19 @@ Example usage:
   kpf --all (or -A)                             # Show all services across all namespaces
   kpf --all-ports (or -l)                       # Show all services with their ports
   kpf --check -n production                     # Interactive selection with endpoint status
-  kpf --prompt-namespace (or -pn)               # Interactive namespace selection
-  kpf -0                                        # Listen on 0.0.0.0 (all interfaces)
+  kpf --prompt-namespace (or -p)                # Interactive namespace selection
+  kpf -z                                        # Listen on 0.0.0.0 (all interfaces)
         """,
     )
 
     parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
+
+    parser.add_argument(
+        "--completions",
+        choices=["bash", "zsh"],
+        metavar="SHELL",
+        help="Output shell completion script for bash or zsh",
+    )
 
     parser.add_argument(
         "--namespace",
@@ -63,7 +71,7 @@ Example usage:
 
     parser.add_argument(
         "--prompt-namespace",
-        "-pn",
+        "-p",
         action="store_true",
         help="Interactively select a namespace before service selection",
     )
@@ -110,7 +118,8 @@ Example usage:
     )
 
     parser.add_argument(
-        "-0",
+        "-z",
+        "--listen-all",
         dest="address_zero",
         action="store_true",
         help="Listen on all interfaces (0.0.0.0) instead of localhost",
@@ -395,10 +404,33 @@ def _debug_display_terminal_capabilities():
     console.print("[bold cyan]══════════════════════════════════════════════[/bold cyan]\n")
 
 
+def _output_completion_script(shell: str) -> None:
+    """Output the shell completion script and exit."""
+    files = {"bash": "kpf.bash", "zsh": "_kpf"}
+    filename = files.get(shell)
+    if not filename:
+        console.print(f"Unknown shell: {shell}", style="red")
+        sys.exit(1)
+
+    try:
+        completions_pkg = importlib.resources.files("kpf.completions")
+        script = (completions_pkg / filename).read_text()
+        print(script)
+    except Exception as e:
+        console.print(f"Error reading completion script: {e}", style="red")
+        sys.exit(1)
+
+
 def main():
     """Main CLI entry point."""
     parser = create_parser()
     args, unknown_args = parser.parse_known_args()
+
+    # Handle --completions before any other processing
+    if args.completions:
+        _output_completion_script(args.completions)
+        sys.exit(0)
+
     if args.debug_terminal:
         console.print("Debug mode enabled", style="dim cyan")
         _debug_display_terminal_capabilities()

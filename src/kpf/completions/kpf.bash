@@ -8,7 +8,7 @@ _kpf_completion() {
     # Flags
     case ${cur} in
         -*)
-            COMPREPLY=( $(compgen -W "--namespace -n --all -A --all-ports -l --check -c --debug -d --debug-terminal -t --run-http-health-checks -0 --prompt-namespace -pn --auto-reconnect --auto-select-free-port --capture-usage --multiline-command --reconnect-attempts --reconnect-delay --show-context --show-direct-command --usage-folder --version -v --help -h" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "--namespace -n --all -A --all-ports -l --check -c --debug -d --debug-terminal -t --run-http-health-checks -z --listen-all --prompt-namespace -p --auto-reconnect --auto-select-free-port --capture-usage --multiline-command --reconnect-attempts --reconnect-delay --show-context --show-direct-command --usage-folder --completions --version -v --help -h" -- ${cur}) )
             return 0
             ;;
     esac
@@ -30,6 +30,11 @@ _kpf_completion() {
             COMPREPLY=( $(compgen -d -- ${cur}) )
             return 0
             ;;
+        --completions)
+            # Shell type completion
+            COMPREPLY=( $(compgen -W "bash zsh" -- ${cur}) )
+            return 0
+            ;;
     esac
 
     # Extract namespace if specified
@@ -49,7 +54,7 @@ _kpf_completion() {
         # Skip flags and their arguments
         if [[ "$word" == -* ]]; then
             # Skip next word if this is a flag that takes an argument
-            if [[ "$word" == "-n" || "$word" == "--namespace" || "$word" == "--reconnect-attempts" || "$word" == "--reconnect-delay" || "$word" == "--usage-folder" ]]; then
+            if [[ "$word" == "-n" || "$word" == "--namespace" || "$word" == "--reconnect-attempts" || "$word" == "--reconnect-delay" || "$word" == "--usage-folder" || "$word" == "--completions" ]]; then
                 ((i++))
             fi
             continue

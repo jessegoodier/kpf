@@ -4,7 +4,11 @@ _kpf() {
   local context state state_descr line
   typeset -A opt_args
 
-  _arguments -S -C \
+  # -C: context tracking for positional arguments (services/ports)
+  # -S: disable option completion after --
+  # -s: enable option stacking for short options
+  # -A "*": allow option completion even after non-option arguments
+  _arguments -C -S -s -A "*" \
     '(-n --namespace)'{-n,--namespace}'[Kubernetes namespace to use]:namespace:_kpf_namespaces' \
     '(-A --all)'{-A,--all}'[Show all services across all namespaces]' \
     '(-l --all-ports)'{-l,--all-ports}'[Include ports from pods, deployments, daemonsets, etc.]' \
@@ -12,8 +16,8 @@ _kpf() {
     '(-d --debug)'{-d,--debug}'[Enable debug output for troubleshooting]' \
     '(-t --debug-terminal)'{-t,--debug-terminal}'[Enable debug output for troubleshooting display issues]' \
     '--run-http-health-checks[Enable HTTP connectivity health checks (disabled by default)]' \
-    '(-0)-0[Listen on all interfaces (0.0.0.0) instead of localhost]' \
-    '(-pn --prompt-namespace)'{-pn,--prompt-namespace}'[Interactively select a namespace before service selection]' \
+    '(-z --listen-all)'{-z,--listen-all}'[Listen on all interfaces (0.0.0.0) instead of localhost]' \
+    '(--prompt-namespace -p)'{--prompt-namespace,-p}'[Interactively select a namespace before service selection]' \
     '--auto-reconnect[Automatically reconnect on failure]' \
     '--auto-select-free-port[Automatically select a free local port]' \
     '--capture-usage[Capture usage statistics]' \
@@ -23,10 +27,10 @@ _kpf() {
     '--show-context[Show Kubernetes context in output]' \
     '--show-direct-command[Show the direct kubectl command]' \
     '--usage-folder[Folder to store usage statistics]:folder:_directories' \
+    '--completions[Output shell completion script]:shell:(bash zsh)' \
     '(-v --version)'{-v,--version}'[Show version]' \
-    '(-h --help)'{-h,--help}'[Show help]' \
     '1:service:->services' \
-    '2:port:->ports'
+    '2:port:->ports' && return 0
 
   case $state in
     services)
@@ -40,21 +44,23 @@ _kpf() {
 
 _kpf_namespaces() {
   local -a namespaces
+  # Fetch namespaces from kubectl [cite: 6]
   namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
-  
+
   if (( ${#namespaces[@]} > 0 )); then
     _describe 'namespace' namespaces
   fi
 }
 
 _kpf_get_ns_opts() {
-  # This function expects 'ns_opts' to be defined in the caller's scope
+  # Logic to determine which namespace flag to pass to kubectl [cite: 7, 8, 9]
   ns_opts=()
   if (( ${words[(I)-A|--all]} )); then
     ns_opts=(-A)
     return
   fi
 
+  # Check opt_args for -n or --namespace [cite: 8]
   local ns=${opt_args[-n]:-${opt_args[--namespace]}}
   if [[ -z "$ns" ]]; then
     local ns_idx=${words[(I)-n|--namespace]}
@@ -62,7 +68,7 @@ _kpf_get_ns_opts() {
       ns=${words[ns_idx+1]}
     fi
   fi
-  
+
   if [[ -n "$ns" && "$ns" != "$PREFIX" ]]; then
     ns_opts=(-n "$ns")
   fi
@@ -73,6 +79,7 @@ _kpf_services() {
   _kpf_get_ns_opts
 
   local -a services
+  # Fetch services based on the current namespace context [cite: 11]
   services=("${(@f)$(kubectl get services "${ns_opts[@]}" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
 
   local -a resources
@@ -86,46 +93,52 @@ _kpf_services() {
 }
 
 _kpf_ports() {
-  # The service name is the first positional argument
-  # When using _arguments -C, 'line' contains positional args
-  local service="${line[1]}"
-  
-  # Strip svc/ prefix if present
-  service="${service#svc/}"
+  # Find the service argument by scanning words for svc/* pattern
+  local service=""
+  local i
+  for (( i=1; i < CURRENT; i++ )); do
+    local word="${words[i]}"
+    # Skip flags and their arguments
+    if [[ "$word" == -* ]]; then
+      # Skip next word if this flag takes an argument
+      case "$word" in
+        -n|--namespace|--reconnect-attempts|--reconnect-delay|--usage-folder|--completions)
+          (( i++ ))
+          ;;
+      esac
+      continue
+    fi
+    # First non-flag word is the service
+    service="$word"
+    break
+  done
 
-  # Return early if no service specified yet
+  service="${service#svc/}"
   [[ -z "$service" ]] && return 0
 
   local -a ns_opts
   _kpf_get_ns_opts
 
-  # Get ports for the service
   local -a port_descriptions
   local port_data
   port_data=$(kubectl get service "$service" "${ns_opts[@]}" -o jsonpath='{range .spec.ports[*]}{.port}{"/"}{.protocol}{" "}{.name}{"\n"}{end}' 2>/dev/null)
 
-  # Parse and format ports
+  local line_out
   while IFS= read -r line_out; do
     [[ -z "$line_out" ]] && continue
     local port_proto="${line_out%% *}"
     local port_name="${line_out#* }"
     local port="${port_proto%%/*}"
 
-    # Format as port:port for kubectl port-forward syntax
-    # Use backslash to escape the colon for _describe
+    # Format: "completion:description" - escape colon in completion part
     if [[ -n "$port_name" && "$port_name" != "$port_proto" ]]; then
-      port_descriptions+=("${port}\:${port}:${port_name} (${port_proto})")
+      port_descriptions+=("${port}\\:${port}:${port_name} (${port_proto})")
     else
-      port_descriptions+=("${port}\:${port}:${port_proto}")
+      port_descriptions+=("${port}\\:${port}:${port_proto}")
     fi
   done <<< "$port_data"
 
-  # Offer completions with descriptions
   if (( ${#port_descriptions[@]} > 0 )); then
     _describe 'port' port_descriptions
   fi
 }
-
-_kpf "$@"
-
-

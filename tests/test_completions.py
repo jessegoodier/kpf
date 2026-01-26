@@ -225,8 +225,8 @@ class TestCompletionFunctionality:
             ["--debug"],
             ["-t"],
             ["--debug-terminal"],
-            ["-0"],
-            ["-pn"],
+            ["-z"],
+            ["-p"],
             ["--prompt-namespace"],
             ["-v"],  # This will trigger version and exit, but should parse
         ]
