@@ -8,6 +8,9 @@ import pytest
 
 from kpf.cli import create_parser
 
+# Path to completions directory
+COMPLETIONS_DIR = Path(__file__).parent.parent / "src" / "kpf" / "completions"
+
 
 def extract_cli_flags():
     """Extract all flags from the CLI parser."""
@@ -24,7 +27,7 @@ def extract_cli_flags():
 
 def extract_bash_completion_flags():
     """Extract flags from the Bash completion script."""
-    completion_file = Path(__file__).parent.parent / "completions" / "kpf.bash"
+    completion_file = COMPLETIONS_DIR / "kpf.bash"
     content = completion_file.read_text()
 
     # Find the line with flag completions
@@ -38,7 +41,7 @@ def extract_bash_completion_flags():
 
 def extract_zsh_completion_flags():
     """Extract flags from the Zsh completion script."""
-    completion_file = Path(__file__).parent.parent / "completions" / "_kpf"
+    completion_file = COMPLETIONS_DIR / "_kpf"
     content = completion_file.read_text()
 
     flags = set()
@@ -64,6 +67,10 @@ def extract_zsh_completion_flags():
             # Split by comma or space to get individual flags
             for flag in flags_group.replace(",", " ").split():
                 flags.add(flag)
+
+    # Zsh's _arguments automatically provides -h/--help, add them for comparison
+    flags.add("-h")
+    flags.add("--help")
 
     return flags
 
@@ -126,7 +133,7 @@ class TestCompletionSync:
 
     def test_bash_has_namespace_completion(self):
         """Verify Bash completion handles namespace flag."""
-        completion_file = Path(__file__).parent.parent / "completions" / "kpf.bash"
+        completion_file = COMPLETIONS_DIR / "kpf.bash"
         content = completion_file.read_text()
 
         # Check for namespace handling
@@ -137,7 +144,7 @@ class TestCompletionSync:
 
     def test_zsh_has_namespace_completion(self):
         """Verify Zsh completion handles namespace flag."""
-        completion_file = Path(__file__).parent.parent / "completions" / "_kpf"
+        completion_file = COMPLETIONS_DIR / "_kpf"
         content = completion_file.read_text()
 
         # Check for namespace handling
@@ -148,23 +155,24 @@ class TestCompletionSync:
 
     def test_bash_has_service_completion(self):
         """Verify Bash completion has service completion logic."""
-        completion_file = Path(__file__).parent.parent / "completions" / "kpf.bash"
+        completion_file = COMPLETIONS_DIR / "kpf.bash"
         content = completion_file.read_text()
 
         assert "kubectl get services" in content, "Bash completion missing service completion"
         assert "svc/" in content, "Bash completion should prefix services with 'svc/'"
 
     def test_zsh_has_service_completion(self):
-        """Verify Zsh completion has service completion logic."""
-        completion_file = Path(__file__).parent.parent / "completions" / "_kpf"
+        """Verify Zsh completion has service completion logic (via kubectl delegation)."""
+        completion_file = COMPLETIONS_DIR / "_kpf"
         content = completion_file.read_text()
 
-        assert "kubectl get services" in content, "Zsh completion missing service completion"
-        assert "svc/" in content, "Zsh completion should prefix services with 'svc/'"
+        # Zsh completion delegates to _kubectl for service/port completion
+        assert "_kubectl" in content, "Zsh completion should delegate to _kubectl for service completion"
+        assert "kubectl port-forward" in content, "Zsh completion should set up kubectl port-forward context"
 
     def test_bash_has_port_completion(self):
         """Verify Bash completion has port completion logic."""
-        completion_file = Path(__file__).parent.parent / "completions" / "kpf.bash"
+        completion_file = COMPLETIONS_DIR / "kpf.bash"
         content = completion_file.read_text()
 
         assert "kubectl get service" in content, "Bash completion missing port lookup"
@@ -172,17 +180,18 @@ class TestCompletionSync:
         assert ":$port" in content or "port:port" in content.lower() or "$port:$port" in content
 
     def test_zsh_has_port_completion(self):
-        """Verify Zsh completion has port completion logic."""
-        completion_file = Path(__file__).parent.parent / "completions" / "_kpf"
+        """Verify Zsh completion has port completion logic (via kubectl delegation)."""
+        completion_file = COMPLETIONS_DIR / "_kpf"
         content = completion_file.read_text()
 
-        assert "_kpf_ports" in content, "Zsh completion missing port completion function"
-        assert "kubectl get service" in content, "Zsh completion missing port lookup"
+        # Zsh completion delegates to _kubectl for port completion
+        assert "_kubectl" in content, "Zsh completion should delegate to _kubectl for port completion"
+        assert "kubectl_args" in content, "Zsh completion should handle kubectl args state"
 
     def test_completions_use_correct_jsonpath(self):
         """Verify completions use the correct jsonpath format (with range)."""
-        bash_file = Path(__file__).parent.parent / "completions" / "kpf.bash"
-        zsh_file = Path(__file__).parent.parent / "completions" / "_kpf"
+        bash_file = COMPLETIONS_DIR / "kpf.bash"
+        zsh_file = COMPLETIONS_DIR / "_kpf"
 
         bash_content = bash_file.read_text()
         zsh_content = zsh_file.read_text()
