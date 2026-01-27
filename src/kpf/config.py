@@ -26,6 +26,9 @@ class KpfConfig:
         "captureUsageDetails": False,  # local usage details, not sent anywhere
         "usageDetailFolder": "${HOME}/.config/kpf/usage-details",
         "restartThrottleSeconds": 5,
+        "networkWatchdogEnabled": True,  # Monitor K8s API connectivity
+        "networkWatchdogInterval": 5,  # Seconds between checks
+        "networkWatchdogFailureThreshold": 2,  # Consecutive failures before restart
     }
 
     def __init__(self):

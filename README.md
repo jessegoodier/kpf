@@ -7,6 +7,7 @@ It is essentially a wrapper around `kubectl port-forward` that adds an interacti
 ## Features
 
 - 🔄 **Automatic Restart**: Monitors endpoint changes and restarts port-forward automatically
+- 🛡️ **Network Watchdog**: Detects zombie connections after laptop sleep/wake and auto-recovers
 - 🎯 **Interactive Selection**: Choose services with a colorful, intuitive interface
 - 🌈 **Color-coded Status**: Green for services with endpoints, red for those without
 - 🔍 **Multi-resource Support**: Services, pods, deployments, etc.
@@ -224,8 +225,9 @@ This feature prevents confusing "port already in use" errors when the real issue
 
 1. **Port-Forward Thread**: Runs kubectl port-forward in a separate thread
 2. **Endpoint Watcher**: Monitors endpoint changes using `kubectl get ep -w`
-3. **Automatic Restart**: When endpoints change, gracefully restarts the port-forward
-4. **Service Discovery**: Uses kubectl to discover services and their endpoint status
+3. **Network Watchdog**: Checks K8s API connectivity every 5 seconds to detect zombie connections (e.g., after laptop sleep/wake)
+4. **Automatic Restart**: When endpoints change or network connectivity is lost, gracefully restarts the port-forward
+5. **Service Discovery**: Uses kubectl to discover services and their endpoint status
 
 ## Requirements
 
@@ -247,7 +249,10 @@ All settings are optional with sensible defaults:
     "reconnectAttempts": 30,
     "reconnectDelaySeconds": 5,
     "captureUsageDetails": false,
-    "usageDetailFolder": "${HOME}/.config/kpf/usage-details"
+    "usageDetailFolder": "${HOME}/.config/kpf/usage-details",
+    "networkWatchdogEnabled": true,
+    "networkWatchdogInterval": 5,
+    "networkWatchdogFailureThreshold": 2
 }
 ```
 
@@ -264,6 +269,9 @@ All settings are optional with sensible defaults:
 | `reconnectDelaySeconds` | integer | `5` | Delay in seconds between reconnection attempts |
 | `captureUsageDetails` | boolean | `false` | Capture usage details locally for debugging (not sent anywhere) |
 | `usageDetailFolder` | string | `${HOME}/.config/kpf/usage-details` | Where to store usage detail logs |
+| `networkWatchdogEnabled` | boolean | `true` | Monitor K8s API connectivity to detect zombie connections |
+| `networkWatchdogInterval` | integer | `5` | Seconds between connectivity checks |
+| `networkWatchdogFailureThreshold` | integer | `2` | Consecutive failures before triggering restart |
 
 **Notes:**
 - All settings are optional - kpf will use defaults if the config file doesn't exist
