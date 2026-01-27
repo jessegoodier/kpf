@@ -142,6 +142,29 @@ def validate_kubectl_command(port_forward_args):
 
         # Basic validation of resource format (svc/name, pod/name, etc.)
         resource_found = False
+        
+        # normalized resource types map
+        resource_aliases = {
+            "svc": "service",
+            "services": "service",
+            "service": "service",
+            "po": "pod",
+            "pods": "pod",
+            "pod": "pod",
+            "deploy": "deployment",
+            "deployments": "deployment",
+            "deployment": "deployment",
+            "rs": "replicaset",
+            "replicasets": "replicaset",
+            "replicaset": "replicaset",
+            "sts": "statefulset",
+            "statefulsets": "statefulset",
+            "statefulset": "statefulset",
+            "ds": "daemonset",
+            "daemonsets": "daemonset",
+            "daemonset": "daemonset",
+        }
+
         for arg in port_forward_args:
             if "/" in arg and not arg.startswith("-"):
                 resource_parts = arg.split("/", 1)
@@ -149,17 +172,7 @@ def validate_kubectl_command(port_forward_args):
                     resource_type = resource_parts[0].lower()
                     resource_name = resource_parts[1]
 
-                    # Check for valid resource types
-                    valid_types = [
-                        "svc",
-                        "service",
-                        "pod",
-                        "deploy",
-                        "deployment",
-                        "rs",
-                        "replicaset",
-                    ]
-                    if resource_type in valid_types and resource_name:
+                    if resource_type in resource_aliases and resource_name:
                         resource_found = True
                         break
 
@@ -221,12 +234,36 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
             if debug_callback:
                 debug_callback("No resource found for service validation")
             return True  # Let kubectl handle it
+            
+        # Normalize resource type
+        resource_aliases = {
+            "svc": "service",
+            "services": "service",
+            "service": "service",
+            "po": "pod",
+            "pods": "pod",
+            "pod": "pod",
+            "deploy": "deployment",
+            "deployments": "deployment",
+            "deployment": "deployment",
+            "rs": "replicaset",
+            "replicasets": "replicaset",
+            "replicaset": "replicaset",
+            "sts": "statefulset",
+            "statefulsets": "statefulset",
+            "statefulset": "statefulset",
+            "ds": "daemonset",
+            "daemonsets": "daemonset",
+            "daemonset": "daemonset",
+        }
+        
+        normalized_type = resource_aliases.get(resource_type, resource_type)
 
         if debug_callback:
-            debug_callback(f"Validating {resource_type}/{resource_name} in namespace {namespace}")
+            debug_callback(f"Validating {normalized_type}/{resource_name} in namespace {namespace}")
 
         # For services, check if service exists and has endpoints
-        if resource_type in ["svc", "service"]:
+        if normalized_type == "service":
             # Check if service exists
             cmd_service = [
                 "kubectl",
@@ -332,24 +369,21 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
                     "[yellow]Warning: Could not validate endpoints, proceeding anyway[/yellow]"
                 )
 
-        # For pods/deployments, check if they exist (simpler check)
-        elif resource_type in ["pod", "deploy", "deployment"]:
-            kubectl_resource = (
-                "deployment" if resource_type in ["deploy", "deployment"] else resource_type
-            )
-            cmd = ["kubectl", "get", kubectl_resource, resource_name, "-n", namespace]
+        # For other resources, check if they exist (simpler check)
+        elif normalized_type in ["pod", "deployment", "replicaset", "statefulset", "daemonset"]:
+            cmd = ["kubectl", "get", normalized_type, resource_name, "-n", namespace]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
                 console.print(
-                    f"[red]Error: {kubectl_resource.capitalize()} '{resource_name}' not found in namespace '{namespace}'[/red]"
+                    f"[red]Error: {normalized_type.capitalize()} '{resource_name}' not found in namespace '{namespace}'[/red]"
                 )
                 console.print(f"[yellow]kubectl error: {error_msg}[/yellow]")
                 return False
 
             if debug_callback:
-                debug_callback(f"{kubectl_resource.capitalize()} {resource_name} exists")
+                debug_callback(f"{normalized_type.capitalize()} {resource_name} exists")
 
         return True
 

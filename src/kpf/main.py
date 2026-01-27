@@ -118,7 +118,8 @@ def get_watcher_args(port_forward_args):
     # Find resource name (e.g., 'svc/frontend')
     for arg in port_forward_args:
         # Use regex to match patterns like 'svc/my-service' or 'pod/my-pod'
-        match = re.match(r"(svc|service|pod|deploy|deployment)\/(.+)", arg)
+        # We accept any resource type (characters, numbers, dashes, dots)
+        match = re.match(r"([a-z0-9.-]+)/(.+)", arg)
         if match:
             # The resource name is the second group in the regex match
             resource_name = match.group(2)
