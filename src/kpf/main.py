@@ -247,9 +247,10 @@ def run_port_forward(
             interval=watchdog_interval,
             failure_threshold=watchdog_threshold,
             debug_callback=debug.print,
+            local_port=local_port,
         )
         debug.print(
-            f"Network watchdog enabled (interval={watchdog_interval}s, threshold={watchdog_threshold})"
+            f"Network watchdog enabled (interval={watchdog_interval}s, threshold={watchdog_threshold}, port={local_port})"
         )
 
     debug.print("Starting threads")

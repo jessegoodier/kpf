@@ -225,8 +225,8 @@ This feature prevents confusing "port already in use" errors when the real issue
 
 1. **Port-Forward Thread**: Runs kubectl port-forward in a separate thread
 2. **Endpoint Watcher**: Monitors endpoint changes using `kubectl get ep -w`
-3. **Network Watchdog**: Checks K8s API connectivity every 5 seconds to detect zombie connections (e.g., after laptop sleep/wake)
-4. **Automatic Restart**: When endpoints change or network connectivity is lost, gracefully restarts the port-forward
+3. **Network Watchdog**: Checks both K8s API connectivity and local port health every 5 seconds to detect zombie connections (e.g., after laptop sleep/wake). This catches cases where the API is reachable but the port-forward tunnel is dead.
+4. **Automatic Restart**: When endpoints change or connectivity is lost, gracefully restarts the port-forward
 5. **Service Discovery**: Uses kubectl to discover services and their endpoint status
 
 ## Requirements

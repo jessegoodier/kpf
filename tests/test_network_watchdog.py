@@ -6,8 +6,6 @@ import threading
 import time
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from kpf.network_watchdog import NetworkWatchdog
 
 
@@ -26,6 +24,7 @@ class TestNetworkWatchdog:
         assert watchdog.consecutive_failures == 0
         assert watchdog.shutdown_event is shutdown_event
         assert watchdog.restart_event is restart_event
+        assert watchdog.local_port is None
 
     def test_init_custom_values(self):
         """Test NetworkWatchdog initializes with custom values."""
@@ -37,10 +36,12 @@ class TestNetworkWatchdog:
             restart_event,
             interval=10,
             failure_threshold=3,
+            local_port=8080,
         )
 
         assert watchdog.interval == 10
         assert watchdog.failure_threshold == 3
+        assert watchdog.local_port == 8080
 
     @patch("subprocess.run")
     def test_get_api_server_address_success(self, mock_run):
@@ -160,16 +161,108 @@ class TestNetworkWatchdog:
 
         assert result is False
 
-    def test_check_connectivity_no_host(self):
-        """Test connectivity check returns True when no host is available."""
+    def test_check_api_connectivity_no_host(self):
+        """Test API connectivity check returns True when no host is available."""
         shutdown_event = threading.Event()
         restart_event = threading.Event()
         watchdog = NetworkWatchdog(shutdown_event, restart_event)
         watchdog._api_server_host = None
 
-        result = watchdog.check_connectivity()
+        result = watchdog.check_api_connectivity()
 
         assert result is True  # Assume OK if we can't determine the address
+
+    @patch("socket.socket")
+    def test_check_local_port_success(self, mock_socket_class):
+        """Test successful local port check."""
+        mock_socket = MagicMock()
+        mock_socket.connect_ex.return_value = 0
+        mock_socket_class.return_value = mock_socket
+
+        shutdown_event = threading.Event()
+        restart_event = threading.Event()
+        watchdog = NetworkWatchdog(shutdown_event, restart_event, local_port=8080)
+
+        result = watchdog.check_local_port()
+
+        assert result is True
+        mock_socket.connect_ex.assert_called_once_with(("localhost", 8080))
+
+    @patch("socket.socket")
+    def test_check_local_port_connection_refused(self, mock_socket_class):
+        """Test local port check when connection is refused (zombie tunnel)."""
+        mock_socket = MagicMock()
+        mock_socket.connect_ex.return_value = 111  # Connection refused on Linux
+        mock_socket_class.return_value = mock_socket
+
+        shutdown_event = threading.Event()
+        restart_event = threading.Event()
+        watchdog = NetworkWatchdog(shutdown_event, restart_event, local_port=8080)
+
+        result = watchdog.check_local_port()
+
+        assert result is False  # Connection refused means tunnel is dead
+
+    def test_check_local_port_no_port_configured(self):
+        """Test local port check returns True when no port is configured."""
+        shutdown_event = threading.Event()
+        restart_event = threading.Event()
+        watchdog = NetworkWatchdog(shutdown_event, restart_event)  # No local_port
+
+        result = watchdog.check_local_port()
+
+        assert result is True  # Can't check, assume OK
+
+    @patch.object(NetworkWatchdog, "check_api_connectivity")
+    @patch.object(NetworkWatchdog, "check_local_port")
+    def test_check_connectivity_api_down(self, mock_local, mock_api):
+        """Test connectivity check fails when API is down."""
+        mock_api.return_value = False
+        mock_local.return_value = True
+
+        shutdown_event = threading.Event()
+        restart_event = threading.Event()
+        watchdog = NetworkWatchdog(shutdown_event, restart_event, local_port=8080)
+
+        result = watchdog.check_connectivity()
+
+        assert result is False
+        mock_api.assert_called_once()
+        mock_local.assert_not_called()  # Should not check local if API is down
+
+    @patch.object(NetworkWatchdog, "check_api_connectivity")
+    @patch.object(NetworkWatchdog, "check_local_port")
+    def test_check_connectivity_zombie_tunnel(self, mock_local, mock_api):
+        """Test connectivity detects zombie tunnel (API up, local port down)."""
+        mock_api.return_value = True
+        mock_local.return_value = False
+
+        shutdown_event = threading.Event()
+        restart_event = threading.Event()
+        watchdog = NetworkWatchdog(shutdown_event, restart_event, local_port=8080)
+
+        result = watchdog.check_connectivity()
+
+        assert result is False  # Zombie tunnel detected
+        mock_api.assert_called_once()
+        mock_local.assert_called_once()
+
+    @patch.object(NetworkWatchdog, "check_api_connectivity")
+    @patch.object(NetworkWatchdog, "check_local_port")
+    def test_check_connectivity_all_healthy(self, mock_local, mock_api):
+        """Test connectivity check passes when everything is healthy."""
+        mock_api.return_value = True
+        mock_local.return_value = True
+
+        shutdown_event = threading.Event()
+        restart_event = threading.Event()
+        watchdog = NetworkWatchdog(shutdown_event, restart_event, local_port=8080)
+
+        result = watchdog.check_connectivity()
+
+        assert result is True
+        mock_api.assert_called_once()
+        mock_local.assert_called_once()
 
     @patch.object(NetworkWatchdog, "check_connectivity")
     def test_failure_threshold_triggers_restart(self, mock_check):
