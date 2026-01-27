@@ -8,7 +8,7 @@ _kpf_completion() {
     # Flags
     case ${cur} in
         -*)
-            COMPREPLY=( $(compgen -W "--namespace -n --all -A --all-ports -l --check -c --debug -d --debug-terminal -t --run-http-health-checks -0 --prompt-namespace -pn --auto-reconnect --auto-select-free-port --capture-usage --multiline-command --reconnect-attempts --reconnect-delay --show-context --show-direct-command --usage-folder --version -v --help -h" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "--namespace -n --all -A --all-ports -l --check -c --debug -d --debug-terminal -t --run-http-health-checks --listen-all -z --prompt-namespace -p --auto-reconnect --auto-select-free-port --capture-usage --multiline-command --reconnect-attempts --reconnect-delay --show-context --show-direct-command --usage-folder --completions --version -v --help -h" -- ${cur}) )
             return 0
             ;;
     esac
