@@ -1,144 +1,85 @@
 #compdef kpf
 
 _kpf() {
-  local context state state_descr line
+  local curcontext="$curcontext" state line
   typeset -A opt_args
 
-  # -C: context tracking for positional arguments (services/ports)
-  # -S: disable option completion after --
-  # -s: enable option stacking for short options
-  # -A "*": allow option completion even after non-option arguments
-  _arguments -C -S -s -A "*" \
-    '(-n --namespace)'{-n,--namespace}'[Kubernetes namespace to use]:namespace:_kpf_namespaces' \
-    '(-A --all)'{-A,--all}'[Show all services across all namespaces]' \
-    '(-l --all-ports)'{-l,--all-ports}'[Include ports from pods, deployments, daemonsets, etc.]' \
-    '(-c --check)'{-c,--check}'[Check and display endpoint status in service selection table]' \
-    '(-d --debug)'{-d,--debug}'[Enable debug output for troubleshooting]' \
-    '(-t --debug-terminal)'{-t,--debug-terminal}'[Enable debug output for troubleshooting display issues]' \
-    '--run-http-health-checks[Enable HTTP connectivity health checks (disabled by default)]' \
-    '(-z --listen-all)'{-z,--listen-all}'[Listen on all interfaces (0.0.0.0) instead of localhost]' \
-    '(--prompt-namespace -p)'{--prompt-namespace,-p}'[Interactively select a namespace before service selection]' \
-    '--auto-reconnect[Automatically reconnect on failure]' \
-    '--auto-select-free-port[Automatically select a free local port]' \
-    '--capture-usage[Capture usage statistics]' \
-    '--multiline-command[Display command in multiple lines]' \
-    '--reconnect-attempts[Number of reconnection attempts]:attempts:' \
-    '--reconnect-delay[Delay between reconnection attempts in seconds]:delay:' \
-    '--show-context[Show Kubernetes context in output]' \
-    '--show-direct-command[Show the direct kubectl command]' \
-    '--usage-folder[Folder to store usage statistics]:folder:_directories' \
-    '--completions[Output shell completion script]:shell:(bash zsh)' \
-    '(-v --version)'{-v,--version}'[Show version]' \
-    '1:service:->services' \
-    '2:port:->ports' && return 0
+  # KPF specific arguments
+  local -a kpf_opts
+  kpf_opts=(
+    '(-n --namespace)'{-n,--namespace}'[Kubernetes namespace to use]:namespace:_kpf_namespaces'
+    '(-A --all)'{-A,--all}'[Show all services across all namespaces]'
+    '(-l --all-ports)'{-l,--all-ports}'[Include ports from pods, deployments, daemonsets, etc.]'
+    '(-c --check)'{-c,--check}'[Check and display endpoint status in service selection table]'
+    '(-d --debug)'{-d,--debug}'[Enable debug output for troubleshooting]'
+    '(-t --debug-terminal)'{-t,--debug-terminal}'[Enable debug output for troubleshooting display issues]'
+    '--run-http-health-checks[Enable HTTP connectivity health checks (disabled by default)]'
+    '(-z --listen-all)'{-z,--listen-all}'[Listen on all interfaces (0.0.0.0) instead of localhost]'
+    '(--prompt-namespace -p)'{--prompt-namespace,-p}'[Interactively select a namespace before service selection]'
+    '--auto-reconnect[Automatically reconnect on failure]'
+    '--auto-select-free-port[Automatically select a free local port]'
+    '--capture-usage[Capture usage statistics]'
+    '--multiline-command[Display command in multiple lines]'
+    '--reconnect-attempts[Number of reconnection attempts]:attempts:'
+    '--reconnect-delay[Delay between reconnection attempts in seconds]:delay:'
+    '--show-context[Show Kubernetes context in output]'
+    '--show-direct-command[Show the direct kubectl command]'
+    '--usage-folder[Folder to store usage statistics]:folder:_directories'
+    '--completions[Output shell completion script]:shell:(bash zsh)'
+    '(-v --version)'{-v,--version}'[Show version]'
+  )
 
-  case $state in
-    services)
-      _kpf_services
-      ;;
-    ports)
-      _kpf_ports
-      ;;
-  esac
+  _arguments -C -S -s \
+    "${kpf_opts[@]}" \
+    '*:: :->kubectl_args' && return 0
+
+  if [[ "$state" == "kubectl_args" ]]; then
+    # Modify words to look like 'kubectl port-forward ...'
+    # _arguments with *:: removes the handled arguments (like -n, -A) from 'words'.
+    # We must explicitly restore critical flags (like -n) that kubectl needs to know about.
+    # Other kpf-specific flags (like -A, -c) should NOT be passed to kubectl port-forward.
+    
+    local -a kubectl_cmd
+    kubectl_cmd=(kubectl port-forward)
+
+    # Restore namespace if specified
+    # opt_args keys match the flag used on the command line
+    local ns=${opt_args[-n]:-${opt_args[--namespace]}}
+    if [[ -n "$ns" ]]; then
+      kubectl_cmd+=(-n "$ns")
+    fi
+    
+    # 'words' now explicitly contains ONLY the remaining arguments (because of *::)
+    # We append these to our constructed command
+    local -a new_words
+    new_words=("${kubectl_cmd[@]}" "${words[@]}")
+    
+    # Update CURRENT index
+    # We added (kubectl_cmd length) items, but we need to account for where we are relative to the *new* words array.
+    # CURRENT in the *:: handler is relative to the start of the remaining words.
+    # e.g. if cursor is on first remaining word, CURRENT is 1.
+    # We need to shift it by the length of the prefix we added.
+    (( CURRENT += ${#kubectl_cmd} ))
+    
+    words=("${new_words[@]}")
+    
+    # Set the context for _kubectl to think it's completing port-forward
+    curcontext="${curcontext%:*:*}:kubectl-port-forward:"
+    
+    if (( $+functions[_kubectl] )); then
+      _kubectl
+    else
+      _message "kubectl completion not found"
+    fi
+  fi
 }
 
 _kpf_namespaces() {
   local -a namespaces
-  # Fetch namespaces from kubectl [cite: 6]
+  # Fetch namespaces from kubectl
   namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
 
   if (( ${#namespaces[@]} > 0 )); then
     _describe 'namespace' namespaces
-  fi
-}
-
-_kpf_get_ns_opts() {
-  # Logic to determine which namespace flag to pass to kubectl [cite: 7, 8, 9]
-  ns_opts=()
-  if (( ${words[(I)-A|--all]} )); then
-    ns_opts=(-A)
-    return
-  fi
-
-  # Check opt_args for -n or --namespace [cite: 8]
-  local ns=${opt_args[-n]:-${opt_args[--namespace]}}
-  if [[ -z "$ns" ]]; then
-    local ns_idx=${words[(I)-n|--namespace]}
-    if (( ns_idx && ns_idx < CURRENT )); then
-      ns=${words[ns_idx+1]}
-    fi
-  fi
-
-  if [[ -n "$ns" && "$ns" != "$PREFIX" ]]; then
-    ns_opts=(-n "$ns")
-  fi
-}
-
-_kpf_services() {
-  local -a ns_opts
-  _kpf_get_ns_opts
-
-  local -a services
-  # Fetch services based on the current namespace context [cite: 11]
-  services=("${(@f)$(kubectl get services "${ns_opts[@]}" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
-
-  local -a resources
-  for s in $services; do
-    [[ -n "$s" ]] && resources+=("svc/$s")
-  done
-
-  if (( ${#resources[@]} > 0 )); then
-    _describe 'service' resources
-  fi
-}
-
-_kpf_ports() {
-  # Find the service argument by scanning words for svc/* pattern
-  local service=""
-  local i
-  for (( i=1; i < CURRENT; i++ )); do
-    local word="${words[i]}"
-    # Skip flags and their arguments
-    if [[ "$word" == -* ]]; then
-      # Skip next word if this flag takes an argument
-      case "$word" in
-        -n|--namespace|--reconnect-attempts|--reconnect-delay|--usage-folder|--completions)
-          (( i++ ))
-          ;;
-      esac
-      continue
-    fi
-    # First non-flag word is the service
-    service="$word"
-    break
-  done
-
-  service="${service#svc/}"
-  [[ -z "$service" ]] && return 0
-
-  local -a ns_opts
-  _kpf_get_ns_opts
-
-  local -a port_descriptions
-  local port_data
-  port_data=$(kubectl get service "$service" "${ns_opts[@]}" -o jsonpath='{range .spec.ports[*]}{.port}{"/"}{.protocol}{" "}{.name}{"\n"}{end}' 2>/dev/null)
-
-  local line_out
-  while IFS= read -r line_out; do
-    [[ -z "$line_out" ]] && continue
-    local port_proto="${line_out%% *}"
-    local port_name="${line_out#* }"
-    local port="${port_proto%%/*}"
-
-    # Format: "completion:description" - escape colon in completion part
-    if [[ -n "$port_name" && "$port_name" != "$port_proto" ]]; then
-      port_descriptions+=("${port}\\:${port}:${port_name} (${port_proto})")
-    else
-      port_descriptions+=("${port}\\:${port}:${port_proto}")
-    fi
-  done <<< "$port_data"
-
-  if (( ${#port_descriptions[@]} > 0 )); then
-    _describe 'port' port_descriptions
   fi
 }
