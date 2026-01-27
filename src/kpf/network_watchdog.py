@@ -81,7 +81,9 @@ class NetworkWatchdog(threading.Thread):
                 parsed = urllib.parse.urlparse(server_url)
                 self._api_server_host = parsed.hostname
                 self._api_server_port = parsed.port or 443
-                self._debug(f"Network watchdog: API server is {self._api_server_host}:{self._api_server_port}")
+                self._debug(
+                    f"Network watchdog: API server is {self._api_server_host}:{self._api_server_port}"
+                )
                 return self._api_server_host, self._api_server_port
         except Exception as e:
             self._debug(f"Network watchdog: Failed to get API server address: {e}")
@@ -106,10 +108,14 @@ class NetworkWatchdog(threading.Thread):
             sock.close()
 
             if result == 0:
-                self._debug(f"Network watchdog: API server reachable ({host}:{port})", rate_limit=True)
+                self._debug(
+                    f"Network watchdog: API server reachable ({host}:{port})", rate_limit=True
+                )
                 return True
             else:
-                self._debug(f"Network watchdog: API server unreachable ({host}:{port}), error code: {result}")
+                self._debug(
+                    f"Network watchdog: API server unreachable ({host}:{port}), error code: {result}"
+                )
                 return False
         except socket.timeout:
             self._debug(f"Network watchdog: Connection timeout to {host}:{port}")
@@ -140,11 +146,16 @@ class NetworkWatchdog(threading.Thread):
             sock.close()
 
             if result == 0:
-                self._debug(f"Network watchdog: Local port {self.local_port} accepting connections", rate_limit=True)
+                self._debug(
+                    f"Network watchdog: Local port {self.local_port} accepting connections",
+                    rate_limit=True,
+                )
                 return True
             else:
                 # Connection refused (111 on Linux, 61 on macOS) means nothing listening
-                self._debug(f"Network watchdog: Local port {self.local_port} not accepting connections (error: {result})")
+                self._debug(
+                    f"Network watchdog: Local port {self.local_port} not accepting connections (error: {result})"
+                )
                 return False
         except socket.timeout:
             self._debug(f"Network watchdog: Timeout connecting to local port {self.local_port}")

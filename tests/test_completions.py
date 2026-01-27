@@ -167,8 +167,12 @@ class TestCompletionSync:
         content = completion_file.read_text()
 
         # Zsh completion delegates to _kubectl for service/port completion
-        assert "_kubectl" in content, "Zsh completion should delegate to _kubectl for service completion"
-        assert "kubectl port-forward" in content, "Zsh completion should set up kubectl port-forward context"
+        assert "_kubectl" in content, (
+            "Zsh completion should delegate to _kubectl for service completion"
+        )
+        assert "kubectl port-forward" in content, (
+            "Zsh completion should set up kubectl port-forward context"
+        )
 
     def test_bash_has_port_completion(self):
         """Verify Bash completion has port completion logic."""
@@ -185,7 +189,9 @@ class TestCompletionSync:
         content = completion_file.read_text()
 
         # Zsh completion delegates to _kubectl for port completion
-        assert "_kubectl" in content, "Zsh completion should delegate to _kubectl for port completion"
+        assert "_kubectl" in content, (
+            "Zsh completion should delegate to _kubectl for port completion"
+        )
         assert "kubectl_args" in content, "Zsh completion should handle kubectl args state"
 
     def test_completions_use_correct_jsonpath(self):
