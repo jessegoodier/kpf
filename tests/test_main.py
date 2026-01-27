@@ -152,6 +152,7 @@ class TestRunPortForward:
 
     # No teardown needed for threading events as they are cleared in setUp
 
+    @patch("src.kpf.main.NetworkWatchdog")
     @patch("src.kpf.main.validate_service_and_endpoints")
     @patch("src.kpf.main.validate_kubectl_command")
     @patch("src.kpf.main.validate_port_availability")
@@ -168,6 +169,7 @@ class TestRunPortForward:
         mock_port_avail,
         mock_kubectl,
         mock_service,
+        mock_network_watchdog,
     ):
         """Test basic run_port_forward execution."""
         mock_get_watcher.return_value = ("default", "test-service")
@@ -181,11 +183,14 @@ class TestRunPortForward:
         # Mock threads that exit immediately
         mock_pf_instance = Mock()
         mock_ew_instance = Mock()
+        mock_watchdog_instance = Mock()
         mock_pf_instance.is_alive.return_value = False
         mock_ew_instance.is_alive.return_value = False
+        mock_watchdog_instance.is_alive.return_value = False
 
         mock_forwarder.return_value = mock_pf_instance
         mock_watcher.return_value = mock_ew_instance
+        mock_network_watchdog.return_value = mock_watchdog_instance
 
         args = ["svc/test-service", "8080:8080"]
 
@@ -198,6 +203,7 @@ class TestRunPortForward:
         mock_pf_instance.join.assert_called_once()
         mock_ew_instance.join.assert_called_once()
 
+    @patch("src.kpf.main.NetworkWatchdog")
     @patch("src.kpf.main.validate_service_and_endpoints")
     @patch("src.kpf.main.validate_kubectl_command")
     @patch("src.kpf.main.validate_port_availability")
@@ -214,6 +220,7 @@ class TestRunPortForward:
         mock_port_avail,
         mock_kubectl,
         mock_service,
+        mock_network_watchdog,
     ):
         """Test run_port_forward with debug mode enabled."""
         mock_get_watcher.return_value = ("default", "test-service")
@@ -227,11 +234,14 @@ class TestRunPortForward:
         # Mock threads that exit immediately
         mock_pf_instance = Mock()
         mock_ew_instance = Mock()
+        mock_watchdog_instance = Mock()
         mock_pf_instance.is_alive.return_value = False
         mock_ew_instance.is_alive.return_value = False
+        mock_watchdog_instance.is_alive.return_value = False
 
         mock_forwarder.return_value = mock_pf_instance
         mock_watcher.return_value = mock_ew_instance
+        mock_network_watchdog.return_value = mock_watchdog_instance
 
         args = ["svc/test-service", "8080:8080"]
 
@@ -244,6 +254,7 @@ class TestRunPortForward:
             # The orchestrator sets up debug.
             pass
 
+    @patch("src.kpf.main.NetworkWatchdog")
     @patch("src.kpf.main.validate_service_and_endpoints")
     @patch("src.kpf.main.validate_kubectl_command")
     @patch("src.kpf.main.validate_port_availability")
@@ -262,6 +273,7 @@ class TestRunPortForward:
         mock_port_avail,
         mock_kubectl,
         mock_service,
+        mock_network_watchdog,
     ):
         """Test run_port_forward handling keyboard interrupt."""
         mock_get_watcher.return_value = ("default", "test-service")
@@ -275,12 +287,15 @@ class TestRunPortForward:
         # Mock threads
         mock_pf_instance = Mock()
         mock_ew_instance = Mock()
+        mock_watchdog_instance = Mock()
         # Make threads appear alive initially, then dead after shutdown
         mock_pf_instance.is_alive.side_effect = [True, True, False]
         mock_ew_instance.is_alive.side_effect = [True, True, False]
+        mock_watchdog_instance.is_alive.return_value = False
 
         mock_forwarder.return_value = mock_pf_instance
         mock_watcher.return_value = mock_ew_instance
+        mock_network_watchdog.return_value = mock_watchdog_instance
 
         # Mock shutdown event to trigger shutdown after first check
         mock_shutdown_event.is_set.side_effect = [False, True]

@@ -9,6 +9,7 @@ import time
 from rich.console import Console
 
 from .forwarder import PortForwarder
+from .network_watchdog import NetworkWatchdog
 from .usage_logger import UsageLogger
 from .validators import (
     extract_local_port,
@@ -234,9 +235,28 @@ def run_port_forward(
         usage_logger=usage_logger,
     )
 
+    # Create network watchdog if enabled
+    watchdog = None
+    watchdog_enabled = config.get("networkWatchdogEnabled", True) if config else True
+    if watchdog_enabled:
+        watchdog_interval = config.get("networkWatchdogInterval", 5) if config else 5
+        watchdog_threshold = config.get("networkWatchdogFailureThreshold", 2) if config else 2
+        watchdog = NetworkWatchdog(
+            shutdown_event=shutdown_event,
+            restart_event=restart_event,
+            interval=watchdog_interval,
+            failure_threshold=watchdog_threshold,
+            debug_callback=debug.print,
+        )
+        debug.print(
+            f"Network watchdog enabled (interval={watchdog_interval}s, threshold={watchdog_threshold})"
+        )
+
     debug.print("Starting threads")
     forwarder.start()
     watcher.start()
+    if watchdog:
+        watchdog.start()
 
     # Register signal handler for graceful shutdown
     signal.signal(signal.SIGINT, _signal_handler)
@@ -244,6 +264,9 @@ def run_port_forward(
     try:
         # Keep the main thread alive while the other threads are running
         while forwarder.is_alive() and watcher.is_alive() and not shutdown_event.is_set():
+            # Also check watchdog if enabled (daemon thread, so don't block on it)
+            if watchdog and not watchdog.is_alive():
+                debug.print("Network watchdog thread died unexpectedly")
             time.sleep(0.5)  # Check more frequently for shutdown
 
     except KeyboardInterrupt:
@@ -257,16 +280,20 @@ def run_port_forward(
         debug.print("Setting shutdown event")
         shutdown_event.set()
 
-        # Wait for both threads to finish with timeout
+        # Wait for threads to finish with timeout
         debug.print("Waiting for threads to finish...")
         forwarder.join(timeout=3)  # Give a bit more time for graceful shutdown
         watcher.join(timeout=3)
+        if watchdog:
+            watchdog.join(timeout=1)  # Watchdog is daemon, short timeout
 
         threads_alive = []
         if forwarder.is_alive():
             threads_alive.append("port-forward")
         if watcher.is_alive():
             threads_alive.append("endpoint-watcher")
+        if watchdog and watchdog.is_alive():
+            threads_alive.append("network-watchdog")
 
         if threads_alive:
             debug.print(f"Threads still running: {', '.join(threads_alive)}")
