@@ -8,10 +8,11 @@ from typing import Callable, Optional
 
 
 class NetworkWatchdog(threading.Thread):
-    """Watchdog thread that monitors K8s API connectivity.
+    """Watchdog thread that monitors K8s API and port-forward connectivity.
 
     Detects zombie connections that can occur after laptop sleep/wake
-    by actively checking K8s API server reachability.
+    by actively checking both K8s API server reachability and the local
+    forwarded port responsiveness.
     """
 
     def __init__(
@@ -21,6 +22,7 @@ class NetworkWatchdog(threading.Thread):
         interval: int = 5,
         failure_threshold: int = 2,
         debug_callback: Optional[Callable[[str], None]] = None,
+        local_port: Optional[int] = None,
     ):
         """Initialize the network watchdog.
 
@@ -30,6 +32,7 @@ class NetworkWatchdog(threading.Thread):
             interval: Seconds between connectivity checks
             failure_threshold: Consecutive failures before triggering restart
             debug_callback: Optional callback for debug output
+            local_port: Local forwarded port to check (optional but recommended)
         """
         super().__init__(daemon=True)
         self.shutdown_event = shutdown_event
@@ -37,6 +40,7 @@ class NetworkWatchdog(threading.Thread):
         self.interval = interval
         self.failure_threshold = failure_threshold
         self.debug_callback = debug_callback
+        self.local_port = local_port
         self.consecutive_failures = 0
         self._api_server_host: Optional[str] = None
         self._api_server_port: int = 443
@@ -77,14 +81,16 @@ class NetworkWatchdog(threading.Thread):
                 parsed = urllib.parse.urlparse(server_url)
                 self._api_server_host = parsed.hostname
                 self._api_server_port = parsed.port or 443
-                self._debug(f"Network watchdog: API server is {self._api_server_host}:{self._api_server_port}")
+                self._debug(
+                    f"Network watchdog: API server is {self._api_server_host}:{self._api_server_port}"
+                )
                 return self._api_server_host, self._api_server_port
         except Exception as e:
             self._debug(f"Network watchdog: Failed to get API server address: {e}")
 
         return None, 443
 
-    def check_connectivity(self) -> bool:
+    def check_api_connectivity(self) -> bool:
         """Check connectivity to K8s API server via TCP connection.
 
         Returns:
@@ -102,10 +108,14 @@ class NetworkWatchdog(threading.Thread):
             sock.close()
 
             if result == 0:
-                self._debug(f"Network watchdog: API server reachable ({host}:{port})", rate_limit=True)
+                self._debug(
+                    f"Network watchdog: API server reachable ({host}:{port})", rate_limit=True
+                )
                 return True
             else:
-                self._debug(f"Network watchdog: API server unreachable ({host}:{port}), error code: {result}")
+                self._debug(
+                    f"Network watchdog: API server unreachable ({host}:{port}), error code: {result}"
+                )
                 return False
         except socket.timeout:
             self._debug(f"Network watchdog: Connection timeout to {host}:{port}")
@@ -116,6 +126,70 @@ class NetworkWatchdog(threading.Thread):
         except Exception as e:
             self._debug(f"Network watchdog: Connection error to {host}:{port}: {e}")
             return False
+
+    def check_local_port(self) -> bool:
+        """Check if the local forwarded port is accepting connections.
+
+        This detects zombie port-forward tunnels where kubectl is running
+        but the tunnel is dead (common after sleep/wake).
+
+        Returns:
+            True if port is accepting connections, False otherwise
+        """
+        if self.local_port is None:
+            return True  # Can't check without a port
+
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2.0)
+            result = sock.connect_ex(("localhost", self.local_port))
+            sock.close()
+
+            if result == 0:
+                self._debug(
+                    f"Network watchdog: Local port {self.local_port} accepting connections",
+                    rate_limit=True,
+                )
+                return True
+            else:
+                # Connection refused (111 on Linux, 61 on macOS) means nothing listening
+                self._debug(
+                    f"Network watchdog: Local port {self.local_port} not accepting connections (error: {result})"
+                )
+                return False
+        except socket.timeout:
+            self._debug(f"Network watchdog: Timeout connecting to local port {self.local_port}")
+            return False
+        except Exception as e:
+            self._debug(f"Network watchdog: Error checking local port {self.local_port}: {e}")
+            return False
+
+    def check_connectivity(self) -> bool:
+        """Check overall connectivity - both API server and local port.
+
+        The key insight: after sleep/wake, the API server may be reachable
+        (via a new connection) but the kubectl port-forward tunnel is dead.
+        We need to check BOTH to detect zombie tunnels.
+
+        Returns:
+            True if everything is healthy, False if restart needed
+        """
+        # First check API server
+        api_ok = self.check_api_connectivity()
+        if not api_ok:
+            return False
+
+        # API is up - now check if local port is still working
+        # This catches zombie tunnels where kubectl is running but tunnel is dead
+        if self.local_port is not None:
+            local_ok = self.check_local_port()
+            if not local_ok:
+                self._debug(
+                    f"Network watchdog: API reachable but local port {self.local_port} is dead - zombie tunnel detected"
+                )
+                return False
+
+        return True
 
     def run(self):
         """Main watchdog loop - runs in separate thread."""
