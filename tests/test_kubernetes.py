@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from src.kpf.kubernetes import KubernetesClient, ServiceInfo
 
@@ -75,6 +75,7 @@ class TestKubernetesClient:
         mock_run.return_value.returncode = 0
 
         client = KubernetesClient()
+        mock_run.reset_mock()
         namespace = client.get_current_namespace()
 
         assert namespace == "production"
@@ -94,7 +95,14 @@ class TestKubernetesClient:
     @patch("subprocess.run")
     def test_get_current_namespace_error(self, mock_run):
         """Test getting current namespace when kubectl fails."""
-        mock_run.side_effect = subprocess.CalledProcessError(1, ["kubectl"])
+
+        def side_effect(*args, **kwargs):
+            cmd = args[0]
+            if "version" in cmd:
+                return Mock(returncode=0, stdout="")
+            raise subprocess.CalledProcessError(1, cmd)
+
+        mock_run.side_effect = side_effect
 
         client = KubernetesClient()
         namespace = client.get_current_namespace()

@@ -1,4 +1,4 @@
-.PHONY: help venv install install-dev format lint test clean build release check-clean version bump-patch bump-minor bump-major
+.PHONY: help venv install install-dev format lint test clean build release check-clean version bump-patch bump-minor bump-major audit
 
 # Default target - show help
 help:
@@ -17,6 +17,7 @@ help:
 	@echo "  bump-minor  - Bump minor version" 
 	@echo "  bump-major  - Bump major version"
 	@echo "  release     - Create GitHub release based on current version"
+	@echo "  audit       - Run security and dependency audit"
 
 # Environment setup
 venv:
@@ -48,6 +49,9 @@ check-clean: lint
 # Testing
 test:
 	uv run pytest
+
+audit:
+	uv run scripts/audit_dependencies.py
 
 test-cov:
 	uv run pytest --cov=kpf --cov-report=term-missing --cov-report=html

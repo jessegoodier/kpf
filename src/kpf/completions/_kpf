@@ -1,0 +1,85 @@
+#compdef kpf
+
+_kpf() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  # KPF specific arguments
+  local -a kpf_opts
+  kpf_opts=(
+    '(-n --namespace)'{-n,--namespace}'[Kubernetes namespace to use]:namespace:_kpf_namespaces'
+    '(-A --all)'{-A,--all}'[Show all services across all namespaces]'
+    '(-l --all-ports)'{-l,--all-ports}'[Include ports from pods, deployments, daemonsets, etc.]'
+    '(-c --check)'{-c,--check}'[Check and display endpoint status in service selection table]'
+    '(-d --debug)'{-d,--debug}'[Enable debug output for troubleshooting]'
+    '(-t --debug-terminal)'{-t,--debug-terminal}'[Enable debug output for troubleshooting display issues]'
+    '--run-http-health-checks[Enable HTTP connectivity health checks (disabled by default)]'
+    '(-z --listen-all)'{-z,--listen-all}'[Listen on all interfaces (0.0.0.0) instead of localhost]'
+    '(--prompt-namespace -p)'{--prompt-namespace,-p}'[Interactively select a namespace before service selection]'
+    '--auto-reconnect[Automatically reconnect on failure]'
+    '--auto-select-free-port[Automatically select a free local port]'
+    '--capture-usage[Capture usage statistics]'
+    '--multiline-command[Display command in multiple lines]'
+    '--reconnect-attempts[Number of reconnection attempts]:attempts:'
+    '--reconnect-delay[Delay between reconnection attempts in seconds]:delay:'
+    '--show-context[Show Kubernetes context in output]'
+    '--show-direct-command[Show the direct kubectl command]'
+    '--usage-folder[Folder to store usage statistics]:folder:_directories'
+    '--completions[Output shell completion script]:shell:(bash zsh)'
+    '(-v --version)'{-v,--version}'[Show version]'
+  )
+
+  _arguments -C -S -s \
+    "${kpf_opts[@]}" \
+    '*:: :->kubectl_args' && return 0
+
+  if [[ "$state" == "kubectl_args" ]]; then
+    # Modify words to look like 'kubectl port-forward ...'
+    # _arguments with *:: removes the handled arguments (like -n, -A) from 'words'.
+    # We must explicitly restore critical flags (like -n) that kubectl needs to know about.
+    # Other kpf-specific flags (like -A, -c) should NOT be passed to kubectl port-forward.
+    
+    local -a kubectl_cmd
+    kubectl_cmd=(kubectl port-forward)
+
+    # Restore namespace if specified
+    # opt_args keys match the flag used on the command line
+    local ns=${opt_args[-n]:-${opt_args[--namespace]}}
+    if [[ -n "$ns" ]]; then
+      kubectl_cmd+=(-n "$ns")
+    fi
+    
+    # 'words' now explicitly contains ONLY the remaining arguments (because of *::)
+    # We append these to our constructed command
+    local -a new_words
+    new_words=("${kubectl_cmd[@]}" "${words[@]}")
+    
+    # Update CURRENT index
+    # We added (kubectl_cmd length) items, but we need to account for where we are relative to the *new* words array.
+    # CURRENT in the *:: handler is relative to the start of the remaining words.
+    # e.g. if cursor is on first remaining word, CURRENT is 1.
+    # We need to shift it by the length of the prefix we added.
+    (( CURRENT += ${#kubectl_cmd} ))
+    
+    words=("${new_words[@]}")
+    
+    # Set the context for _kubectl to think it's completing port-forward
+    curcontext="${curcontext%:*:*}:kubectl-port-forward:"
+    
+    if (( $+functions[_kubectl] )); then
+      _kubectl
+    else
+      _message "kubectl completion not found"
+    fi
+  fi
+}
+
+_kpf_namespaces() {
+  local -a namespaces
+  # Fetch namespaces from kubectl
+  namespaces=("${(@f)$(kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)}")
+
+  if (( ${#namespaces[@]} > 0 )); then
+    _describe 'namespace' namespaces
+  fi
+}

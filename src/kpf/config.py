@@ -25,6 +25,7 @@ class KpfConfig:
         "reconnectDelaySeconds": 5,
         "captureUsageDetails": False,  # local usage details, not sent anywhere
         "usageDetailFolder": "${HOME}/.config/kpf/usage-details",
+        "restartThrottleSeconds": 5,
     }
 
     def __init__(self):

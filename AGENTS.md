@@ -41,10 +41,10 @@
 - `src/kpf/validators.py`: Input validation
 - `pyproject.toml`: Configuration for build, dependencies, and tools
 - `Makefile`: Command shortcuts
-- `completions/kpf.bash`: Bash completion script
-- `completions/_kpf`: Zsh completion script
+- `src/kpf/completions/kpf.bash`: Bash completion script
+- `src/kpf/completions/_kpf`: Zsh completion script
 
 ## Must have for all changes
 
-- Verify changes to completions are needed or not in ./completions/
+- Verify changes to completions are needed or not in `src/kpf/completions/`
 
