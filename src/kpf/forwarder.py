@@ -118,6 +118,7 @@ class PortForwarder:
                     context = None
                     if self.config and self.config.get("showDirectCommandIncludeContext", True):
                         from .kubernetes import KubernetesClient
+
                         k8s = KubernetesClient()
                         context = k8s.get_current_context()
 
@@ -131,10 +132,10 @@ class PortForwarder:
                                 formatted_cmd += f" \\\n      {part}"
                             else:
                                 formatted_cmd += f" {part}"
-                        
+
                         if context:
                             formatted_cmd += f" \\\n      --context {context}"
-                        
+
                         console.print(f"\nDirect command:\n[cyan]{formatted_cmd}[/cyan]\n")
                     else:
                         cmd_parts = ["kpf"] + args

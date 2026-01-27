@@ -95,6 +95,7 @@ class TestKubernetesClient:
     @patch("subprocess.run")
     def test_get_current_namespace_error(self, mock_run):
         """Test getting current namespace when kubectl fails."""
+
         def side_effect(*args, **kwargs):
             cmd = args[0]
             if "version" in cmd:

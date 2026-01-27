@@ -112,7 +112,6 @@ class TestEndToEndScenarios:
         """Test behavior when kubectl is not available."""
         mock_run.side_effect = FileNotFoundError("kubectl not found")
 
-        from src.kpf.display import ServiceSelector
         from src.kpf.kubernetes import KubernetesClient
 
         # KubernetesClient should fail when kubectl is not available

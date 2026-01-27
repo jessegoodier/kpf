@@ -5,8 +5,8 @@ from enum import Enum
 from typing import Tuple
 
 import requests
-from requests.exceptions import SSLError
 import urllib3
+from requests.exceptions import SSLError
 from rich.console import Console
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

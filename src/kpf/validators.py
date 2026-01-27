@@ -142,7 +142,7 @@ def validate_kubectl_command(port_forward_args):
 
         # Basic validation of resource format (svc/name, pod/name, etc.)
         resource_found = False
-        
+
         # normalized resource types map
         resource_aliases = {
             "svc": "service",
@@ -234,7 +234,7 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
             if debug_callback:
                 debug_callback("No resource found for service validation")
             return True  # Let kubectl handle it
-            
+
         # Normalize resource type
         resource_aliases = {
             "svc": "service",
@@ -256,7 +256,7 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
             "daemonsets": "daemonset",
             "daemonset": "daemonset",
         }
-        
+
         normalized_type = resource_aliases.get(resource_type, resource_type)
 
         if debug_callback:
