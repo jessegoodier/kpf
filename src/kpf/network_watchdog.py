@@ -68,7 +68,9 @@ class NetworkWatchdog(threading.Thread):
             result = subprocess.run(
                 [
                     "kubectl",
-                ] + self.kubectl_global_flags + [
+                ]
+                + self.kubectl_global_flags
+                + [
                     "config",
                     "view",
                     "--minify",

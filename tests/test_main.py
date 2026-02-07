@@ -1469,7 +1469,7 @@ class TestContextAndKubeconfig:
         """Test validation fails for bad context."""
         mock_result = Mock()
         mock_result.returncode = 1
-        mock_result.stderr = "error: no context exists with the name: \"bad\""
+        mock_result.stderr = 'error: no context exists with the name: "bad"'
         mock_run.return_value = mock_result
 
         with patch("src.kpf.validators.console.print"):
@@ -1501,9 +1501,7 @@ class TestContextAndKubeconfig:
         with patch("src.kpf.validators.console.print") as mock_print:
             result = validate_context(["--kubeconfig", "/nonexistent/path/kubeconfig"])
         assert result is False
-        error_calls = [
-            call for call in mock_print.call_args_list if "not found" in str(call)
-        ]
+        error_calls = [call for call in mock_print.call_args_list if "not found" in str(call)]
         assert len(error_calls) > 0
 
     @patch("subprocess.run")
@@ -1521,7 +1519,9 @@ class TestContextAndKubeconfig:
                 result.stdout = '{"metadata": {"name": "test-svc"}}'
             elif "get" in cmd and "endpoints" in cmd:
                 result.returncode = 0
-                result.stdout = '{"subsets": [{"addresses": [{"ip": "10.0.0.1"}], "ports": [{"port": 80}]}]}'
+                result.stdout = (
+                    '{"subsets": [{"addresses": [{"ip": "10.0.0.1"}], "ports": [{"port": 80}]}]}'
+                )
             else:
                 result.returncode = 0
                 result.stdout = ""

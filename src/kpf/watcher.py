@@ -57,17 +57,21 @@ class EndpointWatcher:
                 self.debug_print(
                     f"[green][Watcher] Starting watcher for endpoint changes for '{self.namespace}/{self.resource_name}'...[/green]"
                 )
-                command = [
-                    "kubectl",
-                ] + self.kubectl_global_flags + [
-                    "get",
-                    "--no-headers",
-                    "ep",
-                    "-w",
-                    "-n",
-                    self.namespace,
-                    self.resource_name,
-                ]
+                command = (
+                    [
+                        "kubectl",
+                    ]
+                    + self.kubectl_global_flags
+                    + [
+                        "get",
+                        "--no-headers",
+                        "ep",
+                        "-w",
+                        "-n",
+                        self.namespace,
+                        self.resource_name,
+                    ]
+                )
                 self.debug_print(
                     f"Executing endpoint watcher command: {' '.join(command)}",
                     rate_limit=True,
