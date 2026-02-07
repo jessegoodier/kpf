@@ -4,6 +4,8 @@ This is a Python utility that (attempts to) dramatically improve the experience 
 
 It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic reconnect when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
 
+![kpf demo](demo.gif)
+
 ## Features
 
 - 🔄 **Automatic Restart**: Monitors endpoint changes and restarts port-forward automatically
