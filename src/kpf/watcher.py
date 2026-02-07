@@ -17,6 +17,7 @@ class EndpointWatcher:
         delegate_should_restart,
         debug_callback=None,
         usage_logger=None,
+        kubectl_global_flags=None,
     ):
         self.namespace = namespace
         self.resource_name = resource_name
@@ -27,6 +28,7 @@ class EndpointWatcher:
         )
         self.debug_print = debug_callback if debug_callback else lambda msg, rate_limit=False: None
         self.usage_logger = usage_logger
+        self.kubectl_global_flags = kubectl_global_flags or []
         self.thread = None
 
     def start(self):
@@ -57,6 +59,7 @@ class EndpointWatcher:
                 )
                 command = [
                     "kubectl",
+                ] + self.kubectl_global_flags + [
                     "get",
                     "--no-headers",
                     "ep",

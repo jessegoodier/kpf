@@ -2,6 +2,7 @@
 
 import re
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -12,7 +13,9 @@ from .forwarder import PortForwarder
 from .network_watchdog import NetworkWatchdog
 from .usage_logger import UsageLogger
 from .validators import (
+    extract_kubectl_global_flags,
     extract_local_port,
+    validate_context,
     validate_kubectl_command,
     validate_port_availability,
     validate_port_format,
@@ -89,12 +92,14 @@ def get_port_forward_args(args):
     return args
 
 
-def get_watcher_args(port_forward_args):
+def get_watcher_args(port_forward_args, kubectl_global_flags=None):
     """
     Parses port-forward arguments to determine the namespace and resource name
     for the endpoint watcher command.
     Example: `['svc/frontend', '9090:9090', '-n', 'kubecost']` -> namespace='kubecost', resource_name='frontend'
     """
+    if kubectl_global_flags is None:
+        kubectl_global_flags = []
     debug.print(f"Parsing port-forward args: {port_forward_args}")
     namespace = None
     resource_name = None
@@ -110,10 +115,14 @@ def get_watcher_args(port_forward_args):
 
     # If namespace not found or incomplete, use current context namespace
     if namespace is None:
-        from .kubernetes import KubernetesClient
-
-        k8s_client = KubernetesClient()
-        namespace = k8s_client.get_current_namespace()
+        cmd = ["kubectl"] + kubectl_global_flags + [
+            "config", "view", "--minify", "-o", "jsonpath={..namespace}"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=5)
+            namespace = result.stdout.strip() or "default"
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            namespace = "default"
         debug.print(f"No namespace specified, using current context namespace: '{namespace}'")
 
     # Find resource name (e.g., 'svc/frontend')
@@ -157,6 +166,16 @@ def run_port_forward(
     # Initialize usage logger
     usage_logger = UsageLogger(config)
 
+    # Extract kubectl global flags (--context, --kubeconfig) early
+    kubectl_global_flags = extract_kubectl_global_flags(port_forward_args)
+    if kubectl_global_flags:
+        debug.print(f"Kubectl global flags: {kubectl_global_flags}")
+
+    # Validate context/kubeconfig before anything else
+    if not validate_context(kubectl_global_flags):
+        usage_logger.finalize("context_error")
+        sys.exit(1)
+
     # Validate port format first
     if not validate_port_format(port_forward_args):
         usage_logger.finalize("validation_error")
@@ -173,12 +192,12 @@ def run_port_forward(
         sys.exit(1)
 
     # Validate service exists and has endpoints
-    if not validate_service_and_endpoints(port_forward_args, debug.print):
+    if not validate_service_and_endpoints(port_forward_args, debug.print, kubectl_global_flags):
         usage_logger.finalize("service_error")
         sys.exit(1)
 
     # Get watcher arguments from the port-forwarding args
-    namespace, resource_name = get_watcher_args(port_forward_args)
+    namespace, resource_name = get_watcher_args(port_forward_args, kubectl_global_flags)
     debug.print(f"Parsed namespace: {namespace}, resource_name: {resource_name}")
 
     debug.print(f"Port-forward arguments: {port_forward_args}")
@@ -197,15 +216,21 @@ def run_port_forward(
                 except ValueError:
                     pass
 
-    # Get context
+    # Get context from flags or current kubectl config
     context = ""
-    try:
-        from .kubernetes import KubernetesClient
+    # Check if --context was explicitly passed
+    for i, flag in enumerate(kubectl_global_flags):
+        if flag == "--context" and i + 1 < len(kubectl_global_flags):
+            context = kubectl_global_flags[i + 1]
+            break
+    if not context:
+        try:
+            from .kubernetes import KubernetesClient
 
-        k8s = KubernetesClient()
-        context = k8s.get_current_context()
-    except Exception:
-        pass
+            k8s = KubernetesClient()
+            context = k8s.get_current_context()
+        except Exception:
+            pass
 
     # Set session info in usage logger
     usage_logger.set_session_info(resource_name, namespace, context, local_port, remote_port)
@@ -233,6 +258,7 @@ def run_port_forward(
         should_restart_delegate,
         debug_callback=debug.print,
         usage_logger=usage_logger,
+        kubectl_global_flags=kubectl_global_flags,
     )
 
     # Create network watchdog if enabled
@@ -248,6 +274,7 @@ def run_port_forward(
             failure_threshold=watchdog_threshold,
             debug_callback=debug.print,
             local_port=local_port,
+            kubectl_global_flags=kubectl_global_flags,
         )
         debug.print(
             f"Network watchdog enabled (interval={watchdog_interval}s, threshold={watchdog_threshold}, port={local_port})"

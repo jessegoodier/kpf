@@ -23,6 +23,7 @@ class NetworkWatchdog(threading.Thread):
         failure_threshold: int = 2,
         debug_callback: Optional[Callable[[str], None]] = None,
         local_port: Optional[int] = None,
+        kubectl_global_flags: Optional[list] = None,
     ):
         """Initialize the network watchdog.
 
@@ -33,6 +34,7 @@ class NetworkWatchdog(threading.Thread):
             failure_threshold: Consecutive failures before triggering restart
             debug_callback: Optional callback for debug output
             local_port: Local forwarded port to check (optional but recommended)
+            kubectl_global_flags: Global kubectl flags like --context/--kubeconfig
         """
         super().__init__(daemon=True)
         self.shutdown_event = shutdown_event
@@ -41,6 +43,7 @@ class NetworkWatchdog(threading.Thread):
         self.failure_threshold = failure_threshold
         self.debug_callback = debug_callback
         self.local_port = local_port
+        self.kubectl_global_flags = kubectl_global_flags or []
         self.consecutive_failures = 0
         self._api_server_host: Optional[str] = None
         self._api_server_port: int = 443
@@ -65,6 +68,7 @@ class NetworkWatchdog(threading.Thread):
             result = subprocess.run(
                 [
                     "kubectl",
+                ] + self.kubectl_global_flags + [
                     "config",
                     "view",
                     "--minify",
