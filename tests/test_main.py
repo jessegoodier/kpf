@@ -14,8 +14,10 @@ from src.kpf.main import (
     shutdown_event,
 )
 from src.kpf.validators import (
+    extract_kubectl_global_flags,
     extract_local_port,
     is_port_available,
+    validate_context,
     validate_kubectl_command,
     validate_port_availability,
     validate_port_format,
@@ -50,9 +52,11 @@ class TestArgumentParsing:
         """Test get_watcher_args with service but no namespace."""
         args = ["svc/api-service", "8080:8080"]
 
-        # Mock the KubernetesClient to return a known namespace
-        with patch("src.kpf.kubernetes.KubernetesClient") as mock_client:
-            mock_client.return_value.get_current_namespace.return_value = "default"
+        # Mock subprocess.run for kubectl config view --minify namespace lookup
+        with patch("src.kpf.main.subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.stdout = "default"
+            mock_run.return_value = mock_result
             namespace, resource_name = get_watcher_args(args)
 
         assert namespace == "default"
@@ -70,9 +74,11 @@ class TestArgumentParsing:
         """Test get_watcher_args with deployment resource."""
         args = ["deployment/my-deploy", "8080:8080"]
 
-        # Mock the KubernetesClient to return a known namespace
-        with patch("src.kpf.kubernetes.KubernetesClient") as mock_client:
-            mock_client.return_value.get_current_namespace.return_value = "default"
+        # Mock subprocess.run for kubectl config view --minify namespace lookup
+        with patch("src.kpf.main.subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.stdout = "default"
+            mock_run.return_value = mock_result
             namespace, resource_name = get_watcher_args(args)
 
         assert namespace == "default"
@@ -82,9 +88,11 @@ class TestArgumentParsing:
         """Test get_watcher_args with full 'service' name."""
         args = ["service/web-service", "80:8080"]
 
-        # Mock the KubernetesClient to return a known namespace
-        with patch("src.kpf.kubernetes.KubernetesClient") as mock_client:
-            mock_client.return_value.get_current_namespace.return_value = "default"
+        # Mock subprocess.run for kubectl config view --minify namespace lookup
+        with patch("src.kpf.main.subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.stdout = "default"
+            mock_run.return_value = mock_result
             namespace, resource_name = get_watcher_args(args)
 
         assert namespace == "default"
@@ -103,8 +111,10 @@ class TestArgumentParsing:
         args = ["svc/backend", "9090:9090", "-n"]
 
         # Should handle incomplete -n flag gracefully and fall back to current context
-        with patch("src.kpf.kubernetes.KubernetesClient") as mock_client:
-            mock_client.return_value.get_current_namespace.return_value = "default"
+        with patch("src.kpf.main.subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.stdout = "default"
+            mock_run.return_value = mock_result
             namespace, resource_name = get_watcher_args(args)
 
         assert namespace == "default"  # Falls back to current context namespace
@@ -1413,3 +1423,203 @@ class TestHttpTimeoutRestart:
 
         # Verify HTTP timeout state is preserved
         assert checker.http_timeout_start_time == 1002.0
+
+
+class TestContextAndKubeconfig:
+    """Test --context and --kubeconfig flag handling."""
+
+    def test_extract_kubectl_global_flags_context(self):
+        """Test extracting --context flag."""
+        args = ["svc/test", "8080:80", "--context", "my-cluster"]
+        flags = extract_kubectl_global_flags(args)
+        assert flags == ["--context", "my-cluster"]
+
+    def test_extract_kubectl_global_flags_kubeconfig(self):
+        """Test extracting --kubeconfig flag."""
+        args = ["svc/test", "8080:80", "--kubeconfig", "/path/to/config"]
+        flags = extract_kubectl_global_flags(args)
+        assert flags == ["--kubeconfig", "/path/to/config"]
+
+    def test_extract_kubectl_global_flags_both(self):
+        """Test extracting both --context and --kubeconfig flags."""
+        args = ["svc/test", "8080:80", "--context", "my-cluster", "--kubeconfig", "/path/to/config"]
+        flags = extract_kubectl_global_flags(args)
+        assert flags == ["--context", "my-cluster", "--kubeconfig", "/path/to/config"]
+
+    def test_extract_kubectl_global_flags_none(self):
+        """Test extracting when no global flags present."""
+        args = ["svc/test", "8080:80", "-n", "default"]
+        flags = extract_kubectl_global_flags(args)
+        assert flags == []
+
+    def test_extract_kubectl_global_flags_equals_syntax(self):
+        """Test extracting --context=value syntax."""
+        args = ["svc/test", "8080:80", "--context=my-cluster"]
+        flags = extract_kubectl_global_flags(args)
+        assert flags == ["--context", "my-cluster"]
+
+    def test_extract_kubectl_global_flags_kubeconfig_equals_syntax(self):
+        """Test extracting --kubeconfig=value syntax."""
+        args = ["svc/test", "8080:80", "--kubeconfig=/path/to/config"]
+        flags = extract_kubectl_global_flags(args)
+        assert flags == ["--kubeconfig", "/path/to/config"]
+
+    @patch("subprocess.run")
+    def test_validate_context_invalid(self, mock_run):
+        """Test validation fails for bad context."""
+        mock_result = Mock()
+        mock_result.returncode = 1
+        mock_result.stderr = "error: no context exists with the name: \"bad\""
+        mock_run.return_value = mock_result
+
+        with patch("src.kpf.validators.console.print"):
+            result = validate_context(["--context", "bad"])
+        assert result is False
+
+    @patch("subprocess.run")
+    def test_validate_context_valid(self, mock_run):
+        """Test validation succeeds for good context."""
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = "* my-cluster ..."
+        mock_run.return_value = mock_result
+
+        result = validate_context(["--context", "my-cluster"])
+        assert result is True
+        # Verify kubectl was called with context validation
+        call_args = mock_run.call_args[0][0]
+        assert "get-contexts" in call_args
+        assert "my-cluster" in call_args
+
+    def test_validate_context_no_context(self):
+        """Test validation succeeds when no context specified."""
+        result = validate_context([])
+        assert result is True
+
+    def test_validate_context_kubeconfig_not_found(self):
+        """Test validation fails for non-existent kubeconfig file."""
+        with patch("src.kpf.validators.console.print") as mock_print:
+            result = validate_context(["--kubeconfig", "/nonexistent/path/kubeconfig"])
+        assert result is False
+        error_calls = [
+            call for call in mock_print.call_args_list if "not found" in str(call)
+        ]
+        assert len(error_calls) > 0
+
+    @patch("subprocess.run")
+    def test_validate_service_passes_context_flags(self, mock_run):
+        """Test that validate_service_and_endpoints passes --context to kubectl commands."""
+        args = ["svc/test-svc", "8080:80", "-n", "default"]
+        kubectl_flags = ["--context", "my-cluster"]
+
+        # Mock successful service and endpoint checks
+        def mock_subprocess(*cmd_args, **kwargs):
+            cmd = cmd_args[0]
+            result = Mock()
+            if "get" in cmd and "svc" in cmd:
+                result.returncode = 0
+                result.stdout = '{"metadata": {"name": "test-svc"}}'
+            elif "get" in cmd and "endpoints" in cmd:
+                result.returncode = 0
+                result.stdout = '{"subsets": [{"addresses": [{"ip": "10.0.0.1"}], "ports": [{"port": 80}]}]}'
+            else:
+                result.returncode = 0
+                result.stdout = ""
+            return result
+
+        mock_run.side_effect = mock_subprocess
+
+        result = validate_service_and_endpoints(args, kubectl_global_flags=kubectl_flags)
+        assert result is True
+
+        # Verify --context was included in the kubectl commands
+        for call in mock_run.call_args_list:
+            cmd = call[0][0]
+            assert "--context" in cmd, f"--context missing from command: {cmd}"
+            assert "my-cluster" in cmd, f"my-cluster missing from command: {cmd}"
+
+    def test_endpoint_watcher_includes_context_flags(self):
+        """Test that EndpointWatcher includes --context in kubectl command."""
+        from src.kpf.watcher import EndpointWatcher
+
+        watcher = EndpointWatcher(
+            "default",
+            "my-service",
+            shutdown_event,
+            restart_event,
+            lambda: True,
+            kubectl_global_flags=["--context", "my-cluster"],
+        )
+
+        with patch("subprocess.Popen") as mock_popen:
+            mock_process = Mock()
+            mock_process.stdout = iter([])
+            mock_popen.return_value = mock_process
+
+            shutdown_event.clear()
+            restart_event.clear()
+
+            def set_shutdown(*args, **kwargs):
+                shutdown_event.set()
+                return mock_process
+
+            mock_popen.side_effect = set_shutdown
+
+            watcher.endpoint_watcher_thread()
+
+            mock_popen.assert_called_once()
+            call_args = mock_popen.call_args[0][0]
+            assert "--context" in call_args
+            assert "my-cluster" in call_args
+            # Verify order: kubectl --context my-cluster get ...
+            ctx_idx = call_args.index("--context")
+            get_idx = call_args.index("get")
+            assert ctx_idx < get_idx, "Global flags should come before subcommand"
+
+        shutdown_event.clear()
+        restart_event.clear()
+
+    def test_network_watchdog_includes_context_flags(self):
+        """Test that NetworkWatchdog includes --context in kubectl command."""
+        from src.kpf.network_watchdog import NetworkWatchdog
+
+        watchdog = NetworkWatchdog(
+            shutdown_event=shutdown_event,
+            restart_event=restart_event,
+            kubectl_global_flags=["--context", "my-cluster"],
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.stdout = "https://api.example.com:6443"
+            mock_run.return_value = mock_result
+
+            watchdog._get_api_server_address()
+
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args[0][0]
+            assert "--context" in call_args
+            assert "my-cluster" in call_args
+
+    def test_integration_invalid_context_cli(self):
+        """Integration test: kpf with --context bad should fail with exit code 1."""
+        import subprocess as sp
+        import sys
+
+        result = sp.run(
+            [
+                sys.executable,
+                "-m",
+                "src.kpf.cli",
+                "svc/test",
+                "8080:80",
+                "--context",
+                "definitely-not-a-real-context-12345",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+
+        assert result.returncode == 1
+        assert "not found" in result.stdout.lower() or "not found" in result.stderr.lower()

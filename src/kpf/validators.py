@@ -1,3 +1,4 @@
+import os
 import socket
 import subprocess
 
@@ -15,6 +16,84 @@ class Debug:
 def _debug_print(message, debug_enabled=False):
     if debug_enabled:
         console.print(f"[dim cyan][DEBUG][/dim cyan] {message}")
+
+
+def extract_kubectl_global_flags(port_forward_args):
+    """Extract --context and --kubeconfig flags from port-forward arguments.
+
+    Returns:
+        list: Flags to prepend to kubectl commands, e.g. ["--context", "my-cluster"]
+    """
+    flags = []
+    i = 0
+    while i < len(port_forward_args):
+        arg = port_forward_args[i]
+        if arg == "--context" and i + 1 < len(port_forward_args):
+            flags.extend(["--context", port_forward_args[i + 1]])
+            i += 2
+        elif arg.startswith("--context="):
+            flags.extend(["--context", arg.split("=", 1)[1]])
+            i += 1
+        elif arg == "--kubeconfig" and i + 1 < len(port_forward_args):
+            flags.extend(["--kubeconfig", port_forward_args[i + 1]])
+            i += 2
+        elif arg.startswith("--kubeconfig="):
+            flags.extend(["--kubeconfig", arg.split("=", 1)[1]])
+            i += 1
+        else:
+            i += 1
+    return flags
+
+
+def validate_context(kubectl_global_flags):
+    """Validate that the specified --context and --kubeconfig are valid.
+
+    Args:
+        kubectl_global_flags: List of global kubectl flags (e.g. ["--context", "name"])
+
+    Returns:
+        bool: True if valid or no context/kubeconfig specified, False otherwise
+    """
+    # Extract context and kubeconfig from flags
+    context = None
+    kubeconfig = None
+    i = 0
+    while i < len(kubectl_global_flags):
+        if kubectl_global_flags[i] == "--context" and i + 1 < len(kubectl_global_flags):
+            context = kubectl_global_flags[i + 1]
+            i += 2
+        elif kubectl_global_flags[i] == "--kubeconfig" and i + 1 < len(kubectl_global_flags):
+            kubeconfig = kubectl_global_flags[i + 1]
+            i += 2
+        else:
+            i += 1
+
+    # Validate kubeconfig file exists if specified
+    if kubeconfig and not os.path.exists(kubeconfig):
+        console.print(f"[red]Error: Kubeconfig file not found: {kubeconfig}[/red]")
+        return False
+
+    # Validate context exists if specified
+    if context:
+        cmd = ["kubectl", "config", "get-contexts", context, "--no-headers"]
+        if kubeconfig:
+            cmd.extend(["--kubeconfig", kubeconfig])
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                console.print(f"[red]Error: Context '{context}' not found[/red]")
+                error_msg = result.stderr.strip() if result.stderr else ""
+                if error_msg:
+                    console.print(f"[yellow]{error_msg}[/yellow]")
+                return False
+        except subprocess.TimeoutExpired:
+            console.print("[red]Error: kubectl context validation timed out[/red]")
+            return False
+        except FileNotFoundError:
+            console.print("[red]Error: kubectl command not found[/red]")
+            return False
+
+    return True
 
 
 def extract_local_port(port_forward_args):
@@ -198,8 +277,10 @@ def validate_kubectl_command(port_forward_args):
         return False
 
 
-def validate_service_and_endpoints(port_forward_args, debug_callback=None):
+def validate_service_and_endpoints(port_forward_args, debug_callback=None, kubectl_global_flags=None):
     """Validate that the target service exists and has endpoints."""
+    if kubectl_global_flags is None:
+        kubectl_global_flags = []
     try:
         # Extract namespace and resource info
         namespace = None
@@ -216,10 +297,14 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
 
         # If namespace not found or incomplete, use current context namespace
         if namespace is None:
-            from .kubernetes import KubernetesClient
-
-            k8s_client = KubernetesClient()
-            namespace = k8s_client.get_current_namespace()
+            cmd = ["kubectl"] + kubectl_global_flags + [
+                "config", "view", "--minify", "-o", "jsonpath={..namespace}"
+            ]
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=5)
+                namespace = result.stdout.strip() or "default"
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                namespace = "default"
 
         # Find resource
         for arg in port_forward_args:
@@ -267,6 +352,7 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
             # Check if service exists
             cmd_service = [
                 "kubectl",
+            ] + kubectl_global_flags + [
                 "get",
                 "svc",
                 resource_name,
@@ -311,6 +397,7 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
             # Check if service has endpoints
             cmd_endpoints = [
                 "kubectl",
+            ] + kubectl_global_flags + [
                 "get",
                 "endpoints",
                 resource_name,
@@ -371,7 +458,7 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None):
 
         # For other resources, check if they exist (simpler check)
         elif normalized_type in ["pod", "deployment", "replicaset", "statefulset", "daemonset"]:
-            cmd = ["kubectl", "get", normalized_type, resource_name, "-n", namespace]
+            cmd = ["kubectl"] + kubectl_global_flags + ["get", normalized_type, resource_name, "-n", namespace]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
             if result.returncode != 0:
