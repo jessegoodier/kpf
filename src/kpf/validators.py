@@ -277,7 +277,9 @@ def validate_kubectl_command(port_forward_args):
         return False
 
 
-def validate_service_and_endpoints(port_forward_args, debug_callback=None, kubectl_global_flags=None):
+def validate_service_and_endpoints(
+    port_forward_args, debug_callback=None, kubectl_global_flags=None
+):
     """Validate that the target service exists and has endpoints."""
     if kubectl_global_flags is None:
         kubectl_global_flags = []
@@ -297,9 +299,11 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None, kubec
 
         # If namespace not found or incomplete, use current context namespace
         if namespace is None:
-            cmd = ["kubectl"] + kubectl_global_flags + [
-                "config", "view", "--minify", "-o", "jsonpath={..namespace}"
-            ]
+            cmd = (
+                ["kubectl"]
+                + kubectl_global_flags
+                + ["config", "view", "--minify", "-o", "jsonpath={..namespace}"]
+            )
             try:
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=5)
                 namespace = result.stdout.strip() or "default"
@@ -350,17 +354,21 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None, kubec
         # For services, check if service exists and has endpoints
         if normalized_type == "service":
             # Check if service exists
-            cmd_service = [
-                "kubectl",
-            ] + kubectl_global_flags + [
-                "get",
-                "svc",
-                resource_name,
-                "-n",
-                namespace,
-                "-o",
-                "json",
-            ]
+            cmd_service = (
+                [
+                    "kubectl",
+                ]
+                + kubectl_global_flags
+                + [
+                    "get",
+                    "svc",
+                    resource_name,
+                    "-n",
+                    namespace,
+                    "-o",
+                    "json",
+                ]
+            )
             result = subprocess.run(cmd_service, capture_output=True, text=True, timeout=10)
 
             if result.returncode != 0:
@@ -395,17 +403,21 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None, kubec
                     debug_callback(f"Failed to parse service JSON: {e}")
 
             # Check if service has endpoints
-            cmd_endpoints = [
-                "kubectl",
-            ] + kubectl_global_flags + [
-                "get",
-                "endpoints",
-                resource_name,
-                "-n",
-                namespace,
-                "-o",
-                "json",
-            ]
+            cmd_endpoints = (
+                [
+                    "kubectl",
+                ]
+                + kubectl_global_flags
+                + [
+                    "get",
+                    "endpoints",
+                    resource_name,
+                    "-n",
+                    namespace,
+                    "-o",
+                    "json",
+                ]
+            )
             result = subprocess.run(cmd_endpoints, capture_output=True, text=True, timeout=10)
 
             if result.returncode != 0:
@@ -458,7 +470,11 @@ def validate_service_and_endpoints(port_forward_args, debug_callback=None, kubec
 
         # For other resources, check if they exist (simpler check)
         elif normalized_type in ["pod", "deployment", "replicaset", "statefulset", "daemonset"]:
-            cmd = ["kubectl"] + kubectl_global_flags + ["get", normalized_type, resource_name, "-n", namespace]
+            cmd = (
+                ["kubectl"]
+                + kubectl_global_flags
+                + ["get", normalized_type, resource_name, "-n", namespace]
+            )
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
             if result.returncode != 0:

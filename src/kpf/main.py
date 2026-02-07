@@ -115,9 +115,11 @@ def get_watcher_args(port_forward_args, kubectl_global_flags=None):
 
     # If namespace not found or incomplete, use current context namespace
     if namespace is None:
-        cmd = ["kubectl"] + kubectl_global_flags + [
-            "config", "view", "--minify", "-o", "jsonpath={..namespace}"
-        ]
+        cmd = (
+            ["kubectl"]
+            + kubectl_global_flags
+            + ["config", "view", "--minify", "-o", "jsonpath={..namespace}"]
+        )
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=5)
             namespace = result.stdout.strip() or "default"
