@@ -153,7 +153,7 @@ kubectl get configmap kpf-test-app-config -o yaml
 This application is ideal for testing kpf because it:
 
 1. **Shows real-time updates**: Uptime increases every second
-2. **Has multiple ports**: Test port selection functionality  
+2. **Has multiple ports**: Test port selection functionality
 3. **Includes health checks**: Verify endpoint detection
 4. **Provides visual feedback**: Easy to see if port-forwarding works
 5. **Handles restarts**: Test automatic reconnection when pods restart

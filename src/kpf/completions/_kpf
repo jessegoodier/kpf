@@ -38,7 +38,7 @@ _kpf() {
     # _arguments with *:: removes the handled arguments (like -n, -A) from 'words'.
     # We must explicitly restore critical flags (like -n) that kubectl needs to know about.
     # Other kpf-specific flags (like -A, -c) should NOT be passed to kubectl port-forward.
-    
+
     local -a kubectl_cmd
     kubectl_cmd=(kubectl port-forward)
 
@@ -48,24 +48,24 @@ _kpf() {
     if [[ -n "$ns" ]]; then
       kubectl_cmd+=(-n "$ns")
     fi
-    
+
     # 'words' now explicitly contains ONLY the remaining arguments (because of *::)
     # We append these to our constructed command
     local -a new_words
     new_words=("${kubectl_cmd[@]}" "${words[@]}")
-    
+
     # Update CURRENT index
     # We added (kubectl_cmd length) items, but we need to account for where we are relative to the *new* words array.
     # CURRENT in the *:: handler is relative to the start of the remaining words.
     # e.g. if cursor is on first remaining word, CURRENT is 1.
     # We need to shift it by the length of the prefix we added.
     (( CURRENT += ${#kubectl_cmd} ))
-    
+
     words=("${new_words[@]}")
-    
+
     # Set the context for _kubectl to think it's completing port-forward
     curcontext="${curcontext%:*:*}:kubectl-port-forward:"
-    
+
     if (( $+functions[_kubectl] )); then
       _kubectl
     else

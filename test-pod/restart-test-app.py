@@ -72,7 +72,7 @@ class UptimeHandler(BaseHTTPRequestHandler):
         let isConnected = false;
         let reconnectAttempts = 0;
         let lastUpdateTime = null;
-        
+
         function updateUptime() {{
             fetch('/api/uptime')
                 .then(response => {{
@@ -85,13 +85,13 @@ class UptimeHandler(BaseHTTPRequestHandler):
                     isConnected = true;
                     reconnectAttempts = 0;
                     lastUpdateTime = new Date();
-                    
-                    document.getElementById('uptime-display').innerHTML = 
+
+                    document.getElementById('uptime-display').innerHTML =
                         `<div class="uptime">Uptime: ${{data.uptime_human}}</div>`;
-                    
-                    document.getElementById('status-display').innerHTML = 
+
+                    document.getElementById('status-display').innerHTML =
                         `<div class="status">✅ Connected - Last updated: ${{lastUpdateTime.toLocaleTimeString()}}</div>`;
-                    
+
                     document.getElementById('details-display').innerHTML = `
                         <div class="details">
                             <h3>Container Details:</h3>
@@ -104,13 +104,13 @@ class UptimeHandler(BaseHTTPRequestHandler):
                 .catch(error => {{
                     isConnected = false;
                     reconnectAttempts++;
-                    
-                    document.getElementById('uptime-display').innerHTML = 
+
+                    document.getElementById('uptime-display').innerHTML =
                         `<div class="error">❌ Service Unavailable</div>`;
-                    
-                    document.getElementById('status-display').innerHTML = 
+
+                    document.getElementById('status-display').innerHTML =
                         `<div class="status">🔄 Reconnecting... (Attempt ${{reconnectAttempts}})</div>`;
-                    
+
                     document.getElementById('details-display').innerHTML = `
                         <div class="details">
                             <h3>Connection Status:</h3>
@@ -122,7 +122,7 @@ class UptimeHandler(BaseHTTPRequestHandler):
                     `;
                 }});
         }}
-        
+
         // Update immediately and then every 1 second
         updateUptime();
         setInterval(updateUptime, 1000);
@@ -131,15 +131,15 @@ class UptimeHandler(BaseHTTPRequestHandler):
 <body>
     <div class="container">
         <h1>kpf Test Application</h1>
-        
+
         <div id="uptime-display">
             <div class="uptime">Uptime: {data["uptime_human"]}</div>
         </div>
-        
+
         <div id="status-display">
             <div class="status">✅ Connected - Initial load</div>
         </div>
-        
+
         <div id="details-display">
             <div class="details">
                 <h3>Container Details:</h3>
@@ -148,7 +148,7 @@ class UptimeHandler(BaseHTTPRequestHandler):
                 <p><strong>Uptime (seconds):</strong> {data["uptime_seconds"]}</p>
             </div>
         </div>
-        
+
         <div class="endpoint">
             <h3>Available Endpoints:</h3>
             <ul>
@@ -158,7 +158,7 @@ class UptimeHandler(BaseHTTPRequestHandler):
                 <li><code>/metrics</code> - Prometheus-style metrics</li>
             </ul>
         </div>
-        
+
         <p><em>Perfect for testing kubectl port-forward with kpf!</em></p>
     </div>
 </body>
