@@ -4,7 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kpf-test-app
-  
+
   labels:
     app: kpf-test-app
     version: v1.0.0
@@ -87,7 +87,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kpf-test-app-service
-  
+
   labels:
     app: kpf-test-app
     version: v1.0.0
@@ -100,7 +100,7 @@ spec:
     name: http
   - port: 9090
     targetPort: 8080
-    protocol: TCP  
+    protocol: TCP
     name: metrics
   selector:
     app: kpf-test-app

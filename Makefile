@@ -14,7 +14,7 @@ help:
 	@echo "  clean       - Clean build artifacts and cache files"
 	@echo "  version     - Show current version"
 	@echo "  bump-patch  - Bump patch version"
-	@echo "  bump-minor  - Bump minor version" 
+	@echo "  bump-minor  - Bump minor version"
 	@echo "  bump-major  - Bump major version"
 	@echo "  release     - Create GitHub release based on current version"
 	@echo "  audit       - Run security and dependency audit"

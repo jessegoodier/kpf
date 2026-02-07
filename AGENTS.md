@@ -47,4 +47,3 @@
 ## Must have for all changes
 
 - Verify changes to completions are needed or not in `src/kpf/completions/`
-
