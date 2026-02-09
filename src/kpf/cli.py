@@ -480,6 +480,8 @@ def main():
                 and "--namespace" not in port_forward_args
             ):
                 port_forward_args.extend(["-n", args.namespace])
+            # Skip direct command display - user already typed a direct command
+            merged_config["showDirectCommand"] = False
 
         else:
             # Default to interactive mode if no arguments are provided
