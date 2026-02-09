@@ -4,7 +4,8 @@ This is a Python utility that (attempts to) dramatically improve the experience 
 
 It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic reconnect when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
 
-![kpf demo](demo.gif)
+Demo of the TUI and the reconnect when a pod is restarted:
+![kpf demo](docs/kpf-demo_tui.gif)
 
 ## Features
 
@@ -20,10 +21,12 @@ It is essentially a wrapper around `kubectl port-forward` that adds an interacti
 **Note**: The `oh-my-zsh` kubectl plugin will conflict with this `kpf` command. You must unalias `kpf` before using this tool.
 
 ```sh
-echo "unalias kpf" >> ~/.zshrc
+echo "unalias kpf 2>/dev/null" >> ~/.zshrc
 ```
 
 ### Homebrew (Recommended)
+
+Other methods do no automatically install command completions.
 
 ```bash
 brew tap jessegoodier/kpf
@@ -64,9 +67,11 @@ uv tool install .
 
 **Note**: You might think that "warm tip" is something that AI wrote, but that's not the case. It really is just a little bit cooler than a hot tip.
 
-![screenshot1](kpf-screenshot1.png)
-![screenshot2](kpf-screenshot2.png)
-![screenshot3](kpf-screenshot3.png)
+Visual explanation of the features:
+![screenshot1](docs/kpf-tui.png)
+
+Check which endpoints are up on entire cluster (can be slow):
+![screenshot2](docs/kpf-demo_check-all.png)
 
 Select services interactively:
 
