@@ -4,6 +4,10 @@ This is a Python utility that (attempts to) dramatically improve the experience 
 
 It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic reconnect when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
 
+You may also be interested in <https://github.com/jessegoodier/kdebug>, a utility for launching ephemeral debug containers in Kubernetes pods with interactive shell access, backup capabilities, and a colorful TUI for pod selection.
+
+## Demo
+
 Demo of the TUI and the reconnect when a pod is restarted:
 ![kpf demo](docs/kpf-demo_tui.gif)
 
