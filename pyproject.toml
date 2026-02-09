@@ -85,7 +85,7 @@ addopts = [
     "--cov=src/kpf",
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
-    "--cov-report=xml:coverage.xml",
+    "--cov-report=xml:tests/coverage.xml",
     "--cov-fail-under=50",
     "--timeout=10"
 ]
