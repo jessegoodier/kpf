@@ -9,16 +9,12 @@ import subprocess
 import sys
 from typing import List, Optional
 
-from rich.console import Console
-
 from . import __version__
 from .config import get_config
 from .display import ServiceSelector
 from .kubernetes import KubernetesClient
+from .logger import console
 from .main import run_port_forward
-
-# Initialize Rich console
-console = Console()
 
 
 def str_to_bool(value):

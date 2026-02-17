@@ -7,9 +7,8 @@ import sys
 import threading
 import time
 
-from rich.console import Console
-
 from .forwarder import PortForwarder
+from .logger import console, debug
 from .network_watchdog import NetworkWatchdog
 from .usage_logger import UsageLogger
 from .validators import (
@@ -23,47 +22,13 @@ from .validators import (
 )
 from .watcher import EndpointWatcher
 
-# Initialize Rich console
-console = Console()
-
 restart_event = threading.Event()
 shutdown_event = threading.Event()
-
-# Debug message rate limiting
-_debug_message_timestamps = {}
-DEBUG_MESSAGE_INTERVAL = 2.0  # Minimum interval between repeated debug messages
-_debug_enabled = False
 
 # Track Ctrl+C presses for force exit
 _sigint_count = 0
 
-
-class Debug:
-    @staticmethod
-    def print(message: str, rate_limit: bool = False):
-        """Print debug message with optional rate limiting.
-
-        Args:
-            message: The debug message to print
-            rate_limit: If True, rate limit this message to once every DEBUG_MESSAGE_INTERVAL seconds
-        """
-        if not _debug_enabled:
-            return
-
-        if rate_limit:
-            current_time = time.time()
-            message_key = message[:50]  # Use first 50 chars as key to group similar messages
-
-            last_time = _debug_message_timestamps.get(message_key, 0)
-            if current_time - last_time < DEBUG_MESSAGE_INTERVAL:
-                return  # Rate limited
-
-            _debug_message_timestamps[message_key] = current_time
-
-        console.print(f"[dim cyan][DEBUG][/dim cyan] {message}")
-
-
-debug = Debug()
+# Initialize Rich console
 
 
 def _signal_handler(signum, frame):
@@ -159,8 +124,8 @@ def run_port_forward(
         config: KpfConfig instance (optional)
         run_http_health_checks: Enable HTTP connectivity health checks (optional, default: False)
     """
-    global _debug_enabled
-    _debug_enabled = debug_mode
+    global _sigint_count  # Keep existing sigint global but remove _debug_enabled global
+    debug.enabled = debug_mode
 
     if debug_mode:
         debug.print("Debug mode enabled")
@@ -331,19 +296,12 @@ def run_port_forward(
                 f"[yellow]Some threads did not shut down cleanly: {', '.join(threads_alive)}[/yellow]"
             )
 
-            # Try to forcefully kill any remaining kubectl processes using pkill
-            try:
-                import subprocess
-
-                result = subprocess.run(
-                    ["pkill", "-f", "kubectl port-forward"], capture_output=True, timeout=2
-                )
-                if result.returncode == 0:
-                    debug.print("Killed remaining kubectl port-forward processes")
-                else:
-                    debug.print("No kubectl port-forward processes found to kill")
-            except Exception as e:
-                debug.print(f"Could not kill kubectl processes: {e}")
+            # Force terminate subprocesses directly since threads are stuck
+            debug.print("Force terminating subprocesses...")
+            if hasattr(forwarder, "terminate_process"):
+                forwarder.terminate_process()
+            if hasattr(watcher, "terminate_process"):
+                watcher.terminate_process()
 
             console.print("[Main] Exiting.")
             usage_logger.finalize("forced_exit")

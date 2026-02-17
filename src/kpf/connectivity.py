@@ -9,8 +9,6 @@ import urllib3
 from requests.exceptions import SSLError
 from rich.console import Console
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 console = Console()
 
 
@@ -216,12 +214,16 @@ class ConnectivityChecker:
                 self.debug_print(f"Attempting HTTP connectivity test: {url}")
 
                 # Make request with short timeout and disabled SSL verification
-                response = requests.get(
-                    url,
-                    timeout=self.HTTP_TIMEOUT,
-                    verify=False,  # Don't verify SSL for localhost
-                    allow_redirects=False,  # Don't follow redirects for faster response
-                )
+                import warnings
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+                    response = requests.get(
+                        url,
+                        timeout=self.HTTP_TIMEOUT,
+                        verify=False,  # Don't verify SSL for localhost
+                        allow_redirects=False,  # Don't follow redirects for faster response
+                    )
 
                 # Any HTTP response code is considered success
                 self.debug_print(
