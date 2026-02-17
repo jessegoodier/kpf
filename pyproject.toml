@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: System :: Systems Administration",
     "Topic :: Utilities",
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 dependencies = [
     "rich>=14",
     "requests>=2.28",

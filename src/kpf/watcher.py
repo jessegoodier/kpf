@@ -51,7 +51,7 @@ class EndpointWatcher:
         self.debug_print(
             f"Endpoint watcher thread started for {self.namespace}/{self.resource_name}"
         )
-        proc = None
+
         while not self.shutdown_event.is_set():
             try:
                 self.debug_print(
@@ -77,18 +77,18 @@ class EndpointWatcher:
                     rate_limit=True,
                 )
 
-                proc = subprocess.Popen(
+                self.proc = subprocess.Popen(
                     command,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     universal_newlines=True,
                 )
-                self.debug_print(f"Endpoint watcher process started with PID: {proc.pid}")
+                self.debug_print(f"Endpoint watcher process started with PID: {self.proc.pid}")
 
                 # The `for` loop will block and yield lines as they are produced
                 # by the subprocess's stdout.
                 is_first_line = True
-                for line in proc.stdout:
+                for line in self.proc.stdout:
                     if self.shutdown_event.is_set():
                         self.debug_print("Shutdown event detected in endpoint watcher, breaking")
                         break
@@ -119,7 +119,7 @@ class EndpointWatcher:
 
                 # If the subprocess finishes, we should break out and restart the watcher
                 # This handles cases where the kubectl process itself might terminate.
-                proc.wait()
+                self.proc.wait()
 
                 # Add delay before restarting to prevent rapid kubectl process creation
                 if not self.shutdown_event.is_set():
@@ -131,21 +131,27 @@ class EndpointWatcher:
 
             except Exception as e:
                 console.print(f"[red][Watcher] An error occurred: {e}[/red]")
-                if proc:
-                    self._kill_proc(proc)
+                self.terminate_process()
 
                 self.shutdown_event.set()
                 return
 
-        if proc:
-            self.debug_print("Final cleanup: terminating endpoint watcher process")
-            self._kill_proc(proc)
+                if self.proc:
+                    self.debug_print("Final cleanup: terminating endpoint watcher process")
+                    self.terminate_process()
+
+    def terminate_process(self):
+        """Terminate the endpoint watcher process safely."""
+        if hasattr(self, "proc") and self.proc:
+            self.debug_print(f"Terminating endpoint watcher process PID: {self.proc.pid}")
+            self._kill_proc(self.proc)
+            self.proc = None
 
     def _kill_proc(self, proc):
         if not proc:
             return
-        proc.terminate()
         try:
+            proc.terminate()
             proc.wait(timeout=0.5)
         except subprocess.TimeoutExpired:
             proc.kill()
@@ -153,3 +159,5 @@ class EndpointWatcher:
                 proc.wait(timeout=0.5)
             except subprocess.TimeoutExpired:
                 pass
+        except Exception as e:
+            self.debug_print(f"Error killing process: {e}")

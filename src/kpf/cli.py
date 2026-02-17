@@ -9,16 +9,12 @@ import subprocess
 import sys
 from typing import List, Optional
 
-from rich.console import Console
-
 from . import __version__
 from .config import get_config
 from .display import ServiceSelector
 from .kubernetes import KubernetesClient
+from .logger import console
 from .main import run_port_forward
-
-# Initialize Rich console
-console = Console()
 
 
 def str_to_bool(value):
@@ -260,14 +256,6 @@ def handle_prompt_mode(
         return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
     else:
         return selector.select_service_in_namespace(namespace, show_all_ports, check_endpoints)
-
-
-def check_kubectl():
-    """Check if kubectl is available."""
-    try:
-        subprocess.run(["kubectl", "version"], capture_output=True, check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        raise RuntimeError("kubectl is not available or not configured properly")
 
 
 def _debug_display_terminal_capabilities():
