@@ -262,14 +262,6 @@ def handle_prompt_mode(
         return selector.select_service_in_namespace(namespace, show_all_ports, check_endpoints)
 
 
-def check_kubectl():
-    """Check if kubectl is available."""
-    try:
-        subprocess.run(["kubectl", "version"], capture_output=True, check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        raise RuntimeError("kubectl is not available or not configured properly")
-
-
 def _debug_display_terminal_capabilities():
     """Display terminal capabilities and environment information for debugging."""
     console.print("\n[bold cyan]═══ Terminal Environment Debug Information ═══[/bold cyan]")
