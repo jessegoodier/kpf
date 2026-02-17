@@ -152,12 +152,12 @@ class PortForwarder:
                     f"\n[green][Port-Forwarder] Starting: kubectl port-forward {' '.join(args)}[/green]"
                 )
                 self.debug_print(f"Executing: kubectl port-forward {' '.join(args)}")
-                proc = subprocess.Popen(
+                self.proc = subprocess.Popen(
                     ["kubectl", "port-forward"] + args,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                 )
-                self.debug_print(f"Port-forward process started with PID: {proc.pid}")
+                self.debug_print(f"Port-forward process started with PID: {self.proc.pid}")
 
                 # Show connecting spinner while waiting for port-forward to start
                 spinner = Spinner("dots", text="Connecting...")
@@ -325,33 +325,37 @@ class PortForwarder:
 
                     time.sleep(1.0)  # Sleep for 1 second between loop iterations
 
-                if proc and (self.restart_event.is_set() or self.shutdown_event.is_set()):
+                if self.proc and (self.restart_event.is_set() or self.shutdown_event.is_set()):
                     if self.restart_event.is_set():
                         console.print(
                             "[yellow][Port-Forwarder] Endpoint change detected, restarting port-forward process...[/yellow]"
                         )
-                    self.debug_print(f"Terminating port-forward process PID: {proc.pid}")
-                    self._kill_proc(proc)
-                    proc = None
+                    self.terminate_process()
 
                 self.restart_event.clear()  # Reset the event for the next cycle
 
             except Exception as e:
                 console.print(f"[red][Port-Forwarder] An error occurred: {e}[/red]")
-                if proc:
-                    self._kill_proc(proc)
+                self.terminate_process()
                 self.shutdown_event.set()
                 return
 
-        if proc:
+        if self.proc:
             self.debug_print("Final cleanup: terminating port-forward process")
-            self._kill_proc(proc)
+            self.terminate_process()
+
+    def terminate_process(self):
+        """Terminate the port-forward process safely."""
+        if hasattr(self, "proc") and self.proc:
+            self.debug_print(f"Terminating port-forward process PID: {self.proc.pid}")
+            self._kill_proc(self.proc)
+            self.proc = None
 
     def _kill_proc(self, proc):
         if not proc:
             return
-        proc.terminate()
         try:
+            proc.terminate()
             proc.wait(timeout=1)
         except subprocess.TimeoutExpired:
             proc.kill()
@@ -359,3 +363,5 @@ class PortForwarder:
                 proc.wait(timeout=0.5)
             except subprocess.TimeoutExpired:
                 pass
+        except Exception as e:
+            self.debug_print(f"Error killing process: {e}")

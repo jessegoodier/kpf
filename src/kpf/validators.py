@@ -2,20 +2,13 @@ import os
 import socket
 import subprocess
 
-from rich.console import Console
-
-console = Console()
-
-
-class Debug:
-    # Minimal debug shim if we don't want to import the full Debug class from main yet
-    # Ideally we'd move Debug to a utilities module too, but for now we'll pass a debug function or use a simple one
-    pass
+from .logger import console, debug
 
 
 def _debug_print(message, debug_enabled=False):
+    # Shim to maintain compatibility or redirect to new debug
     if debug_enabled:
-        console.print(f"[dim cyan][DEBUG][/dim cyan] {message}")
+        debug.print(message)
 
 
 def extract_kubectl_global_flags(port_forward_args):

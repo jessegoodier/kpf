@@ -126,21 +126,21 @@ class TestDebugMode:
 
     def test_debug_disabled_by_default(self):
         """Test that debug is disabled by default."""
-        from src.kpf.main import _debug_enabled, debug
+        from src.kpf.main import debug
 
         # Initially should be disabled
-        assert _debug_enabled is False
+        assert debug.enabled is False
 
         # Debug prints should not output when disabled
-        with patch("src.kpf.main.console.print") as mock_print:
+        with patch("src.kpf.logger.console.print") as mock_print:
             debug.print("test message")
             mock_print.assert_not_called()
 
     def test_debug_enabled(self):
         """Test debug when enabled."""
         with (
-            patch("src.kpf.main._debug_enabled", True),
-            patch("src.kpf.main.console.print") as mock_print,
+            patch("src.kpf.logger.debug.enabled", True),
+            patch("src.kpf.logger.console.print") as mock_print,
         ):
             from src.kpf.main import debug
 
@@ -1253,7 +1253,7 @@ class TestConnectivityTesting:
         result = checker.check_port_connectivity(None)
         assert result is True
 
-    @patch("src.kpf.main._debug_enabled", True)
+    @patch("src.kpf.logger.debug.enabled", True)
     @patch("time.time")
     def test_debug_rate_limiting(self, mock_time):
         """Test that debug messages can be rate limited."""
@@ -1262,7 +1262,7 @@ class TestConnectivityTesting:
         # Mock time to control rate limiting
         mock_time.side_effect = [1000.0, 1001.0, 1003.0]  # 0s, 1s, 3s timestamps
 
-        with patch("src.kpf.main.console.print") as mock_print:
+        with patch("src.kpf.logger.console.print") as mock_print:
             # First call should print
             debug.print("Test message", rate_limit=True)
             assert mock_print.call_count == 1
@@ -1275,12 +1275,12 @@ class TestConnectivityTesting:
             debug.print("Test message", rate_limit=True)
             assert mock_print.call_count == 2
 
-    @patch("src.kpf.main._debug_enabled", True)
+    @patch("src.kpf.logger.debug.enabled", True)
     def test_debug_no_rate_limiting(self):
         """Test that debug messages without rate limiting always print."""
         from src.kpf.main import debug
 
-        with patch("src.kpf.main.console.print") as mock_print:
+        with patch("src.kpf.logger.console.print") as mock_print:
             # Multiple calls without rate limiting should all print
             debug.print("Test message 1")
             debug.print("Test message 2")
