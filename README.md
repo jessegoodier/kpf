@@ -1,10 +1,12 @@
-# kpf - A better way to port-forward with kubectl
+# kpf - A TUI for port-forwarding with kubectl
 
 This is a Python utility that (attempts to) dramatically improve the experience of port-forwarding with kubectl.
 
-It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic reconnect when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
+It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic reconnects when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
 
-You may also be interested in <https://github.com/jessegoodier/kdebug>, a utility for launching ephemeral debug containers in Kubernetes pods with interactive shell access, backup capabilities, and a colorful TUI for pod selection.
+This should be compatible with the `kpf` alias that you may already have.
+
+If you like this, check out <https://github.com/jessegoodier/kdebug>, a TUI for debug containers in Kubernetes pods with interactive shell access and backup capabilities.
 
 ## Demo
 
@@ -30,7 +32,7 @@ echo "unalias kpf 2>/dev/null" >> ~/.zshrc
 
 ### Homebrew (Recommended)
 
-Other methods do no automatically install command completions.
+Other methods do not automatically install command completions.
 
 ```bash
 brew tap jessegoodier/kpf
@@ -43,15 +45,7 @@ Or install directly:
 brew install jessegoodier/kpf/kpf
 ```
 
-### Using pipx
-
-```bash
-pipx install kpf
-```
-
 ### Using uv
-
-If you have `uv` installed, you can install `kpf` with:
 
 ```bash
 uv tool install kpf
@@ -103,7 +97,7 @@ Show all services across all namespaces:
 kpf --all
 ```
 
-Include pods and deployments with ports defined:
+Include pods and controllers with ports defined:
 
 ```bash
 kpf --all-ports
@@ -248,59 +242,57 @@ This feature prevents confusing "port already in use" errors when the real issue
 
 kpf can be configured via `~/.config/kpf/kpf.json` (follows [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)).
 
-All settings are optional with sensible defaults:
+If you create this file, it is suggested to only change the values you want to override in case improvements are made in the future.
 
 ```json
 {
-    "autoSelectFreePort": true,
-    "showDirectCommand": true,
-    "showDirectCommandIncludeContext": true,
-    "directCommandMultiLine": true,
-    "autoReconnect": true,
-    "reconnectAttempts": 30,
-    "reconnectDelaySeconds": 5,
-    "captureUsageDetails": false,
-    "usageDetailFolder": "${HOME}/.config/kpf/usage-details",
-    "networkWatchdogEnabled": true,
-    "networkWatchdogInterval": 5,
-    "networkWatchdogFailureThreshold": 2
+  "autoSelectFreePort": true,
+  "showDirectCommand": true,
+  "showDirectCommandIncludeContext": true,
+  "directCommandMultiLine": true,
+  "autoReconnect": true,
+  "reconnectAttempts": 30,
+  "reconnectDelaySeconds": 5,
+  "captureUsageDetails": false,
+  "usageDetailFolder": "${HOME}/.config/kpf/usage-details",
+  "restartThrottleSeconds": 5,
+  "networkWatchdogEnabled": true,
+  "networkWatchdogInterval": 5,
+  "networkWatchdogFailureThreshold": 2
 }
+```
+
+Example: Disable auto-reconnect
+
+```sh
+mkdir -p ~/.config/kpf
+echo '{"autoReconnect": false}' > ~/.config/kpf/kpf.json
 ```
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `autoSelectFreePort` | boolean | `true` | When requested port is busy, automatically try next ports (9091, 9092, etc.) |
-| `showDirectCommand` | boolean | `true` | Show the direct `kpf` command for future use |
-| `showDirectCommandIncludeContext` | boolean | `true` | Include kubectl context in the command display |
-| `directCommandMultiLine` | boolean | `true` | Format direct command across multiple lines for readability |
-| `autoReconnect` | boolean | `true` | Automatically reconnect when connection drops |
-| `reconnectAttempts` | integer | `30` | Number of reconnection attempts before giving up |
-| `reconnectDelaySeconds` | integer | `5` | Delay in seconds between reconnection attempts |
-| `captureUsageDetails` | boolean | `false` | Capture usage details locally for debugging (not sent anywhere) |
-| `usageDetailFolder` | string | `${HOME}/.config/kpf/usage-details` | Where to store usage detail logs |
-| `networkWatchdogEnabled` | boolean | `true` | Monitor K8s API connectivity to detect zombie connections |
-| `networkWatchdogInterval` | integer | `5` | Seconds between connectivity checks |
-| `networkWatchdogFailureThreshold` | integer | `2` | Consecutive failures before triggering restart |
+| Option                            | Type    | Default                             | Description                                                                  |
+| --------------------------------- | ------- | ----------------------------------- | ---------------------------------------------------------------------------- |
+| `autoSelectFreePort`              | boolean | `true`                              | When requested port is busy, automatically try next ports (9091, 9092, etc.) |
+| `showDirectCommand`               | boolean | `true`                              | Show the direct `kpf` command for future use                                 |
+| `showDirectCommandIncludeContext` | boolean | `true`                              | Include kubectl context in the command display                               |
+| `directCommandMultiLine`          | boolean | `true`                              | Format direct command across multiple lines for readability                  |
+| `autoReconnect`                   | boolean | `true`                              | Automatically reconnect when connection drops                                |
+| `reconnectAttempts`               | integer | `30`                                | Number of reconnection attempts before giving up                             |
+| `reconnectDelaySeconds`           | integer | `5`                                 | Delay in seconds between reconnection attempts                               |
+| `captureUsageDetails`             | boolean | `false`                             | Capture usage details locally for debugging (not sent anywhere)              |
+| `usageDetailFolder`               | string  | `${HOME}/.config/kpf/usage-details` | Where to store usage detail logs                                             |
+| `networkWatchdogEnabled`          | boolean | `true`                              | Monitor K8s API connectivity to detect zombie connections                    |
+| `networkWatchdogInterval`         | integer | `5`                                 | Seconds between connectivity checks                                          |
+| `networkWatchdogFailureThreshold` | integer | `2`                                 | Consecutive failures before triggering restart                               |
 
 **Notes:**
+
 - All settings are optional - kpf will use defaults if the config file doesn't exist
 - Environment variables like `${HOME}` are expanded automatically
 - The config file location respects the `XDG_CONFIG_HOME` environment variable
 - Invalid JSON or unknown keys will show warnings but won't prevent kpf from running
 - CLI arguments override config file values when provided
-
-### Example: Minimal Configuration
-
-If you only want to change specific settings:
-
-```json
-{
-    "showDirectCommand": false,
-    "reconnectAttempts": 10
-}
-```
 
 ## Development
 
@@ -310,25 +302,23 @@ If you only want to change specific settings:
 # Clone the repository
 git clone https://github.com/jessegoodier/kpf.git
 cd kpf
+```
 
+```bash
 # Install with development dependencies
-uv venv
-uv pip install -e ".[dev]"
-source .venv/bin/activate
+just install-dev
 ```
 
 ### Code Quality Tools
 
 ```bash
 # Format and lint code
-uvx ruff check . --fix
-uvx ruff format .
+just format
+```
 
-# Sort imports
-uvx isort .
-
+```bash
 # Run tests
-uv run pytest
+just test
 ```
 
 ## Contributing
@@ -345,7 +335,7 @@ Shell completions can be generated using the `--completions` flag.
 
 ### Homebrew
 
-If you installed via Homebrew (and the formula is updated), completions should be installed automatically. You may need to follow Homebrew's [shell completion instructions](https://docs.brew.sh/Shell-Completion) to ensure it's loaded.
+If you install via Homebrew, completions should be installed automatically. You may need to follow Homebrew's [shell completion instructions](https://docs.brew.sh/Shell-Completion) to ensure it's loaded. You may find the bash and zsh examples [here](https://github.com/jessegoodier/toolbox/tree/main/homebrew) useful.
 
 ### Manual Installation
 
