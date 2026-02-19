@@ -12,15 +12,15 @@
 
 - **Install dependencies**: `just venv` (uses `uv sync`)
 - **Activate environment**: `source .venv/bin/activate`
-- **Install dev dependencies**: `make install-dev`
+- **Install dev dependencies**: `just install-dev`
 
 ## Common Commands
 
-- **Run Tests**: `make test` or `uv run pytest`
-- **Format Code**: `make format` (runs `ruff` and `isort`)
-- **Lint Code**: `make lint` (runs `ruff check` and `isort --check-only`)
-- **Clean Build**: `make clean`
-- **Check All**: `make check-clean` (verifies formatting and linting)
+- **Run Tests**: `just test` or `uv run pytest`
+- **Format Code**: `just format` (runs `ruff` and `isort`)
+- **Lint Code**: `just lint` (runs `ruff check` and `isort --check-only`)
+- **Clean Build**: `just clean`
+- **Check All**: `just check-clean` (verifies formatting and linting)
 
 ## Code Style & Conventions
 
@@ -34,7 +34,7 @@
 
 - **Framework**: `pytest`
 - **Coverage**: `pytest-cov` is configured.
-- Run `make test` to execute the full suite.
+- Run `just test` to execute the full suite.
 - Write new tests in `tests/` with the prefix `test_`.
 - Ensure all tests pass before submitting changes.
 
