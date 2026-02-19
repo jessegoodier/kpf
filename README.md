@@ -296,6 +296,11 @@ echo '{"autoReconnect": false}' > ~/.config/kpf/kpf.json
 
 ## Development
 
+### Prerequisites
+
+- [uv](https://github.com/astral-sh/uv)
+- [just](https://github.com/casey/just)
+
 ### Setup Development Environment
 
 ```bash
@@ -305,8 +310,8 @@ cd kpf
 ```
 
 ```bash
-# Install with development dependencies
-just install-dev
+# Install with development dependencies and create venv
+just dev-setup
 ```
 
 ### Code Quality Tools
