@@ -29,13 +29,16 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
+      - name: Install just
+        uses: extractions/setup-just@v3
+
       - name: Configure Git User
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Bump Version
-        run: make bump-${{ inputs.release_type }}
+        run: just bump-${{ inputs.release_type }}
 
       - name: Push Changes
         run: |
@@ -44,7 +47,7 @@ jobs:
 
       - name: Get Version
         id: version
-        run: echo "version=$(make version)" >> $GITHUB_OUTPUT
+        run: echo "version=$(just version)" >> $GITHUB_OUTPUT
 
       - name: Create Release
         env:

@@ -20,8 +20,11 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Install just
+        uses: extractions/setup-just@v3
+
       - name: Set up Python
         run: uv python install
 
       - name: Run Audit
-        run: make audit
+        run: just audit

@@ -70,6 +70,17 @@ def check_outdated():
         return []
 
 
+def run_sync():
+    console.print("\n[bold blue]Running uv sync...[/bold blue]")
+    result = run_command(["uv", "sync"])
+    if result is None:
+        console.print("[bold red]Error: uv not found.[/bold red]")
+        return
+    if result.returncode != 0:
+        console.print(f"[bold red]Error running uv sync:[/bold red] {result.stderr}")
+        return
+
+
 def main():
     console.print(Panel.fit("KPF Dependency & Security Audit", style="bold magenta"))
 
@@ -95,7 +106,7 @@ def main():
                     name, version, vuln.get("id"), ", ".join(vuln.get("fix_versions", ["N/A"]))
                 )
         console.print(table)
-
+    run_sync()
     outdated = check_outdated()
     if not outdated:
         console.print("[bold green]✅ All dependencies are up to date.[/bold green]")
