@@ -7,5 +7,9 @@
     "reconnectAttempts": 30,
     "reconnectDelaySeconds": 5,
     "captureUsageDetails": false,
-    "usageDetailFolder": "${HOME}/.config/kpf/usage-details"
+    "usageDetailFolder": "${HOME}/.config/kpf/usage-details",
+    "restartThrottleSeconds": 5,
+    "networkWatchdogEnabled": true,
+    "networkWatchdogInterval": 5,
+    "networkWatchdogFailureThreshold": 2
 }
