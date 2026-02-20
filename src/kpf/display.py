@@ -26,6 +26,35 @@ class ServiceSelector:
         # Disable by setting env var KPF_TTY_COMPAT=0
         self.compat_mode = os.environ.get("KPF_TTY_COMPAT") != "0"
 
+    def _pointer_char(self) -> str:
+        """Return a selection marker that works in both compatibility modes."""
+        return ">" if self.compat_mode else "➤"
+
+    def _resource_type_label(self, resource_type: str) -> str:
+        """Return a compact resource type label for table rendering."""
+        normalized_type = resource_type.lower()
+
+        if self.compat_mode:
+            type_icon = {
+                "service": "svc",
+                "pod": "pod",
+                "deployment": "dep",
+                "daemonset": "ds",
+                "statefulset": "sts",
+                "replicaset": "rs",
+            }
+            return type_icon.get(normalized_type, normalized_type)
+
+        type_badges = {
+            "service": "◉ svc",
+            "pod": "⬢ pod",
+            "deployment": "◈ dep",
+            "daemonset": "◌ ds",
+            "statefulset": "◍ sts",
+            "replicaset": "◎ rs",
+        }
+        return type_badges.get(normalized_type, normalized_type)
+
     def _check_kubectl(self):
         """Check if kubectl is available."""
         try:
@@ -156,11 +185,13 @@ class ServiceSelector:
         table = Table(
             title=f"{title_text}",
             title_justify="left",
-            title_style="bold bright_white not italic",
-            box=box.SIMPLE,
+            title_style="bold bright_cyan not italic",
+            box=box.ROUNDED,
             show_lines=False,
             expand=False,
             padding=(0, 1),
+            header_style="bold bright_white",
+            row_styles=["none", "dim"],
         )
 
         # Index column with room for a pointer
@@ -205,15 +236,6 @@ class ServiceSelector:
                 no_wrap=True,
             )
 
-        type_icon = {
-            "service": "svc",
-            "pod": "pod",
-            "deployment": "dep",
-            "daemonset": "ds",
-            "statefulset": "sts",
-            "replicaset": "rs",
-        }
-
         for i, resource in enumerate(resources, 1 + row_index_offset):
             index_cell = f"{i}"
             row = [index_cell, resource.name, resource.port_summary]
@@ -222,8 +244,7 @@ class ServiceSelector:
                 row.insert(1, resource.namespace)
 
             if include_all_ports:
-                type_value_raw = resource.service_type.lower()
-                type_value = type_icon.get(type_value_raw, type_value_raw)
+                type_value = self._resource_type_label(resource.service_type)
                 if show_namespace:
                     row.insert(2, type_value)
                 else:
@@ -237,12 +258,11 @@ class ServiceSelector:
             # Highlight selected row with a visible pointer and background color
             is_selected = selected_index is not None and i == selected_index
             if is_selected:
-                pointer_char = ">" if self.compat_mode else "➤"
-                row[0] = f"{pointer_char} {index_cell}"
+                row[0] = f"{self._pointer_char()} {index_cell}"
             else:
                 row[0] = f"  {index_cell}"
 
-            selected_style = "reverse" if is_selected else None
+            selected_style = "bold black on bright_cyan" if is_selected else None
             table.add_row(*row, style=selected_style)
 
         return table
@@ -421,11 +441,13 @@ class ServiceSelector:
         port_table = Table(
             title=f"Available ports for {resource.name}",
             title_justify="left",
-            title_style="bold bright_white not italic",
-            box=box.SIMPLE,
+            title_style="bold bright_cyan not italic",
+            box=box.ROUNDED,
             show_lines=False,
             expand=False,
             padding=(0, 1),
+            header_style="bold bright_white",
+            row_styles=["none", "dim"],
         )
         port_table.add_column(
             "#",
@@ -445,12 +467,11 @@ class ServiceSelector:
             is_selected = selected_index is not None and i == selected_index
 
             if is_selected:
-                pointer_char = ">" if self.compat_mode else "➤"
-                index_display = f"{pointer_char} {index_cell}"
+                index_display = f"{self._pointer_char()} {index_cell}"
             else:
                 index_display = f"  {index_cell}"
 
-            selected_style = "reverse" if is_selected else None
+            selected_style = "bold black on bright_cyan" if is_selected else None
 
             port_table.add_row(
                 index_display,
@@ -632,11 +653,13 @@ class ServiceSelector:
         table = Table(
             title="Select a namespace",
             title_justify="left",
-            title_style="bold bright_white not italic",
-            box=box.SIMPLE,
+            title_style="bold bright_cyan not italic",
+            box=box.ROUNDED,
             show_lines=False,
             expand=False,
             padding=(0, 1),
+            header_style="bold bright_white",
+            row_styles=["none", "dim"],
         )
 
         table.add_column(
@@ -657,12 +680,11 @@ class ServiceSelector:
             is_selected = selected_index is not None and i == selected_index
 
             if is_selected:
-                pointer_char = ">" if self.compat_mode else "➤"
-                row_start = f"{pointer_char} {index_cell}"
+                row_start = f"{self._pointer_char()} {index_cell}"
             else:
                 row_start = f"  {index_cell}"
 
-            selected_style = "reverse" if is_selected else None
+            selected_style = "bold black on bright_cyan" if is_selected else None
             table.add_row(row_start, namespace, style=selected_style)
 
         return table
