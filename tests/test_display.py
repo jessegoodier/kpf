@@ -13,6 +13,23 @@ from src.kpf.kubernetes import ServiceInfo
 class TestServiceSelector:
     """Test ServiceSelector class."""
 
+    @pytest.mark.parametrize(
+        ("typed_number", "digit", "max_index", "current_index", "expected"),
+        [
+            ("", "3", 9, 1, ("3", 3, True)),
+            ("1", "2", 9, 1, ("2", 2, True)),
+            ("1", "2", 12, 1, ("12", 12, True)),
+            ("12", "3", 50, 12, ("23", 23, True)),
+            ("", "0", 9, 4, ("", 4, False)),
+        ],
+    )
+    def test_apply_typed_digit(self, typed_number, digit, max_index, current_index, expected):
+        """Test numeric typing buffer behavior for interactive selectors."""
+        assert (
+            ServiceSelector._apply_typed_digit(typed_number, digit, max_index, current_index)
+            == expected
+        )
+
     @pytest.fixture
     def mock_k8s_client(self):
         """Mock KubernetesClient for ServiceSelector."""
