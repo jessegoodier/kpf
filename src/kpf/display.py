@@ -46,12 +46,12 @@ class ServiceSelector:
             return type_icon.get(normalized_type, normalized_type)
 
         type_badges = {
-            "service": "◉ svc",
-            "pod": "⬢ pod",
-            "deployment": "◈ dep",
-            "daemonset": "◌ ds",
-            "statefulset": "◍ sts",
-            "replicaset": "◎ rs",
+            "service": "• svc",
+            "pod": "• pod",
+            "deployment": "• dep",
+            "daemonset": "• ds",
+            "statefulset": "• sts",
+            "replicaset": "• rs",
         }
         return type_badges.get(normalized_type, normalized_type)
 
@@ -185,45 +185,45 @@ class ServiceSelector:
         table = Table(
             title=f"{title_text}",
             title_justify="left",
-            title_style="bold bright_cyan not italic",
+            title_style="bold cyan not italic",
             box=box.ROUNDED,
             show_lines=False,
             expand=False,
             padding=(0, 1),
-            header_style="bold bright_white",
+            header_style="bold white",
             row_styles=["none", "dim"],
         )
 
         # Index column with room for a pointer
         table.add_column(
             "#",
-            header_style="bold bright_white",
-            style="bright_white",
+            header_style="bold white",
+            style="white",
             width=4,
             justify="right",
         )
         if show_namespace:
             table.add_column(
                 "Namespace",
-                header_style="bold bright_white",
+                header_style="bold white",
                 style="magenta",
                 no_wrap=True,
             )
         if include_all_ports:
             table.add_column(
                 "Type",
-                header_style="bold bright_white",
+                header_style="bold white",
                 style="blue",
                 no_wrap=True,
             )
         table.add_column(
             "Name",
-            header_style="bold bright_white",
+            header_style="bold white",
             style="bold white",
         )
         table.add_column(
             "Ports",
-            header_style="bold bright_white",
+            header_style="bold white",
             style="green",
             no_wrap=True,
         )
@@ -231,7 +231,7 @@ class ServiceSelector:
         if check_endpoints:
             table.add_column(
                 "Status",
-                header_style="bold bright_white",
+                header_style="bold white",
                 justify="center",
                 no_wrap=True,
             )
@@ -262,7 +262,7 @@ class ServiceSelector:
             else:
                 row[0] = f"  {index_cell}"
 
-            selected_style = "bold black on bright_cyan" if is_selected else None
+            selected_style = "bold white on blue" if is_selected else None
             table.add_row(*row, style=selected_style)
 
         return table
@@ -441,25 +441,25 @@ class ServiceSelector:
         port_table = Table(
             title=f"Available ports for {resource.name}",
             title_justify="left",
-            title_style="bold bright_cyan not italic",
+            title_style="bold cyan not italic",
             box=box.ROUNDED,
             show_lines=False,
             expand=False,
             padding=(0, 1),
-            header_style="bold bright_white",
+            header_style="bold white",
             row_styles=["none", "dim"],
         )
         port_table.add_column(
             "#",
-            header_style="bold bright_white",
-            style="bright_white",
+            header_style="bold white",
+            style="white",
             width=4,
             justify="right",
         )
-        port_table.add_column("Port", header_style="bold bright_white", style="bold")
+        port_table.add_column("Port", header_style="bold white", style="bold")
 
-        port_table.add_column("Name", header_style="bold bright_white", style="green")
-        port_table.add_column("Protocol", header_style="bold bright_white", style="blue")
+        port_table.add_column("Name", header_style="bold white", style="green")
+        port_table.add_column("Protocol", header_style="bold white", style="blue")
         # Sort ports by port number for consistent ordering
         sorted_ports = sorted(resource.ports, key=lambda p: p["port"])
         for i, port in enumerate(sorted_ports, 1):
@@ -471,7 +471,7 @@ class ServiceSelector:
             else:
                 index_display = f"  {index_cell}"
 
-            selected_style = "bold black on bright_cyan" if is_selected else None
+            selected_style = "bold white on blue" if is_selected else None
 
             port_table.add_row(
                 index_display,
@@ -653,25 +653,25 @@ class ServiceSelector:
         table = Table(
             title="Select a namespace",
             title_justify="left",
-            title_style="bold bright_cyan not italic",
+            title_style="bold cyan not italic",
             box=box.ROUNDED,
             show_lines=False,
             expand=False,
             padding=(0, 1),
-            header_style="bold bright_white",
+            header_style="bold white",
             row_styles=["none", "dim"],
         )
 
         table.add_column(
             "#",
-            header_style="bold bright_white",
-            style="bright_white",
+            header_style="bold white",
+            style="white",
             width=4,
             justify="right",
         )
         table.add_column(
             "Namespace",
-            header_style="bold bright_white",
+            header_style="bold white",
             style="bold magenta",
         )
 
@@ -684,7 +684,7 @@ class ServiceSelector:
             else:
                 row_start = f"  {index_cell}"
 
-            selected_style = "bold black on bright_cyan" if is_selected else None
+            selected_style = "bold white on blue" if is_selected else None
             table.add_row(row_start, namespace, style=selected_style)
 
         return table
