@@ -55,6 +55,28 @@ class ServiceSelector:
         }
         return type_badges.get(normalized_type, normalized_type)
 
+    @staticmethod
+    def _selected_row_style() -> str:
+        """Shared selected-row style for all interactive tables."""
+        return "bold black on bright_cyan"
+
+    @staticmethod
+    def _apply_typed_digit(
+        typed_number: str, digit: str, max_index: int, current_index: int
+    ) -> tuple[str, int, bool]:
+        """Apply one digit to the interactive numeric selector buffer."""
+        candidate = f"{typed_number}{digit}"
+
+        # Prefer the longest valid suffix so stale digits don't trap selection
+        # (e.g. "1" then "2" with max=9 resolves to "2", not invalid "12").
+        for start in range(len(candidate)):
+            suffix = candidate[start:]
+            preview = int(suffix)
+            if 1 <= preview <= max_index:
+                return suffix, preview, True
+
+        return "", current_index, False
+
     def _check_kubectl(self):
         """Check if kubectl is available."""
         try:
@@ -185,13 +207,13 @@ class ServiceSelector:
         table = Table(
             title=f"{title_text}",
             title_justify="left",
-            title_style="bold cyan not italic",
+            title_style="bold bright_cyan not italic",
             box=box.ROUNDED,
+            border_style="cyan",
             show_lines=False,
             expand=False,
             padding=(0, 1),
-            header_style="bold white",
-            row_styles=["none", "dim"],
+            header_style="bold bright_white",
         )
 
         # Index column with room for a pointer
@@ -262,7 +284,7 @@ class ServiceSelector:
             else:
                 row[0] = f"  {index_cell}"
 
-            selected_style = "bold white on blue" if is_selected else None
+            selected_style = self._selected_row_style() if is_selected else None
             table.add_row(*row, style=selected_style)
 
         return table
@@ -367,21 +389,25 @@ class ServiceSelector:
                                 current_index = min(max_index, current_index + 1)
                                 typed_number = ""
                                 live.update(build_view(), refresh=True)
+                            elif ch in (key.BACKSPACE, "\x7f", "\b"):
+                                typed_number = typed_number[:-1]
+                                if typed_number:
+                                    preview = int(typed_number)
+                                    if 1 <= preview <= max_index:
+                                        current_index = preview
+                                live.update(build_view(), refresh=True)
                             elif ch in (key.ENTER, "\r", "\n"):
-                                selection = int(typed_number) if typed_number else current_index
+                                selection = current_index
                                 break
                             elif ch in (key.ESC, "q"):
                                 selection = None
                                 break
                             elif ch.isdigit():
-                                typed_number += ch
-                                try:
-                                    preview = int(typed_number)
-                                    if 1 <= preview <= max_index:
-                                        current_index = preview
-                                        live.update(build_view(), refresh=True)
-                                except ValueError:
-                                    pass
+                                typed_number, current_index, updated = self._apply_typed_digit(
+                                    typed_number, ch, max_index, current_index
+                                )
+                                if updated:
+                                    live.update(build_view(), refresh=True)
                             else:
                                 # ignore other keys
                                 pass
@@ -441,13 +467,13 @@ class ServiceSelector:
         port_table = Table(
             title=f"Available ports for {resource.name}",
             title_justify="left",
-            title_style="bold cyan not italic",
+            title_style="bold bright_cyan not italic",
             box=box.ROUNDED,
+            border_style="cyan",
             show_lines=False,
             expand=False,
             padding=(0, 1),
-            header_style="bold white",
-            row_styles=["none", "dim"],
+            header_style="bold bright_white",
         )
         port_table.add_column(
             "#",
@@ -471,7 +497,7 @@ class ServiceSelector:
             else:
                 index_display = f"  {index_cell}"
 
-            selected_style = "bold white on blue" if is_selected else None
+            selected_style = self._selected_row_style() if is_selected else None
 
             port_table.add_row(
                 index_display,
@@ -523,21 +549,25 @@ class ServiceSelector:
                                 current_index = min(max_index, current_index + 1)
                                 typed_number = ""
                                 live.update(build_view(), refresh=True)
+                            elif ch in (key.BACKSPACE, "\x7f", "\b"):
+                                typed_number = typed_number[:-1]
+                                if typed_number:
+                                    preview = int(typed_number)
+                                    if 1 <= preview <= max_index:
+                                        current_index = preview
+                                live.update(build_view(), refresh=True)
                             elif ch in (key.ENTER, "\r", "\n"):
-                                selection = int(typed_number) if typed_number else current_index
+                                selection = current_index
                                 break
                             elif ch in (key.ESC, "q"):
                                 selection = None
                                 break
                             elif ch.isdigit():
-                                typed_number += ch
-                                try:
-                                    preview = int(typed_number)
-                                    if 1 <= preview <= max_index:
-                                        current_index = preview
-                                        live.update(build_view(), refresh=True)
-                                except ValueError:
-                                    pass
+                                typed_number, current_index, updated = self._apply_typed_digit(
+                                    typed_number, ch, max_index, current_index
+                                )
+                                if updated:
+                                    live.update(build_view(), refresh=True)
                             else:
                                 # ignore other keys
                                 pass
@@ -653,13 +683,13 @@ class ServiceSelector:
         table = Table(
             title="Select a namespace",
             title_justify="left",
-            title_style="bold cyan not italic",
+            title_style="bold bright_cyan not italic",
             box=box.ROUNDED,
+            border_style="cyan",
             show_lines=False,
             expand=False,
             padding=(0, 1),
-            header_style="bold white",
-            row_styles=["none", "dim"],
+            header_style="bold bright_white",
         )
 
         table.add_column(
@@ -684,7 +714,7 @@ class ServiceSelector:
             else:
                 row_start = f"  {index_cell}"
 
-            selected_style = "bold white on blue" if is_selected else None
+            selected_style = self._selected_row_style() if is_selected else None
             table.add_row(row_start, namespace, style=selected_style)
 
         return table
@@ -753,21 +783,25 @@ class ServiceSelector:
                                 current_index = min(max_index, current_index + 1)
                                 typed_number = ""
                                 live.update(build_view(), refresh=True)
+                            elif ch in (key.BACKSPACE, "\x7f", "\b"):
+                                typed_number = typed_number[:-1]
+                                if typed_number:
+                                    preview = int(typed_number)
+                                    if 1 <= preview <= max_index:
+                                        current_index = preview
+                                live.update(build_view(), refresh=True)
                             elif ch in (key.ENTER, "\r", "\n"):
-                                selection = int(typed_number) if typed_number else current_index
+                                selection = current_index
                                 break
                             elif ch in (key.ESC, "q"):
                                 selection = None
                                 break
                             elif ch.isdigit():
-                                typed_number += ch
-                                try:
-                                    preview = int(typed_number)
-                                    if 1 <= preview <= max_index:
-                                        current_index = preview
-                                        live.update(build_view(), refresh=True)
-                                except ValueError:
-                                    pass
+                                typed_number, current_index, updated = self._apply_typed_digit(
+                                    typed_number, ch, max_index, current_index
+                                )
+                                if updated:
+                                    live.update(build_view(), refresh=True)
                             else:
                                 # ignore other keys
                                 pass
