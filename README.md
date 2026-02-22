@@ -15,12 +15,9 @@ Demo of the TUI and the reconnect when a pod is restarted:
 
 ## Features
 
-- 🔄 **Automatic Restart**: Monitors endpoint changes and restarts port-forward automatically
-- 🛡️ **Network Watchdog**: Detects zombie connections after laptop sleep/wake and auto-recovers
-- 🎯 **Interactive Selection**: Choose services with a colorful, intuitive interface
-- 🌈 **Color-coded Status**: Green for services with endpoints, red for those without
-- 🔍 **Multi-resource Support**: Services, pods, deployments, etc.
-- 🔐 **Smart Port Handling**: Automatically detects privileged port issues (< 1024) and suggests alternatives
+- **Automatic Connection Restarting**: Monitors endpoint changes and restarts port-forward automatically
+- **Multi-resource Support**: Services, pods, deployments, etc.
+- **Smart Port Handling**: Automatically detects privileged port issues (< 1024) and suggests alternatives
 
 ## Installation
 
