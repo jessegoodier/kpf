@@ -65,7 +65,7 @@ uv tool install .
 
 **Note**: You might think that "warm tip" is something that AI wrote, but that's not the case. It really is just a little bit cooler than a hot tip.
 
-Visual explanation of the features:
+Visual explanation of the features. TUI selection not shown, just the output after selection.
 ![screenshot1](docs/kpf-tui.png)
 
 Check which endpoints are up on entire cluster (can be slow):

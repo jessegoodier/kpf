@@ -4,8 +4,8 @@
 Output docs/kpf-demo_tui.gif
 
 Set Shell zsh
-Set Width 1900
-Set Height 1300
+Set Width 1200
+Set Height 1200
 Set WindowBar Colorful
 # Set MarginFill "#0a1667"
 # Set Margin 20
@@ -27,7 +27,7 @@ Enter
 Show
 
 # ─── Scene: Interactive TUI Pod Selection ───
-Type "kpf"
+Type "uv run kpf -n monitoring"
 Enter
 Sleep 1s
 Down
@@ -53,7 +53,7 @@ Type "clear"
 Enter
 Sleep 1s
 
-Type "kpf --all --check --debug"
+Type "uv run kpf --all --check --debug"
 Enter
 Sleep 3s
 Screenshot docs/kpf-demo_check-all.png
