@@ -242,12 +242,17 @@ class ServiceSelector:
             "Name",
             header_style="bold white",
             style="bold white",
+            no_wrap=False,
+            overflow="fold",
+            max_width=95,
         )
         table.add_column(
             "Ports",
             header_style="bold white",
             style="green",
-            no_wrap=True,
+            no_wrap=False,
+            overflow="fold",
+            max_width=95,
         )
 
         if check_endpoints:

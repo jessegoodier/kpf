@@ -108,45 +108,47 @@ class PortForwarder:
                 # Track restarts (skip first run)
                 if not first_run and self.usage_logger:
                     self.usage_logger.increment_restarts()
-                first_run = False
-                # Show direct command if configured (default: True)
-                show_direct_command = True
-                if self.config:
-                    show_direct_command = self.config.get("showDirectCommand", True)
 
-                if show_direct_command:
-                    context = None
-                    if self.config and self.config.get("showDirectCommandIncludeContext", True):
-                        from .kubernetes import KubernetesClient
+                if first_run:
+                    first_run = False
+                    # Show direct command if configured (default: True)
+                    show_direct_command = True
+                    if self.config:
+                        show_direct_command = self.config.get("showDirectCommand", True)
 
-                        k8s = KubernetesClient()
-                        context = k8s.get_current_context()
+                    if show_direct_command:
+                        context = None
+                        if self.config and self.config.get("showDirectCommandIncludeContext", True):
+                            from .kubernetes import KubernetesClient
 
-                    # Format as multiline if configured
-                    if self.config and self.config.get("directCommandMultiLine", True):
-                        formatted_cmd = "  kpf"
-                        for i, part in enumerate(args):
-                            if i == 0:
-                                formatted_cmd += f" {part}"
-                            elif part.startswith("-"):
-                                formatted_cmd += f" \\\n      {part}"
-                            else:
-                                formatted_cmd += f" {part}"
+                            k8s = KubernetesClient()
+                            context = k8s.get_current_context()
 
-                        if context:
-                            formatted_cmd += f" \\\n      --context {context}"
+                        # Format as multiline if configured
+                        if self.config and self.config.get("directCommandMultiLine", True):
+                            formatted_cmd = "kpf"
+                            for i, part in enumerate(args):
+                                if i == 0:
+                                    formatted_cmd += f" {part}"
+                                elif part.startswith("-"):
+                                    formatted_cmd += f" \\\n  {part}"
+                                else:
+                                    formatted_cmd += f" {part}"
 
-                        console.print(f"\nDirect command:\n[cyan]{formatted_cmd}[/cyan]\n")
-                    else:
-                        cmd_parts = ["kpf"] + args
-                        if context:
-                            cmd_parts.extend(["--context", context])
-                        console.print(f"\nDirect command: [cyan]{' '.join(cmd_parts)}[/cyan]\n")
+                            if context:
+                                formatted_cmd += f" \\\n  --context {context}"
 
-                if local_port:
-                    console.print(
-                        f"[light_blue][link=http://localhost:{local_port}]http://localhost:{local_port}[/link][/light_blue]"
-                    )
+                            console.print(f"\nDirect command:\n[cyan]{formatted_cmd}[/cyan]\n")
+                        else:
+                            cmd_parts = ["kpf"] + args
+                            if context:
+                                cmd_parts.extend(["--context", context])
+                            console.print(f"\nDirect command: [cyan]{' '.join(cmd_parts)}[/cyan]\n")
+
+                    if local_port:
+                        console.print(
+                            f"[light_blue][link=http://localhost:{local_port}]http://localhost:{local_port}[/link][/light_blue]"
+                        )
 
                 self.debug_print(
                     f"\n[green][Port-Forwarder] Starting: kubectl port-forward {' '.join(args)}[/green]"
