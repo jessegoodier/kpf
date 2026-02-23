@@ -33,7 +33,8 @@ def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         prog="kpf",
-        description="A better Kubectl Port-Forward that automatically restarts port-forwards when endpoints change",
+        description="""TUI for kubectl port-forward
+https://github.com/jessegoodier/kpf""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 
@@ -45,7 +46,7 @@ Example usage:
   kpf --all-ports (or -l)                       # Show all services with their ports
   kpf --check -n production                     # Interactive selection with endpoint status
   kpf --prompt-namespace (or -p)                # Interactive namespace selection
-  kpf -z                                        # Listen on 0.0.0.0 (all interfaces)
+  kpf --listen-all (or -z)                      # Listen on 0.0.0.0 (all interfaces)
         """,
     )
 
@@ -114,8 +115,8 @@ Example usage:
     )
 
     parser.add_argument(
-        "-z",
         "--listen-all",
+        "-z",
         dest="address_zero",
         action="store_true",
         help="Listen on all interfaces (0.0.0.0) instead of localhost",
