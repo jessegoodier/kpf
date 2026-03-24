@@ -1,4 +1,4 @@
-# kpf - A TUI for port-forwarding with kubectl
+# kpf - A TUI for port-forwarding with kubectl <!-- omit from toc -->
 
 This is a Python utility that (attempts to) dramatically improve the experience of port-forwarding with kubectl.
 
@@ -8,7 +8,27 @@ This should be compatible with the `kpf` alias that you may already have.
 
 If you like this, check out <https://github.com/jessegoodier/kdebug>, a TUI for debug containers in Kubernetes pods with interactive shell access and backup capabilities.
 
-## Demo
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Interactive Mode (Recommended)](#interactive-mode-recommended)
+  - [Health Check Mode](#health-check-mode)
+  - [Legacy Mode](#legacy-mode)
+  - [Command Options](#command-options)
+- [Examples](#examples)
+  - [Interactive Service Selection](#interactive-service-selection)
+  - [Cross-Namespace Discovery](#cross-namespace-discovery)
+  - [Smart Low Port Handling](#smart-low-port-handling)
+- [How It Works](#how-it-works)
+- [Configuration](#configuration)
+  - [Configuration Options](#configuration-options)
+- [Development](#development)
+- [Contributing](#contributing)
+- [Shell Completion](#shell-completion)
+- [License](#license)
+
+
+## Demo <!-- omit from toc -->
 
 Demo of the TUI and the reconnect when a pod is restarted:
 ![kpf demo](docs/kpf-demo_tui.gif)
@@ -27,7 +47,7 @@ Demo of the TUI and the reconnect when a pod is restarted:
 echo "unalias kpf 2>/dev/null" >> ~/.zshrc
 ```
 
-### Homebrew (Recommended)
+### Homebrew (Recommended) <!-- omit from toc -->
 
 Other methods do not automatically install command completions.
 
@@ -42,7 +62,7 @@ Or install directly:
 brew install jessegoodier/kpf/kpf
 ```
 
-### Using uv
+### Using uv <!-- omit from toc -->
 
 ```bash
 uv tool install kpf
@@ -106,7 +126,7 @@ Combine a few options (interactive mode, all services, and endpoint status check
 kpf -pAdl
 ```
 
-### Check Mode
+### Health Check Mode
 
 Add endpoint status checking to service selection (slower but shows endpoint health):
 
@@ -158,9 +178,9 @@ $ kpf -n kube-system
 Services in namespace: kube-system
 
 #    Type     Name                    Ports
-1    SERVICE  kube-dns               53, 9153
-2    SERVICE  metrics-server         443
-3    SERVICE  kubernetes-dashboard   443
+1    SERVICE  kube-dns                53, 9153
+2    SERVICE  metrics-server          443
+3    SERVICE  kubernetes-dashboard    443
 
 Select a service [1]: 1
 Local port (press Enter for 53): 5353
@@ -174,9 +194,9 @@ $ kpf --check -n kube-system
 Services in namespace: kube-system
 
 #    Type     Name                    Ports           Status
-1    SERVICE  kube-dns               53, 9153         ✓
-2    SERVICE  metrics-server         443              ✓
-3    SERVICE  kubernetes-dashboard   443              ✗
+1    SERVICE  kube-dns                53, 9153          ✓
+2    SERVICE  metrics-server          443               ✓
+3    SERVICE  kubernetes-dashboard    443               ✗
 
 ✓ = Has endpoints  ✗ = No endpoints
 
@@ -192,10 +212,10 @@ $ kpf --all
 Services across all namespaces
 
 #    Namespace    Type     Name           Ports        Status
-1    default      SERVICE  kubernetes     443          ✓
-2    kube-system  SERVICE  kube-dns      53, 9153     ✓
-3    production   SERVICE  frontend      80, 443      ✓
-4    production   SERVICE  backend       8080         ✗
+1    default      SERVICE  kubernetes     443            ✓
+2    kube-system  SERVICE  kube-dns       53, 9153       ✓
+3    production   SERVICE  frontend       80, 443        ✓
+4    production   SERVICE  backend        8080           ✗
 ```
 
 ### Smart Low Port Handling
@@ -231,7 +251,7 @@ This feature prevents confusing "port already in use" errors when the real issue
 4. **Automatic Restart**: When endpoints change or connectivity is lost, gracefully restarts the port-forward
 5. **Service Discovery**: Uses kubectl to discover services and their endpoint status
 
-## Requirements
+## Requirements <!-- omit from toc -->
 
 - kubectl configured with cluster access
 
@@ -293,12 +313,12 @@ echo '{"autoReconnect": false}' > ~/.config/kpf/kpf.json
 
 ## Development
 
-### Prerequisites
+### Prerequisites <!-- omit from toc -->
 
 - [uv](https://github.com/astral-sh/uv)
 - [just](https://github.com/casey/just)
 
-### Setup Development Environment
+### Setup Development Environment <!-- omit from toc -->
 
 ```bash
 # Clone the repository
@@ -311,7 +331,7 @@ cd kpf
 just dev-setup
 ```
 
-### Code Quality Tools
+### Code Quality Tools <!-- omit from toc -->
 
 ```bash
 # Format and lint code
@@ -335,13 +355,13 @@ just test
 
 Shell completions can be generated using the `--completions` flag.
 
-### Homebrew
+### Homebrew <!-- omit from toc -->
 
 If you install via Homebrew, completions should be installed automatically. You may need to follow Homebrew's [shell completion instructions](https://docs.brew.sh/Shell-Completion) to ensure it's loaded. You may find the bash and zsh examples [here](https://github.com/jessegoodier/toolbox/tree/main/homebrew) useful.
 
-### Manual Installation
+### Manual Installation <!-- omit from toc -->
 
-#### Bash
+#### Bash <!-- omit from toc -->
 
 ```bash
 # User-local installation (recommended)
@@ -351,7 +371,7 @@ kpf --completions bash > ~/.local/share/bash-completion/completions/kpf
 kpf --completions bash | sudo tee /etc/bash_completion.d/kpf > /dev/null
 ```
 
-#### Zsh
+#### Zsh <!-- omit from toc -->
 
 ```zsh
 # Add to a directory in your fpath
