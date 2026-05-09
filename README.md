@@ -12,6 +12,7 @@ If you like this, check out <https://github.com/jessegoodier/kdebug>, a TUI for 
 - [Installation](#installation)
 - [Usage](#usage)
   - [Interactive Mode (Recommended)](#interactive-mode-recommended)
+  - [History Mode](#history-mode)
   - [Health Check Mode](#health-check-mode)
   - [Legacy Mode](#legacy-mode)
   - [Command Options](#command-options)
@@ -38,6 +39,7 @@ Demo of the TUI and the reconnect when a pod is restarted:
 - **Automatic Connection Restarting**: Monitors endpoint changes and restarts port-forward automatically
 - **Multi-resource Support**: Services, pods, deployments, etc.
 - **Smart Port Handling**: Automatically detects privileged port issues (< 1024) and suggests alternatives
+- **History (MRU)**: Press `h` in the interactive selector to instantly replay recent port-forwards, ranked by frecency (frequency + recency)
 
 ## Installation
 
@@ -125,6 +127,21 @@ Combine a few options (interactive mode, all services, and endpoint status check
 ```bash
 kpf -pAdl
 ```
+
+### History Mode
+
+When `captureUsageDetails` is enabled, kpf records each session to `~/.config/kpf/usage-details/`. Press `h` at the service selection screen to open a frecency-ranked history of your most-used port-forwards.
+
+```bash
+# Enable usage tracking (one-time setup)
+mkdir -p ~/.config/kpf
+echo '{"captureUsageDetails": true}' > ~/.config/kpf/kpf.json
+
+# Then just use kpf normally — press h at the service list to see history
+kpf
+```
+
+Entries are ranked by **frecency** — a blend of frequency and recency — so services you use often *and* recently float to the top. Selecting an entry replays the exact session (service, namespace, ports, and cluster context). Press `Esc` or `q` to return to the full service list without making a selection.
 
 ### Health Check Mode
 
@@ -297,7 +314,7 @@ echo '{"autoReconnect": false}' > ~/.config/kpf/kpf.json
 | `autoReconnect`                   | boolean | `true`                              | Automatically reconnect when connection drops                                |
 | `reconnectAttempts`               | integer | `30`                                | Number of reconnection attempts before giving up                             |
 | `reconnectDelaySeconds`           | integer | `5`                                 | Delay in seconds between reconnection attempts                               |
-| `captureUsageDetails`             | boolean | `false`                             | Capture usage details locally for debugging (not sent anywhere)              |
+| `captureUsageDetails`             | boolean | `false`                             | Record session details locally; enables the `h` history menu in the TUI (not sent anywhere) |
 | `usageDetailFolder`               | string  | `${HOME}/.config/kpf/usage-details` | Where to store usage detail logs                                             |
 | `networkWatchdogEnabled`          | boolean | `true`                              | Monitor K8s API connectivity to detect zombie connections                    |
 | `networkWatchdogInterval`         | integer | `5`                                 | Seconds between connectivity checks                                          |
