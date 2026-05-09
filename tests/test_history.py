@@ -3,7 +3,6 @@
 import json
 import time
 
-
 from src.kpf.history import HistoryEntry, load_history
 
 
