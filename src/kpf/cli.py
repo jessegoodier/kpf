@@ -53,6 +53,12 @@ Example usage:
     parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
 
     parser.add_argument(
+        "--create-config",
+        action="store_true",
+        help="Interactively create or update ~/.config/kpf/kpf.json",
+    )
+
+    parser.add_argument(
         "--completions",
         choices=["bash", "zsh"],
         metavar="SHELL",
@@ -419,6 +425,13 @@ def main():
     # Handle --completions before any other processing
     if args.completions:
         _output_completion_script(args.completions)
+        sys.exit(0)
+
+    # Handle --create-config before loading k8s client
+    if args.create_config:
+        from .config_wizard import run_config_wizard
+
+        run_config_wizard(get_config())
         sys.exit(0)
 
     if args.debug_terminal:

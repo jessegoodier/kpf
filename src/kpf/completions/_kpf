@@ -25,6 +25,7 @@ _kpf() {
     '--show-context[Show Kubernetes context in output]'
     '--show-direct-command[Show the direct kubectl command]'
     '--usage-folder[Folder to store usage statistics]:folder:_directories'
+    '--create-config[Interactively create or update ~/.config/kpf/kpf.json]'
     '--completions[Output shell completion script]:shell:(bash zsh)'
     '(-v --version)'{-v,--version}'[Show version]'
   )
