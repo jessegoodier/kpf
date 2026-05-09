@@ -12,6 +12,7 @@ If you like this, check out <https://github.com/jessegoodier/kdebug>, a TUI for 
 - [Installation](#installation)
 - [Usage](#usage)
   - [Interactive Mode (Recommended)](#interactive-mode-recommended)
+  - [History Mode](#history-mode)
   - [Health Check Mode](#health-check-mode)
   - [Legacy Mode](#legacy-mode)
   - [Command Options](#command-options)
@@ -38,6 +39,7 @@ Demo of the TUI and the reconnect when a pod is restarted:
 - **Automatic Connection Restarting**: Monitors endpoint changes and restarts port-forward automatically
 - **Multi-resource Support**: Services, pods, deployments, etc.
 - **Smart Port Handling**: Automatically detects privileged port issues (< 1024) and suggests alternatives
+- **History (MRU)**: Press `h` in the interactive selector to instantly replay recent port-forwards, ranked by frecency (frequency + recency)
 
 ## Installation
 
@@ -125,6 +127,21 @@ Combine a few options (interactive mode, all services, and endpoint status check
 ```bash
 kpf -pAdl
 ```
+
+### History Mode
+
+When `saveCommandHistory` is enabled, kpf records each session to `~/.config/kpf/command-history/`. Press `h` at the service selection screen to open a frecency-ranked history of your most-used port-forwards.
+
+```bash
+# Enable usage tracking (one-time setup)
+mkdir -p ~/.config/kpf
+echo '{"saveCommandHistory": true}' > ~/.config/kpf/kpf.json
+
+# Then just use kpf normally — press h at the service list to see history
+kpf
+```
+
+Entries are ranked by **frecency** — a blend of frequency and recency — so services you use often *and* recently float to the top. Selecting an entry replays the exact session (service, namespace, ports, and cluster context). Press `Esc` or `q` to return to the full service list without making a selection.
 
 ### Health Check Mode
 
@@ -270,8 +287,8 @@ If you create this file, it is suggested to only change the values you want to o
   "autoReconnect": true,
   "reconnectAttempts": 30,
   "reconnectDelaySeconds": 5,
-  "captureUsageDetails": false,
-  "usageDetailFolder": "${HOME}/.config/kpf/usage-details",
+  "saveCommandHistory": false,
+  "saveHistoryLocation": "~/.config/kpf/command-history",
   "restartThrottleSeconds": 5,
   "networkWatchdogEnabled": true,
   "networkWatchdogInterval": 5,
@@ -297,8 +314,8 @@ echo '{"autoReconnect": false}' > ~/.config/kpf/kpf.json
 | `autoReconnect`                   | boolean | `true`                              | Automatically reconnect when connection drops                                |
 | `reconnectAttempts`               | integer | `30`                                | Number of reconnection attempts before giving up                             |
 | `reconnectDelaySeconds`           | integer | `5`                                 | Delay in seconds between reconnection attempts                               |
-| `captureUsageDetails`             | boolean | `false`                             | Capture usage details locally for debugging (not sent anywhere)              |
-| `usageDetailFolder`               | string  | `${HOME}/.config/kpf/usage-details` | Where to store usage detail logs                                             |
+| `saveCommandHistory`             | boolean | `false`                             | Record session details locally; enables the `h` history menu in the TUI (not sent anywhere) |
+| `saveHistoryLocation`               | string  | `~/.config/kpf/command-history`       | Where to store usage detail logs                                             |
 | `networkWatchdogEnabled`          | boolean | `true`                              | Monitor K8s API connectivity to detect zombie connections                    |
 | `networkWatchdogInterval`         | integer | `5`                                 | Seconds between connectivity checks                                          |
 | `networkWatchdogFailureThreshold` | integer | `2`                                 | Consecutive failures before triggering restart                               |
@@ -306,7 +323,7 @@ echo '{"autoReconnect": false}' > ~/.config/kpf/kpf.json
 **Notes:**
 
 - All settings are optional - kpf will use defaults if the config file doesn't exist
-- Environment variables like `${HOME}` are expanded automatically
+- Use `~` in path values to refer to your home directory
 - The config file location respects the `XDG_CONFIG_HOME` environment variable
 - Invalid JSON or unknown keys will show warnings but won't prevent kpf from running
 - CLI arguments override config file values when provided

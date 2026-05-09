@@ -53,6 +53,18 @@ Example usage:
     parser.add_argument("--version", "-v", action="version", version=f"kpf {__version__}")
 
     parser.add_argument(
+        "--create-config",
+        action="store_true",
+        help="Interactively create or update ~/.config/kpf/kpf.json",
+    )
+
+    parser.add_argument(
+        "--show-config",
+        action="store_true",
+        help="Print the current effective configuration as JSON and exit",
+    )
+
+    parser.add_argument(
         "--completions",
         choices=["bash", "zsh"],
         metavar="SHELL",
@@ -231,8 +243,8 @@ def merge_config_with_cli_args(config, args):
         "auto_reconnect": "autoReconnect",
         "reconnect_attempts": "reconnectAttempts",
         "reconnect_delay": "reconnectDelaySeconds",
-        "capture_usage": "captureUsageDetails",
-        "usage_folder": "usageDetailFolder",
+        "capture_usage": "saveCommandHistory",
+        "usage_folder": "saveHistoryLocation",
     }
 
     for arg_name, config_key in arg_mapping.items():
@@ -248,10 +260,11 @@ def handle_prompt_mode(
     show_all: bool = False,
     show_all_ports: bool = False,
     check_endpoints: bool = False,
+    config=None,
 ) -> List[str]:
     """Handle interactive service selection."""
     k8s_client = KubernetesClient()
-    selector = ServiceSelector(k8s_client)
+    selector = ServiceSelector(k8s_client, config=config)
 
     if show_all:
         return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
@@ -420,6 +433,21 @@ def main():
         _output_completion_script(args.completions)
         sys.exit(0)
 
+    # Handle --create-config before loading k8s client
+    if args.create_config:
+        from .config_wizard import run_config_wizard
+
+        run_config_wizard(get_config())
+        sys.exit(0)
+
+    if args.show_config:
+        import json
+
+        cfg = get_config()
+        console.print(f"[dim]Config file: {cfg.get_config_path()}[/dim]")
+        console.print_json(json.dumps(cfg.config, indent=2))
+        sys.exit(0)
+
     if args.debug_terminal:
         console.print("Debug mode enabled", style="dim cyan")
         _debug_display_terminal_capabilities()
@@ -437,7 +465,7 @@ def main():
             # Reuse the client from handle_prompt_mode or create a new one?
             # Creating a new one here is cleaner for flow control
             k8s_client = KubernetesClient()
-            selector = ServiceSelector(k8s_client)
+            selector = ServiceSelector(k8s_client, config=merged_config)
             selected_ns = selector.select_namespace()
             if selected_ns:
                 args.namespace = selected_ns
@@ -453,6 +481,7 @@ def main():
                 show_all=args.all,
                 show_all_ports=args.all_ports,
                 check_endpoints=args.check,
+                config=merged_config,
             )
             if not port_forward_args:
                 console.print("No service selected. Exiting.", style="dim")
@@ -479,6 +508,7 @@ def main():
                 show_all=args.all,
                 show_all_ports=args.all_ports,
                 check_endpoints=args.check,
+                config=merged_config,
             )
             if not port_forward_args:
                 console.print("No service selected. Exiting.", style="dim")

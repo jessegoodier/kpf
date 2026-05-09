@@ -4,6 +4,7 @@ import os
 import socket
 import subprocess
 import sys
+from pathlib import Path
 from typing import List, Optional
 
 from rich import box
@@ -12,19 +13,26 @@ from rich.prompt import IntPrompt
 from rich.table import Table
 from rich.text import Text
 
+from .history import HistoryEntry, load_history
 from .kubernetes import KubernetesClient, ServiceInfo
 
 
 class ServiceSelector:
     """Interactive service selector with colored output."""
 
-    def __init__(self, k8s_client: KubernetesClient):
+    def __init__(self, k8s_client: KubernetesClient, config=None):
         self.k8s_client = k8s_client
         self._check_kubectl()
         self.console = Console()
         # Simple compatibility mode for terminals (now default for stability)
         # Disable by setting env var KPF_TTY_COMPAT=0
         self.compat_mode = os.environ.get("KPF_TTY_COMPAT") != "0"
+        self._history_enabled = False
+        self._history_folder: Optional[Path] = None
+        if config and config.get("saveCommandHistory", False):
+            folder = config.get("saveHistoryLocation", "~/.config/kpf/command-history")
+            self._history_folder = Path(folder).expanduser()
+            self._history_enabled = True
 
     def _pointer_char(self) -> str:
         """Return a selection marker that works in both compatibility modes."""
@@ -323,143 +331,160 @@ class ServiceSelector:
         check_endpoints: Optional[bool] = None,
     ) -> List[str]:
         """Prompt user to select a service and return port-forward arguments."""
-        # First, try an interactive keyboard navigation if available
-        selection: Optional[int] = None
         # Resolve layout flags up-front so they can be used in both interactive and fallback paths
         show_namespace_flag = namespace is None if show_namespace is None else show_namespace
         include_all_ports_flag = include_all_ports if include_all_ports is not None else False
         check_endpoints_flag = bool(check_endpoints)
         try:
-            # Only attempt interactive navigation in a TTY
-            if sys.stdin.isatty() and sys.stdout.isatty():
-                try:
-                    # Lazy imports (optional dependency)
-                    from readchar import key, readkey
-                    from rich.live import Live
+            current_index = 1  # Preserved when returning from history menu
+            while True:  # Outer loop: re-enters service selection after a history roundtrip
+                selection: Optional[int] = None
+                show_history = False
 
-                    current_index = 1
-                    max_index = len(resources)
+                # Only attempt interactive navigation in a TTY
+                if sys.stdin.isatty() and sys.stdout.isatty():
+                    try:
+                        # Lazy imports (optional dependency)
+                        from readchar import key, readkey
+                        from rich.live import Live
 
-                    help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
+                        max_index = len(resources)
 
-                    def build_view():
-                        # Calculate a scrolling window so the selected row stays a few lines above bottom
-                        terminal_height = self.console.size.height
-                        overhead_lines = 8  # title, headers, borders, and help/legend
-                        visible_rows = max(1, min(max_index, terminal_height - overhead_lines))
-
-                        bottom_margin = 3
-                        pivot = max(1, visible_rows - bottom_margin)
-
-                        if current_index <= pivot:
-                            start_index = 1
+                        if self._history_enabled:
+                            help_text = "↑/↓ j/k=navigate  Enter=select  Esc/q=cancel  digits=jump  h=history"
                         else:
-                            start_index = current_index - pivot
+                            help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
 
-                        # Clamp window to valid range
-                        start_index = min(start_index, max(1, max_index - visible_rows + 1))
-                        end_index = min(max_index, start_index + visible_rows - 1)
+                        def build_view():
+                            # Calculate a scrolling window so the selected row stays a few lines above bottom
+                            terminal_height = self.console.size.height
+                            overhead_lines = 8  # title, headers, borders, and help/legend
+                            visible_rows = max(1, min(max_index, terminal_height - overhead_lines))
 
-                        window_resources = resources[start_index - 1 : end_index]
+                            bottom_margin = 3
+                            pivot = max(1, visible_rows - bottom_margin)
 
-                        table = self._build_services_table(
-                            window_resources,
-                            show_namespace=show_namespace_flag,
-                            check_endpoints=check_endpoints_flag,
-                            include_all_ports=include_all_ports_flag,
-                            selected_index=current_index,
-                            row_index_offset=start_index - 1,
-                        )
-
-                        renders = [table, Text(help_text, style="dim")]
-                        if check_endpoints_flag:
-                            renders.append(Text("✓ = Has endpoints  ✗ = No endpoints", style="dim"))
-
-                        return Group(*renders)
-
-                    with Live(
-                        build_view(),
-                        console=self.console,
-                        transient=True,
-                        auto_refresh=False,
-                    ) as live:
-                        typed_number = ""
-                        while True:
-                            ch = readkey()
-                            if ch in (key.UP, "k"):
-                                current_index = max(1, current_index - 1)
-                                typed_number = ""
-                                live.update(build_view(), refresh=True)
-                            elif ch in (key.DOWN, "j"):
-                                current_index = min(max_index, current_index + 1)
-                                typed_number = ""
-                                live.update(build_view(), refresh=True)
-                            elif ch in (key.BACKSPACE, "\x7f", "\b"):
-                                typed_number = typed_number[:-1]
-                                if typed_number:
-                                    preview = int(typed_number)
-                                    if 1 <= preview <= max_index:
-                                        current_index = preview
-                                live.update(build_view(), refresh=True)
-                            elif ch in (key.ENTER, "\r", "\n"):
-                                selection = current_index
-                                break
-                            elif ch in (key.ESC, "q"):
-                                selection = None
-                                break
-                            elif ch.isdigit():
-                                typed_number, current_index, updated = self._apply_typed_digit(
-                                    typed_number, ch, max_index, current_index
-                                )
-                                if updated:
-                                    live.update(build_view(), refresh=True)
+                            if current_index <= pivot:
+                                start_index = 1
                             else:
-                                # ignore other keys
-                                pass
-                except Exception:
-                    selection = None
+                                start_index = current_index - pivot
 
-            # Fall back to numeric selection if interactive not used or cancelled
-            if selection is None:
-                # Render a single static table for numeric selection
-                self._display_services_table(
-                    resources,
-                    show_namespace=show_namespace_flag,
-                    check_endpoints=check_endpoints_flag,
-                    include_all_ports=include_all_ports_flag,
-                )
-                selection = IntPrompt.ask("\nSelect a service", default=1, show_default=True)
+                            # Clamp window to valid range
+                            start_index = min(start_index, max(1, max_index - visible_rows + 1))
+                            end_index = min(max_index, start_index + visible_rows - 1)
 
-            if selection < 1 or selection > len(resources):
-                self.console.print("[red]Invalid selection[/red]")
-                return []
+                            window_resources = resources[start_index - 1 : end_index]
 
-            selected_resource = resources[selection - 1]
+                            table = self._build_services_table(
+                                window_resources,
+                                show_namespace=show_namespace_flag,
+                                check_endpoints=check_endpoints_flag,
+                                include_all_ports=include_all_ports_flag,
+                                selected_index=current_index,
+                                row_index_offset=start_index - 1,
+                            )
 
-            # If no ports available, can't port-forward
-            if not selected_resource.ports:
-                self.console.print(
-                    f"[red]Service '{selected_resource.name}' has no ports defined[/red]"
-                )
-                return []
+                            renders = [table, Text(help_text, style="dim")]
+                            if check_endpoints_flag:
+                                renders.append(
+                                    Text("✓ = Has endpoints  ✗ = No endpoints", style="dim")
+                                )
 
-            # If only one port, automatically select it
-            if len(selected_resource.ports) == 1:
-                # Sort ports for consistency (even with single port)
-                sorted_ports = sorted(selected_resource.ports, key=lambda p: p["port"])
-                selected_port = sorted_ports[0]["port"]
-                local_port = self._prompt_for_local_port(selected_port)
+                            return Group(*renders)
 
-                args = [
-                    f"{selected_resource.service_type}/{selected_resource.name}",
-                    f"{local_port}:{selected_port}",
-                    "-n",
-                    selected_resource.namespace,
-                ]
-                return args
+                        with Live(
+                            build_view(),
+                            console=self.console,
+                            transient=True,
+                            auto_refresh=False,
+                        ) as live:
+                            typed_number = ""
+                            while True:
+                                ch = readkey()
+                                if ch in (key.UP, "k"):
+                                    current_index = max(1, current_index - 1)
+                                    typed_number = ""
+                                    live.update(build_view(), refresh=True)
+                                elif ch in (key.DOWN, "j"):
+                                    current_index = min(max_index, current_index + 1)
+                                    typed_number = ""
+                                    live.update(build_view(), refresh=True)
+                                elif ch in (key.BACKSPACE, "\x7f", "\b"):
+                                    typed_number = typed_number[:-1]
+                                    if typed_number:
+                                        preview = int(typed_number)
+                                        if 1 <= preview <= max_index:
+                                            current_index = preview
+                                    live.update(build_view(), refresh=True)
+                                elif ch in (key.ENTER, "\r", "\n"):
+                                    selection = current_index
+                                    break
+                                elif ch in (key.ESC, "q"):
+                                    selection = None
+                                    break
+                                elif ch == "h" and self._history_enabled:
+                                    show_history = True
+                                    break
+                                elif ch.isdigit():
+                                    typed_number, current_index, updated = self._apply_typed_digit(
+                                        typed_number, ch, max_index, current_index
+                                    )
+                                    if updated:
+                                        live.update(build_view(), refresh=True)
+                                else:
+                                    # ignore other keys
+                                    pass
+                    except Exception:
+                        selection = None
 
-            # Otherwise prompt for port selection
-            return self._prompt_for_port_selection(selected_resource)
+                # History menu requested — open it, then loop back if cancelled
+                if show_history:
+                    history_result = self._prompt_for_history_selection()
+                    if history_result is not None:
+                        return history_result
+                    continue  # User cancelled history; redisplay service list
+
+                # Fall back to numeric selection if interactive not used or cancelled
+                if selection is None:
+                    # Render a single static table for numeric selection
+                    self._display_services_table(
+                        resources,
+                        show_namespace=show_namespace_flag,
+                        check_endpoints=check_endpoints_flag,
+                        include_all_ports=include_all_ports_flag,
+                    )
+                    selection = IntPrompt.ask("\nSelect a service", default=1, show_default=True)
+
+                if selection < 1 or selection > len(resources):
+                    self.console.print("[red]Invalid selection[/red]")
+                    return []
+
+                selected_resource = resources[selection - 1]
+
+                # If no ports available, can't port-forward
+                if not selected_resource.ports:
+                    self.console.print(
+                        f"[red]Service '{selected_resource.name}' has no ports defined[/red]"
+                    )
+                    return []
+
+                # If only one port, automatically select it
+                if len(selected_resource.ports) == 1:
+                    # Sort ports for consistency (even with single port)
+                    sorted_ports = sorted(selected_resource.ports, key=lambda p: p["port"])
+                    selected_port = sorted_ports[0]["port"]
+                    local_port = self._prompt_for_local_port(selected_port)
+
+                    args = [
+                        f"{selected_resource.service_type}/{selected_resource.name}",
+                        f"{local_port}:{selected_port}",
+                        "-n",
+                        selected_resource.namespace,
+                    ]
+                    return args
+
+                # Otherwise prompt for port selection
+                return self._prompt_for_port_selection(selected_resource)
 
         except KeyboardInterrupt:
             self.console.print("\n[yellow]Service selection cancelled (Ctrl+C)[/yellow]")
@@ -606,6 +631,137 @@ class ServiceSelector:
         except KeyboardInterrupt:
             self.console.print("\n[yellow]Port selection cancelled (Ctrl+C)[/yellow]")
             return []
+
+    def _build_history_table(
+        self, entries: List[HistoryEntry], selected_index: Optional[int] = None
+    ) -> Table:
+        """Build frecency-ranked history table with optional selected row highlight."""
+        table = Table(
+            title="Recent port-forwards",
+            title_justify="left",
+            title_style="bold bright_cyan not italic",
+            box=box.ROUNDED,
+            border_style="cyan",
+            show_lines=False,
+            expand=False,
+            padding=(0, 1),
+            header_style="bold bright_white",
+        )
+        table.add_column("#", header_style="bold white", style="white", width=4, justify="right")
+        table.add_column("Service", header_style="bold white", style="bold white", no_wrap=True)
+        table.add_column("Namespace", header_style="bold white", style="magenta", no_wrap=True)
+        table.add_column("Port", header_style="bold white", style="green", no_wrap=True)
+        table.add_column(
+            "Uses", header_style="bold white", style="cyan", justify="right", no_wrap=True
+        )
+        table.add_column("Last used", header_style="bold white", style="dim", no_wrap=True)
+
+        for i, entry in enumerate(entries, 1):
+            index_cell = str(i)
+            is_selected = selected_index is not None and i == selected_index
+            index_display = (
+                f"{self._pointer_char()} {index_cell}" if is_selected else f"  {index_cell}"
+            )
+            selected_style = self._selected_row_style() if is_selected else None
+            table.add_row(
+                index_display,
+                entry.service,
+                entry.namespace,
+                entry.port_label,
+                str(entry.use_count),
+                entry.last_used_label,
+                style=selected_style,
+            )
+
+        return table
+
+    def _prompt_for_history_selection(self) -> Optional[List[str]]:
+        """Show the frecency-ranked history menu. Returns port-forward args or None if cancelled."""
+        entries = load_history(self._history_folder)
+
+        if not entries:
+            self.console.print(
+                "[yellow]No history found. Use kpf with saveCommandHistory=true to build history.[/yellow]"
+            )
+            return None
+
+        try:
+            selection: Optional[int] = None
+
+            if sys.stdin.isatty() and sys.stdout.isatty():
+                try:
+                    from readchar import key, readkey
+                    from rich.live import Live
+
+                    current_index = 1
+                    max_index = len(entries)
+                    help_text = (
+                        "↑/↓ j/k=navigate  Enter=select  Esc/q=back to service list  digits=jump"
+                    )
+
+                    def build_view():
+                        table = self._build_history_table(entries, selected_index=current_index)
+                        return Group(table, Text(help_text, style="dim"))
+
+                    with Live(
+                        build_view(),
+                        console=self.console,
+                        transient=True,
+                        auto_refresh=False,
+                    ) as live:
+                        typed_number = ""
+                        while True:
+                            ch = readkey()
+                            if ch in (key.UP, "k"):
+                                current_index = max(1, current_index - 1)
+                                typed_number = ""
+                                live.update(build_view(), refresh=True)
+                            elif ch in (key.DOWN, "j"):
+                                current_index = min(max_index, current_index + 1)
+                                typed_number = ""
+                                live.update(build_view(), refresh=True)
+                            elif ch in (key.BACKSPACE, "\x7f", "\b"):
+                                typed_number = typed_number[:-1]
+                                if typed_number:
+                                    preview = int(typed_number)
+                                    if 1 <= preview <= max_index:
+                                        current_index = preview
+                                live.update(build_view(), refresh=True)
+                            elif ch in (key.ENTER, "\r", "\n"):
+                                selection = current_index
+                                break
+                            elif ch in (key.ESC, "q"):
+                                selection = None
+                                break
+                            elif ch.isdigit():
+                                typed_number, current_index, updated = self._apply_typed_digit(
+                                    typed_number, ch, max_index, current_index
+                                )
+                                if updated:
+                                    live.update(build_view(), refresh=True)
+                            else:
+                                pass
+                except Exception:
+                    selection = None
+
+            if selection is None:
+                table = self._build_history_table(entries)
+                self.console.print(table)
+                selection = IntPrompt.ask(
+                    "\nSelect a history entry (0 to go back)", default=0, show_default=True
+                )
+                if selection == 0:
+                    return None
+
+            if selection < 1 or selection > len(entries):
+                self.console.print("[red]Invalid selection[/red]")
+                return None
+
+            return entries[selection - 1].to_port_forward_args()
+
+        except KeyboardInterrupt:
+            self.console.print("\n[yellow]History selection cancelled (Ctrl+C)[/yellow]")
+            return None
 
     def _prompt_for_local_port(self, remote_port: int) -> int:
         """Prompt user for local port, defaulting to remote port or suggesting alternative if in use."""
