@@ -30,7 +30,7 @@ class ServiceSelector:
         self._history_enabled = False
         self._history_folder: Optional[Path] = None
         if config and config.get("saveCommandHistory", False):
-            folder = config.get("saveHistoryLocation", "~/.config/kpf/usage-details")
+            folder = config.get("saveHistoryLocation", "~/.config/kpf/command-history")
             self._history_folder = Path(folder).expanduser()
             self._history_enabled = True
 

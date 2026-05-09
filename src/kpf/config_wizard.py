@@ -141,11 +141,10 @@ _OPTIONS = [
     _Option(
         key="saveHistoryLocation",
         kind="str",
-        default="${HOME}/.config/kpf/usage-details",
+        default="~/.config/kpf/command-history",
         group="History",
         description=(
-            "Directory where per-session JSON files are stored. "
-            "Supports ${HOME} and other environment variable expansions."
+            "Directory where per-session JSON files are stored. Use ~ for your home directory."
         ),
     ),
 ]

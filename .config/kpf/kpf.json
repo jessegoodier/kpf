@@ -7,7 +7,7 @@
     "reconnectAttempts": 30,
     "reconnectDelaySeconds": 5,
     "saveCommandHistory": true,
-    "saveHistoryLocation": "${HOME}/.config/kpf/usage-details",
+    "saveHistoryLocation": "~/.config/kpf/command-history",
     "restartThrottleSeconds": 5,
     "networkWatchdogEnabled": true,
     "networkWatchdogInterval": 5,

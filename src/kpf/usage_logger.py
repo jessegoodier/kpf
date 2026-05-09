@@ -18,7 +18,7 @@ class UsageLogger:
         self.enabled = config.get("saveCommandHistory", False) if config else False
 
         if self.enabled:
-            folder = config.get("saveHistoryLocation", "~/.config/kpf/usage-details")
+            folder = config.get("saveHistoryLocation", "~/.config/kpf/command-history")
             self.folder = Path(folder).expanduser()
         else:
             self.folder = None
