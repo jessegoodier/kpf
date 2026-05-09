@@ -6,7 +6,7 @@
     "autoReconnect": true,
     "reconnectAttempts": 30,
     "reconnectDelaySeconds": 5,
-    "captureUsageDetails": false,
+    "captureUsageDetails": true,
     "usageDetailFolder": "${HOME}/.config/kpf/usage-details",
     "restartThrottleSeconds": 5,
     "networkWatchdogEnabled": true,

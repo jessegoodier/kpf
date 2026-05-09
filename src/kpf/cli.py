@@ -248,10 +248,11 @@ def handle_prompt_mode(
     show_all: bool = False,
     show_all_ports: bool = False,
     check_endpoints: bool = False,
+    config=None,
 ) -> List[str]:
     """Handle interactive service selection."""
     k8s_client = KubernetesClient()
-    selector = ServiceSelector(k8s_client)
+    selector = ServiceSelector(k8s_client, config=config)
 
     if show_all:
         return selector.select_service_all_namespaces(show_all_ports, check_endpoints)
@@ -437,7 +438,7 @@ def main():
             # Reuse the client from handle_prompt_mode or create a new one?
             # Creating a new one here is cleaner for flow control
             k8s_client = KubernetesClient()
-            selector = ServiceSelector(k8s_client)
+            selector = ServiceSelector(k8s_client, config=merged_config)
             selected_ns = selector.select_namespace()
             if selected_ns:
                 args.namespace = selected_ns
@@ -453,6 +454,7 @@ def main():
                 show_all=args.all,
                 show_all_ports=args.all_ports,
                 check_endpoints=args.check,
+                config=merged_config,
             )
             if not port_forward_args:
                 console.print("No service selected. Exiting.", style="dim")
@@ -479,6 +481,7 @@ def main():
                 show_all=args.all,
                 show_all_ports=args.all_ports,
                 check_endpoints=args.check,
+                config=merged_config,
             )
             if not port_forward_args:
                 console.print("No service selected. Exiting.", style="dim")
