@@ -59,6 +59,12 @@ Example usage:
     )
 
     parser.add_argument(
+        "--show-config",
+        action="store_true",
+        help="Print the current effective configuration as JSON and exit",
+    )
+
+    parser.add_argument(
         "--completions",
         choices=["bash", "zsh"],
         metavar="SHELL",
@@ -237,8 +243,8 @@ def merge_config_with_cli_args(config, args):
         "auto_reconnect": "autoReconnect",
         "reconnect_attempts": "reconnectAttempts",
         "reconnect_delay": "reconnectDelaySeconds",
-        "capture_usage": "captureUsageDetails",
-        "usage_folder": "usageDetailFolder",
+        "capture_usage": "saveCommandHistory",
+        "usage_folder": "saveHistoryLocation",
     }
 
     for arg_name, config_key in arg_mapping.items():
@@ -432,6 +438,14 @@ def main():
         from .config_wizard import run_config_wizard
 
         run_config_wizard(get_config())
+        sys.exit(0)
+
+    if args.show_config:
+        import json
+
+        cfg = get_config()
+        console.print(f"[dim]Config file: {cfg.get_config_path()}[/dim]")
+        console.print_json(json.dumps(cfg.config, indent=2))
         sys.exit(0)
 
     if args.debug_terminal:

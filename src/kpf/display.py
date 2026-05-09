@@ -29,8 +29,8 @@ class ServiceSelector:
         self.compat_mode = os.environ.get("KPF_TTY_COMPAT") != "0"
         self._history_enabled = False
         self._history_folder: Optional[Path] = None
-        if config and config.get("captureUsageDetails", False):
-            folder = config.get("usageDetailFolder", "~/.config/kpf/usage-details")
+        if config and config.get("saveCommandHistory", False):
+            folder = config.get("saveHistoryLocation", "~/.config/kpf/usage-details")
             self._history_folder = Path(folder).expanduser()
             self._history_enabled = True
 
@@ -681,7 +681,7 @@ class ServiceSelector:
 
         if not entries:
             self.console.print(
-                "[yellow]No history found. Use kpf with captureUsageDetails=true to build history.[/yellow]"
+                "[yellow]No history found. Use kpf with saveCommandHistory=true to build history.[/yellow]"
             )
             return None
 

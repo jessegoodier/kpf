@@ -128,7 +128,7 @@ _OPTIONS = [
         ),
     ),
     _Option(
-        key="captureUsageDetails",
+        key="saveCommandHistory",
         kind="bool",
         default=False,
         group="History",
@@ -139,7 +139,7 @@ _OPTIONS = [
         ),
     ),
     _Option(
-        key="usageDetailFolder",
+        key="saveHistoryLocation",
         kind="str",
         default="${HOME}/.config/kpf/usage-details",
         group="History",
@@ -166,9 +166,9 @@ def _prompt_value(opt: _Option, current: Any) -> Any:
 
     header = Text()
     header.append(f"  {opt.key}", style="bold bright_white")
-    header.append(f"   default: {_fmt_value(opt.default)}", style="dim")
+    header.append(f"   default: {_fmt_value(opt.default)}", style="magenta")
     console.print(header)
-    console.print(f"  [dim]{opt.description}[/dim]")
+    console.print(f"  [yellow3]{opt.description}[/yellow3]")
     console.print()
 
     if opt.kind == "bool":

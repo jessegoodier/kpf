@@ -13,12 +13,12 @@ class UsageLogger:
         """Initialize usage logger.
 
         Args:
-            config: Optional config dict with captureUsageDetails and usageDetailFolder
+            config: Optional config dict with saveCommandHistory and saveHistoryLocation
         """
-        self.enabled = config.get("captureUsageDetails", False) if config else False
+        self.enabled = config.get("saveCommandHistory", False) if config else False
 
         if self.enabled:
-            folder = config.get("usageDetailFolder", "~/.config/kpf/usage-details")
+            folder = config.get("saveHistoryLocation", "~/.config/kpf/usage-details")
             self.folder = Path(folder).expanduser()
         else:
             self.folder = None
