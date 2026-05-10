@@ -676,7 +676,7 @@ class ServiceSelector:
             selected_style = self._selected_row_style() if is_selected else None
             listen_label = "0.0.0.0" if entry.listen_all else "lo"
             ctx = entry.context or ""
-            ctx_display = ctx if len(ctx) <= 60 else ctx[:60] + "\n" + ctx[60:]
+            ctx_display = ctx if len(ctx) <= 40 else ctx[:40] + "\n" + ctx[40:]
             table.add_row(
                 index_display,
                 entry.service,
