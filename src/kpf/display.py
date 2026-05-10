@@ -658,6 +658,10 @@ class ServiceSelector:
         table.add_column("Service", header_style="bold white", style="bold white", no_wrap=True)
         table.add_column("Namespace", header_style="bold white", style="magenta", no_wrap=True)
         table.add_column("Port", header_style="bold white", style="green", no_wrap=True)
+        table.add_column("Context", header_style="bold white", style="yellow", no_wrap=True)
+        table.add_column(
+            "Listen", header_style="bold white", style="cyan", justify="center", no_wrap=True
+        )
         table.add_column(
             "Uses", header_style="bold white", style="cyan", justify="right", no_wrap=True
         )
@@ -670,11 +674,14 @@ class ServiceSelector:
                 f"{self._pointer_char()} {index_cell}" if is_selected else f"  {index_cell}"
             )
             selected_style = self._selected_row_style() if is_selected else None
+            listen_label = "0.0.0.0" if entry.listen_all else "lo"
             table.add_row(
                 index_display,
                 entry.service,
                 entry.namespace,
                 entry.port_label,
+                entry.context or "",
+                listen_label,
                 str(entry.use_count),
                 entry.last_used_label,
                 style=selected_style,
