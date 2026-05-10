@@ -133,7 +133,7 @@ kpf -pAdl
 When `saveCommandHistory` is enabled, kpf records each session to `~/.config/kpf/command-history/`. Press `h` at the service selection screen to open a frecency-ranked history of your most-used port-forwards.
 
 ```bash
-# Enable usage tracking (one-time setup)
+# Enable history (one-time setup)
 mkdir -p ~/.config/kpf
 echo '{"saveCommandHistory": true}' > ~/.config/kpf/kpf.json
 

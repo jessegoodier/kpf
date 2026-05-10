@@ -183,15 +183,6 @@ Example usage:
         help="Automatically reconnect when connection drops (true/false, default: from config)",
     )
 
-    config_group.add_argument(
-        "--capture-usage",
-        dest="capture_usage",
-        type=str_to_bool,
-        default=None,
-        metavar="BOOL",
-        help="Log usage details to files for analytics (true/false, default: from config)",
-    )
-
     # Integer/String arguments
     config_group.add_argument(
         "--reconnect-attempts",
@@ -207,14 +198,6 @@ Example usage:
         default=None,
         metavar="SECONDS",
         help="Delay in seconds between reconnection attempts (default: 5)",
-    )
-
-    config_group.add_argument(
-        "--usage-folder",
-        type=str,
-        default=None,
-        metavar="PATH",
-        help="Folder to store usage detail logs (default: from config)",
     )
 
     # Positional arguments for legacy port-forward syntax
@@ -243,8 +226,6 @@ def merge_config_with_cli_args(config, args):
         "auto_reconnect": "autoReconnect",
         "reconnect_attempts": "reconnectAttempts",
         "reconnect_delay": "reconnectDelaySeconds",
-        "capture_usage": "saveCommandHistory",
-        "usage_folder": "saveHistoryLocation",
     }
 
     for arg_name, config_key in arg_mapping.items():
@@ -515,7 +496,7 @@ def main():
                 sys.exit(0)
 
         # Apply the -0 flag if specified
-        if args.address_zero and port_forward_args:
+        if (args.address_zero or merged_config.get("alwaysListenAll", False)) and port_forward_args:
             # Check if --address is already specified to avoid duplicates/conflicts
             if "--address" not in port_forward_args:
                 port_forward_args.extend(["--address", "0.0.0.0"])
@@ -528,6 +509,39 @@ def main():
                 config=merged_config,
                 run_http_health_checks=args.run_http_health_checks,
             )
+
+    except KeyboardInterrupt:
+        console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")
+        sys.exit(0)
+    except Exception as e:
+        console.print(f"Error: {e}", style="red")
+        sys.exit(1)
+
+
+def history_main():
+    """Entry point for kpfh — jumps directly to the history selection menu."""
+    config = get_config()
+    merged_config = config.config.copy()
+
+    if not merged_config.get("saveCommandHistory", False):
+        console.print(
+            "[yellow]History is disabled. Set saveCommandHistory=true in your config "
+            "or run: kpf --create-config[/yellow]"
+        )
+        sys.exit(1)
+
+    try:
+        selector = ServiceSelector(config=merged_config)
+        port_forward_args = selector._prompt_for_history_selection()
+
+        if not port_forward_args:
+            console.print("No history entry selected. Exiting.", style="dim")
+            sys.exit(0)
+
+        if merged_config.get("alwaysListenAll", False) and "--address" not in port_forward_args:
+            port_forward_args.extend(["--address", "0.0.0.0"])
+
+        run_port_forward(port_forward_args, config=merged_config)
 
     except KeyboardInterrupt:
         console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")

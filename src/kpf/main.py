@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import signal
 import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 from .forwarder import PortForwarder
+from .history_logger import HistoryLogger
 from .logger import console, debug
 from .network_watchdog import NetworkWatchdog
-from .usage_logger import UsageLogger
 from .validators import (
     extract_kubectl_global_flags,
     extract_local_port,
@@ -130,8 +132,8 @@ def run_port_forward(
     if debug_mode:
         debug.print("Debug mode enabled")
 
-    # Initialize usage logger
-    usage_logger = UsageLogger(config)
+    # Initialize history
+    history_logger = HistoryLogger(config)
 
     # Extract kubectl global flags (--context, --kubeconfig) early
     kubectl_global_flags = extract_kubectl_global_flags(port_forward_args)
@@ -140,27 +142,27 @@ def run_port_forward(
 
     # Validate context/kubeconfig before anything else
     if not validate_context(kubectl_global_flags):
-        usage_logger.finalize("context_error")
+        history_logger.finalize("context_error")
         sys.exit(1)
 
     # Validate port format first
     if not validate_port_format(port_forward_args):
-        usage_logger.finalize("validation_error")
+        history_logger.finalize("validation_error")
         sys.exit(1)
 
     # Validate port availability (pass config for auto-select feature)
     if not validate_port_availability(port_forward_args, debug.print, config):
-        usage_logger.finalize("port_unavailable")
+        history_logger.finalize("port_unavailable")
         sys.exit(1)
 
     # Validate kubectl command
     if not validate_kubectl_command(port_forward_args):
-        usage_logger.finalize("kubectl_error")
+        history_logger.finalize("kubectl_error")
         sys.exit(1)
 
     # Validate service exists and has endpoints
     if not validate_service_and_endpoints(port_forward_args, debug.print, kubectl_global_flags):
-        usage_logger.finalize("service_error")
+        history_logger.finalize("service_error")
         sys.exit(1)
 
     # Get watcher arguments from the port-forwarding args
@@ -170,7 +172,7 @@ def run_port_forward(
     debug.print(f"Port-forward arguments: {port_forward_args}")
     debug.print(f"Endpoint watcher target: namespace={namespace}, resource_name={resource_name}")
 
-    # Extract port and context information for usage logging
+    # Extract port and context information for history
     local_port = extract_local_port(port_forward_args)
     remote_port = None  # Will be extracted if available
     for arg in port_forward_args:
@@ -185,7 +187,6 @@ def run_port_forward(
 
     # Get context from flags or current kubectl config
     context = ""
-    # Check if --context was explicitly passed
     for i, flag in enumerate(kubectl_global_flags):
         if flag == "--context" and i + 1 < len(kubectl_global_flags):
             context = kubectl_global_flags[i + 1]
@@ -199,8 +200,31 @@ def run_port_forward(
         except Exception:
             pass
 
+    # Detect listen_all from port_forward_args
+    listen_all = False
+    try:
+        addr_idx = port_forward_args.index("--address")
+        listen_all = port_forward_args[addr_idx + 1] == "0.0.0.0"
+    except (ValueError, IndexError):
+        pass
+
+    # Resolve kubeconfig: explicit flag > KUBECONFIG env > default path
+    kubeconfig = ""
+    for i, flag in enumerate(kubectl_global_flags):
+        if flag == "--kubeconfig" and i + 1 < len(kubectl_global_flags):
+            kubeconfig = kubectl_global_flags[i + 1]
+            break
+    if not kubeconfig:
+        env_kubeconfig = os.environ.get("KUBECONFIG", "")
+        if env_kubeconfig:
+            kubeconfig = env_kubeconfig.split(os.pathsep)[0]
+    if not kubeconfig:
+        kubeconfig = str(Path("~/.kube/config").expanduser())
+
     # Set session info in usage logger
-    usage_logger.set_session_info(resource_name, namespace, context, local_port, remote_port)
+    history_logger.set_session_info(
+        resource_name, namespace, context, kubeconfig, listen_all, local_port, remote_port
+    )
 
     # Create forwarder and watcher instances
     forwarder = PortForwarder(
@@ -209,7 +233,7 @@ def run_port_forward(
         restart_event,
         debug_callback=debug.print,
         config=config,
-        usage_logger=usage_logger,
+        history_logger=history_logger,
         no_health_check=not run_http_health_checks,
     )
 
@@ -224,7 +248,7 @@ def run_port_forward(
         restart_event,
         should_restart_delegate,
         debug_callback=debug.print,
-        usage_logger=usage_logger,
+        history_logger=history_logger,
         kubectl_global_flags=kubectl_global_flags,
     )
 
@@ -268,7 +292,7 @@ def run_port_forward(
         # This should be handled by signal handler now, but keep as fallback
         debug.print("KeyboardInterrupt in main loop (fallback)")
         shutdown_event.set()
-        usage_logger.finalize("user_interrupt")
+        history_logger.finalize("user_interrupt")
 
     finally:
         # Signal a graceful shutdown
@@ -304,15 +328,13 @@ def run_port_forward(
                 watcher.terminate_process()
 
             console.print("[Main] Exiting.")
-            usage_logger.finalize("forced_exit")
+            history_logger.finalize("forced_exit")
             # Force exit immediately instead of hanging
-            import os
-
             os._exit(1)
         else:
             debug.print("All threads have shut down cleanly")
             console.print("[Main] Exiting.")
-            usage_logger.finalize("normal_exit")
+            history_logger.finalize("normal_exit")
 
 
 def main():

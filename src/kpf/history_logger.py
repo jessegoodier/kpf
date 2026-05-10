@@ -1,4 +1,4 @@
-"""Usage logging for kpf sessions."""
+"""History for kpf sessions."""
 
 import json
 import time
@@ -6,11 +6,11 @@ from datetime import datetime
 from pathlib import Path
 
 
-class UsageLogger:
-    """Logger for tracking kpf session usage details."""
+class HistoryLogger:
+    """Logger for tracking kpf session history."""
 
     def __init__(self, config=None):
-        """Initialize usage logger.
+        """Initialize history logger.
 
         Args:
             config: Optional config dict with saveCommandHistory and saveHistoryLocation
@@ -29,6 +29,8 @@ class UsageLogger:
             "service": None,
             "namespace": None,
             "context": None,
+            "kubeconfig": None,
+            "listen_all": False,
             "local_port": None,
             "remote_port": None,
             "restarts": 0,
@@ -37,22 +39,30 @@ class UsageLogger:
             "exit_reason": None,
         }
 
-    def set_session_info(self, service, namespace, context, local_port, remote_port):
+    def set_session_info(
+        self, service, namespace, context, kubeconfig, listen_all, local_port, remote_port
+    ):
         """Set session information for logging.
-
         Args:
             service: Service name
             namespace: Kubernetes namespace
             context: Kubernetes context
+            kubeconfig: Path to kubeconfig file
+            listen_all: Whether bound to 0.0.0.0 (all interfaces)
             local_port: Local port number
             remote_port: Remote port number
         """
         if self.enabled:
+            print(
+                f"[blue]  Listening on: [cyan]{'All interfaces' if listen_all else 'localhost'}:{local_port}[/cyan]"
+            )
             self.session_data.update(
                 {
                     "service": service,
                     "namespace": namespace,
                     "context": context,
+                    "kubeconfig": kubeconfig,
+                    "listen_all": listen_all,
                     "local_port": local_port,
                     "remote_port": remote_port,
                 }
@@ -111,4 +121,4 @@ class UsageLogger:
             from rich.console import Console
 
             console = Console()
-            console.print(f"[yellow]Warning: Failed to write usage log: {e}[/yellow]")
+            console.print(f"[yellow]Warning: Failed to write history log: {e}[/yellow]")
