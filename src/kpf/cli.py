@@ -47,6 +47,9 @@ Example usage:
   kpf --check -n production                     # Interactive selection with endpoint status
   kpf --prompt-namespace (or -p)                # Interactive namespace selection
   kpf --listen-all (or -z)                      # Listen on 0.0.0.0 (all interfaces)
+  kpfh                                          # Jump straight to frecency history (press h inside kpf too)
+
+History docs: https://github.com/jessegoodier/kpf#history-mode
         """,
     )
 

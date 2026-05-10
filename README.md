@@ -39,7 +39,7 @@ Demo of the TUI and the reconnect when a pod is restarted:
 - **Automatic Connection Restarting**: Monitors endpoint changes and restarts port-forward automatically
 - **Multi-resource Support**: Services, pods, deployments, etc.
 - **Smart Port Handling**: Automatically detects privileged port issues (< 1024) and suggests alternatives
-- **History (MRU)**: Press `h` in the interactive selector to instantly replay recent port-forwards, ranked by frecency (frequency + recency)
+- **History (MRU)**: Run `kpfh` to jump straight to a frecency-ranked history of your most-used port-forwards, or press `h` in the interactive selector to do the same inline
 
 ## Installation
 
@@ -130,14 +130,19 @@ kpf -pAdl
 
 ### History Mode
 
-When `saveCommandHistory` is enabled, kpf records each session to `~/.config/kpf/command-history/`. Press `h` at the service selection screen to open a frecency-ranked history of your most-used port-forwards.
+`kpfh` is a dedicated command that jumps straight to the frecency-ranked history of your most-used port-forwards — no service-list browsing required. You can also press `h` at any service selection screen inside `kpf` to open the same history menu inline.
+
+Enable history once, then use `kpfh` or press `h` anytime:
 
 ```bash
 # Enable history (one-time setup)
 mkdir -p ~/.config/kpf
 echo '{"saveCommandHistory": true}' > ~/.config/kpf/kpf.json
 
-# Then just use kpf normally — press h at the service list to see history
+# Jump straight to history
+kpfh
+
+# Or press h at the service list inside kpf
 kpf
 ```
 
