@@ -48,6 +48,7 @@ Issues = "https://github.com/jessegoodier/kpf/issues"
 
 [project.scripts]
 kpf = "kpf.cli:main"
+kpfh = "kpf.cli:history_main"
 
 [build-system]
 requires = ["hatchling"]

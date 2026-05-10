@@ -518,5 +518,36 @@ def main():
         sys.exit(1)
 
 
+def history_main():
+    """Entry point for kpfh — jumps directly to the history selection menu."""
+    config = get_config()
+    merged_config = config.config.copy()
+
+    if not merged_config.get("saveCommandHistory", False):
+        console.print(
+            "[yellow]History is disabled. Set saveCommandHistory=true in your config "
+            "or run: kpf --create-config[/yellow]"
+        )
+        sys.exit(1)
+
+    try:
+        k8s_client = KubernetesClient()
+        selector = ServiceSelector(k8s_client, config=merged_config)
+        port_forward_args = selector._prompt_for_history_selection()
+
+        if not port_forward_args:
+            console.print("No history entry selected. Exiting.", style="dim")
+            sys.exit(0)
+
+        run_port_forward(port_forward_args, config=merged_config)
+
+    except KeyboardInterrupt:
+        console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")
+        sys.exit(0)
+    except Exception as e:
+        console.print(f"Error: {e}", style="red")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()
