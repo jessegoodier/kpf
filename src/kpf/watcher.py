@@ -16,7 +16,7 @@ class EndpointWatcher:
         restart_event,
         delegate_should_restart,
         debug_callback=None,
-        usage_logger=None,
+        history_logger=None,
         kubectl_global_flags=None,
     ):
         self.namespace = namespace
@@ -27,7 +27,7 @@ class EndpointWatcher:
             delegate_should_restart  # Function to check if we can restart
         )
         self.debug_print = debug_callback if debug_callback else lambda msg, rate_limit=False: None
-        self.usage_logger = usage_logger
+        self.history_logger = history_logger
         self.kubectl_global_flags = kubectl_global_flags or []
         self.thread = None
 
@@ -109,8 +109,8 @@ class EndpointWatcher:
                             console.print(
                                 "[green][Watcher] Endpoint change detected, restarting port-forward...[/green]"
                             )
-                            if self.usage_logger:
-                                self.usage_logger.increment_endpoint_changes()
+                            if self.history_logger:
+                                self.history_logger.increment_endpoint_changes()
                             self.restart_event.set()
                         else:
                             self.debug_print(

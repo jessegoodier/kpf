@@ -20,6 +20,7 @@ class HistoryEntry:
     service: str
     namespace: str
     context: str
+    kubeconfig: str
     local_port: int
     remote_port: int
     use_count: int
@@ -36,6 +37,8 @@ class HistoryEntry:
         ]
         if self.context:
             args.extend(["--context", self.context])
+        if self.kubeconfig:
+            args.extend(["--kubeconfig", self.kubeconfig])
         return args
 
     @property
@@ -76,6 +79,7 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
             local_port = data.get("local_port")
             remote_port = data.get("remote_port")
             context = data.get("context", "")
+            kubeconfig = data.get("kubeconfig", "")
             start_time = data.get("start_time", 0.0)
 
             if not (service and namespace and local_port is not None and remote_port is not None):
@@ -87,6 +91,7 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
                     "service": service,
                     "namespace": namespace,
                     "context": context,
+                    "kubeconfig": kubeconfig,
                     "local_port": local_port,
                     "remote_port": remote_port,
                     "use_count": 0,
@@ -96,7 +101,10 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
             grouped[key]["use_count"] += 1
             if float(start_time) > grouped[key]["last_used"]:
                 grouped[key]["last_used"] = float(start_time)
-                grouped[key]["context"] = context  # keep context from most recent session
+                grouped[key]["context"] = (
+                    context  # keep context/kubeconfig from most recent session
+                )
+                grouped[key]["kubeconfig"] = kubeconfig
 
         except Exception:
             continue
@@ -111,6 +119,7 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
                 service=item["service"],
                 namespace=item["namespace"],
                 context=item["context"],
+                kubeconfig=item["kubeconfig"],
                 local_port=int(item["local_port"]),
                 remote_port=int(item["remote_port"]),
                 use_count=item["use_count"],

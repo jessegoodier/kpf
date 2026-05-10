@@ -23,7 +23,7 @@ class KpfConfig:
         "autoReconnect": True,
         "reconnectAttempts": 30,
         "reconnectDelaySeconds": 5,
-        "saveCommandHistory": False,  # local usage details, not sent anywhere
+        "saveCommandHistory": False,  # local history
         "saveHistoryLocation": "~/.config/kpf/command-history",
         "restartThrottleSeconds": 5,
         "networkWatchdogEnabled": True,  # Monitor K8s API connectivity

@@ -20,7 +20,7 @@ class PortForwarder:
         restart_event,
         debug_callback=None,
         config=None,
-        usage_logger=None,
+        history_logger=None,
         no_health_check: bool = False,
     ):
         self.port_forward_args = port_forward_args
@@ -28,7 +28,7 @@ class PortForwarder:
         self.restart_event = restart_event
         self.debug_print = debug_callback if debug_callback else lambda msg, rate_limit=False: None
         self.config = config
-        self.usage_logger = usage_logger
+        self.history_logger = history_logger
         self.no_health_check = no_health_check
 
         self.local_port = extract_local_port(port_forward_args)
@@ -106,8 +106,8 @@ class PortForwarder:
         while not self.shutdown_event.is_set():
             try:
                 # Track restarts (skip first run)
-                if not first_run and self.usage_logger:
-                    self.usage_logger.increment_restarts()
+                if not first_run and self.history_logger:
+                    self.history_logger.increment_restarts()
 
                 if first_run:
                     first_run = False
@@ -246,8 +246,8 @@ class PortForwarder:
                                     return
 
                                 self.reconnect_attempts_made += 1
-                                if self.usage_logger:
-                                    self.usage_logger.increment_reconnect_attempts()
+                                if self.history_logger:
+                                    self.history_logger.increment_reconnect_attempts()
 
                                 if self.reconnect_attempts_made >= self.max_reconnect_attempts:
                                     console.print(

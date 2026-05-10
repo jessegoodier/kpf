@@ -183,15 +183,6 @@ Example usage:
         help="Automatically reconnect when connection drops (true/false, default: from config)",
     )
 
-    config_group.add_argument(
-        "--capture-usage",
-        dest="capture_usage",
-        type=str_to_bool,
-        default=None,
-        metavar="BOOL",
-        help="Log usage details to files for analytics (true/false, default: from config)",
-    )
-
     # Integer/String arguments
     config_group.add_argument(
         "--reconnect-attempts",
@@ -207,14 +198,6 @@ Example usage:
         default=None,
         metavar="SECONDS",
         help="Delay in seconds between reconnection attempts (default: 5)",
-    )
-
-    config_group.add_argument(
-        "--usage-folder",
-        type=str,
-        default=None,
-        metavar="PATH",
-        help="Folder to store usage detail logs (default: from config)",
     )
 
     # Positional arguments for legacy port-forward syntax
@@ -243,8 +226,6 @@ def merge_config_with_cli_args(config, args):
         "auto_reconnect": "autoReconnect",
         "reconnect_attempts": "reconnectAttempts",
         "reconnect_delay": "reconnectDelaySeconds",
-        "capture_usage": "saveCommandHistory",
-        "usage_folder": "saveHistoryLocation",
     }
 
     for arg_name, config_key in arg_mapping.items():
