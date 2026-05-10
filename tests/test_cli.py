@@ -300,6 +300,15 @@ class TestHandlePromptMode:
 class TestMainFunction:
     """Test main CLI entry point."""
 
+    @pytest.fixture(autouse=True)
+    def patch_config(self):
+        from src.kpf.config import KpfConfig
+
+        mock_cfg = Mock()
+        mock_cfg.config = KpfConfig.DEFAULTS.copy()
+        with patch("src.kpf.cli.get_config", return_value=mock_cfg):
+            yield
+
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")
     @patch("sys.argv", ["kpf"])

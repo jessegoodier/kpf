@@ -18,7 +18,7 @@ _kpf() {
     '(--prompt-namespace -p)'{--prompt-namespace,-p}'[Interactively select a namespace before service selection]'
     '--auto-reconnect[Automatically reconnect on failure]'
     '--auto-select-free-port[Automatically select a free local port]'
-    '--multiline-command[Display command in multiple lines]'
+    '--multiline-command[Display direct command help message on one or multiple lines (true/false, default: true)]'
     '--reconnect-attempts[Number of reconnection attempts]:attempts:'
     '--reconnect-delay[Delay between reconnection attempts in seconds]:delay:'
     '--show-context[Show Kubernetes context in output]'

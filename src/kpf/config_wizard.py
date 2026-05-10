@@ -213,7 +213,7 @@ def run_config_wizard(config) -> None:
                 "[bold bright_cyan]kpf Configuration Wizard[/bold bright_cyan]\n\n"
                 "Press [bold]Enter[/bold] at each prompt to keep the shown default.\n"
                 "Only values that differ from defaults are written to the config file.\n"
-                f"[dim]Config path: {config_path}[/dim]"
+                f"[magenta]Config path:[/magenta] [bold bright_white]{config_path}[bold bright_white]"
             ),
             box=box.ROUNDED,
             border_style="cyan",
@@ -233,7 +233,7 @@ def run_config_wizard(config) -> None:
                 console.print()
                 console.print(Rule(f"[bold cyan]{opt.group}[/bold cyan]", style="cyan"))
 
-            console.print(f"\n[dim]  {i} / {total}[/dim]", end="")
+            console.print(f"\n  {i} / {total}", end="")
 
             starting = existing_raw.get(opt.key, opt.default)
             collected[opt.key] = _prompt_value(opt, starting)
@@ -258,7 +258,7 @@ def run_config_wizard(config) -> None:
         )
         table.add_column("Option", style="bold white", no_wrap=True)
         table.add_column("Value", style="green", no_wrap=True)
-        table.add_column("Default", style="dim", no_wrap=True)
+        table.add_column("Default", no_wrap=True)
 
         for opt in _OPTIONS:
             if opt.key in changed:
@@ -270,9 +270,7 @@ def run_config_wizard(config) -> None:
 
         console.print(table)
     else:
-        console.print(
-            "  [dim]All options kept at their defaults — config file will be empty.[/dim]"
-        )
+        console.print("  All options kept at their defaults — config file will be empty.")
 
     console.print()
 

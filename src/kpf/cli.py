@@ -171,7 +171,7 @@ Example usage:
         type=str_to_bool,
         default=None,
         metavar="BOOL",
-        help="Format direct command across multiple lines (true/false, default: from config)",
+        help="Format direct command help message displays as one or multiple lines (true/false, default: from config)",
     )
 
     config_group.add_argument(

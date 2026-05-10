@@ -53,9 +53,6 @@ class HistoryLogger:
             remote_port: Remote port number
         """
         if self.enabled:
-            print(
-                f"[blue]  Listening on: [cyan]{'All interfaces' if listen_all else 'localhost'}:{local_port}[/cyan]"
-            )
             self.session_data.update(
                 {
                     "service": service,
