@@ -352,9 +352,11 @@ class ServiceSelector:
                         max_index = len(resources)
 
                         if self._history_enabled:
-                            help_text = "↑/↓ j/k=navigate  Enter=select  Esc/q=cancel  digits=jump  h=history"
+                            help_text = "↑/↓ j/k=navigate  Enter=select  Esc=back  q=quit  digits=jump  h=history"
                         else:
-                            help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
+                            help_text = (
+                                "↑/↓ j/k=navigate  Enter=select  Esc=back  q=quit  digits=jump"
+                            )
 
                         def build_view():
                             # Calculate a scrolling window so the selected row stays a few lines above bottom
@@ -420,9 +422,11 @@ class ServiceSelector:
                                 elif ch in (key.ENTER, "\r", "\n"):
                                     selection = current_index
                                     break
-                                elif ch in (key.ESC, "q"):
+                                elif ch == key.ESC:
                                     selection = None
                                     break
+                                elif ch == "q":
+                                    sys.exit(0)
                                 elif ch == "h" and self._history_enabled:
                                     show_history = True
                                     break
@@ -556,7 +560,7 @@ class ServiceSelector:
                     current_index = 1
                     max_index = len(resource.ports)
 
-                    help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
+                    help_text = "↑/↓ j/k=navigate  Enter=select  Esc=back  q=quit  digits=jump"
 
                     def build_view():
                         table = self._build_port_table(resource, selected_index=current_index)
@@ -590,9 +594,11 @@ class ServiceSelector:
                             elif ch in (key.ENTER, "\r", "\n"):
                                 selection = current_index
                                 break
-                            elif ch in (key.ESC, "q"):
+                            elif ch == key.ESC:
                                 selection = None
                                 break
+                            elif ch == "q":
+                                sys.exit(0)
                             elif ch.isdigit():
                                 typed_number, current_index, updated = self._apply_typed_digit(
                                     typed_number, ch, max_index, current_index
@@ -696,9 +702,7 @@ class ServiceSelector:
 
                     current_index = 1
                     max_index = len(entries)
-                    help_text = (
-                        "↑/↓ j/k=navigate  Enter=select  Esc/q=back to service list  digits=jump"
-                    )
+                    help_text = "↑/↓ j/k=navigate  Enter=select  Esc=back  q=quit  digits=jump"
 
                     def build_view():
                         table = self._build_history_table(entries, selected_index=current_index)
@@ -731,9 +735,11 @@ class ServiceSelector:
                             elif ch in (key.ENTER, "\r", "\n"):
                                 selection = current_index
                                 break
-                            elif ch in (key.ESC, "q"):
+                            elif ch == key.ESC:
                                 selection = None
                                 break
+                            elif ch == "q":
+                                sys.exit(0)
                             elif ch.isdigit():
                                 typed_number, current_index, updated = self._apply_typed_digit(
                                     typed_number, ch, max_index, current_index
@@ -897,7 +903,7 @@ class ServiceSelector:
                     current_index = 1
                     max_index = len(namespaces)
 
-                    help_text = "Use ↑/↓ or j/k to navigate, Enter to select, Esc/q to cancel, digits to type index"
+                    help_text = "↑/↓ j/k=navigate  Enter=select  Esc=back  q=quit  digits=jump"
 
                     def build_view():
                         # Calculate a scrolling window
@@ -955,9 +961,11 @@ class ServiceSelector:
                             elif ch in (key.ENTER, "\r", "\n"):
                                 selection = current_index
                                 break
-                            elif ch in (key.ESC, "q"):
+                            elif ch == key.ESC:
                                 selection = None
                                 break
+                            elif ch == "q":
+                                sys.exit(0)
                             elif ch.isdigit():
                                 typed_number, current_index, updated = self._apply_typed_digit(
                                     typed_number, ch, max_index, current_index

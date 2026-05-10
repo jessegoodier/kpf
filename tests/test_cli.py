@@ -4,7 +4,7 @@ from unittest.mock import ANY, Mock, patch
 
 import pytest
 
-from src.kpf.cli import create_parser, handle_prompt_mode, main
+from src.kpf.cli import create_parser, handle_prompt_mode, main, merge_config_with_cli_args
 
 
 class TestArgumentParser:
@@ -109,6 +109,67 @@ class TestArgumentParser:
 
         assert args.address_zero is True
         assert unknown_args == []
+
+    def test_parser_show_context_argument(self):
+        """Test --show-context argument."""
+        parser = create_parser()
+        args, _ = parser.parse_known_args(["--show-context", "true"])
+        assert args.show_context is True
+
+        args, _ = parser.parse_known_args(["--show-context", "false"])
+        assert args.show_context is False
+
+    def test_parser_show_kubeconfig_argument(self):
+        """Test --show-kubeconfig argument."""
+        parser = create_parser()
+        args, _ = parser.parse_known_args(["--show-kubeconfig", "true"])
+        assert args.show_kubeconfig is True
+
+        args, _ = parser.parse_known_args(["--show-kubeconfig", "false"])
+        assert args.show_kubeconfig is False
+
+    def test_parser_show_kubeconfig_default_is_none(self):
+        """Test --show-kubeconfig defaults to None (unset)."""
+        parser = create_parser()
+        args, _ = parser.parse_known_args([])
+        assert args.show_kubeconfig is None
+
+
+class TestMergeConfigWithCliArgs:
+    """Test merge_config_with_cli_args function."""
+
+    def _make_config(self, overrides=None):
+        from src.kpf.config import KpfConfig
+
+        cfg = Mock()
+        cfg.config = KpfConfig.DEFAULTS.copy()
+        if overrides:
+            cfg.config.update(overrides)
+        return cfg
+
+    def test_show_context_override(self):
+        """Test that --show-context overrides config."""
+        config = self._make_config({"showDirectCommandIncludeContext": True})
+        parser = create_parser()
+        args, _ = parser.parse_known_args(["--show-context", "false"])
+        merged = merge_config_with_cli_args(config, args)
+        assert merged["showDirectCommandIncludeContext"] is False
+
+    def test_show_kubeconfig_override(self):
+        """Test that --show-kubeconfig overrides config."""
+        config = self._make_config({"showDirectCommandIncludeKubeconfig": True})
+        parser = create_parser()
+        args, _ = parser.parse_known_args(["--show-kubeconfig", "false"])
+        merged = merge_config_with_cli_args(config, args)
+        assert merged["showDirectCommandIncludeKubeconfig"] is False
+
+    def test_show_kubeconfig_not_set_keeps_config_value(self):
+        """Test that omitting --show-kubeconfig preserves config value."""
+        config = self._make_config({"showDirectCommandIncludeKubeconfig": False})
+        parser = create_parser()
+        args, _ = parser.parse_known_args([])
+        merged = merge_config_with_cli_args(config, args)
+        assert merged["showDirectCommandIncludeKubeconfig"] is False
 
 
 class TestKubectlArgumentPassthrough:
@@ -299,6 +360,15 @@ class TestHandlePromptMode:
 
 class TestMainFunction:
     """Test main CLI entry point."""
+
+    @pytest.fixture(autouse=True)
+    def patch_config(self):
+        from src.kpf.config import KpfConfig
+
+        mock_cfg = Mock()
+        mock_cfg.config = KpfConfig.DEFAULTS.copy()
+        with patch("src.kpf.cli.get_config", return_value=mock_cfg):
+            yield
 
     @patch("src.kpf.cli.handle_prompt_mode")
     @patch("src.kpf.cli.run_port_forward")

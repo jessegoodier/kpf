@@ -8,6 +8,15 @@ import pytest
 
 
 class TestCLIIntegration:
+    @pytest.fixture(autouse=True)
+    def patch_config(self):
+        from src.kpf.config import KpfConfig
+
+        mock_cfg = Mock()
+        mock_cfg.config = KpfConfig.DEFAULTS.copy()
+        with patch("src.kpf.cli.get_config", return_value=mock_cfg):
+            yield
+
     """Integration tests for CLI functionality."""
 
     def test_help_output(self):

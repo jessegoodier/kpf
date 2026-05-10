@@ -124,6 +124,25 @@ class PortForwarder:
                             k8s = KubernetesClient()
                             context = k8s.get_current_context()
 
+                        kubeconfig = None
+                        if self.config and self.config.get(
+                            "showDirectCommandIncludeKubeconfig", True
+                        ):
+                            import os
+                            from pathlib import Path
+
+                            for i, flag in enumerate(args):
+                                if flag == "--kubeconfig" and i + 1 < len(args):
+                                    kubeconfig = args[i + 1]
+                                    break
+                            if not kubeconfig:
+                                env_kc = os.environ.get("KUBECONFIG", "")
+                                if env_kc:
+                                    kubeconfig = env_kc.split(os.pathsep)[0]
+                            default_kc = str(Path("~/.kube/config").expanduser())
+                            if not kubeconfig or kubeconfig == default_kc:
+                                kubeconfig = None
+
                         # Format as multiline if configured
                         if self.config and self.config.get("directCommandMultiLine", True):
                             formatted_cmd = "kpf"
@@ -137,12 +156,16 @@ class PortForwarder:
 
                             if context:
                                 formatted_cmd += f" \\\n  --context {context}"
+                            if kubeconfig:
+                                formatted_cmd += f" \\\n  --kubeconfig {kubeconfig}"
 
                             console.print(f"\nDirect command:\n[cyan]{formatted_cmd}[/cyan]\n")
                         else:
                             cmd_parts = ["kpf"] + args
                             if context:
                                 cmd_parts.extend(["--context", context])
+                            if kubeconfig:
+                                cmd_parts.extend(["--kubeconfig", kubeconfig])
                             console.print(f"\nDirect command: [cyan]{' '.join(cmd_parts)}[/cyan]\n")
 
                     if local_port:
