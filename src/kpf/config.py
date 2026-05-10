@@ -20,7 +20,6 @@ class KpfConfig:
         "showDirectCommand": True,
         "showDirectCommandIncludeContext": True,
         "showDirectCommandIncludeKubeconfig": True,
-        "directCommandMultiLine": True,
         "autoReconnect": True,
         "reconnectAttempts": 30,
         "reconnectDelaySeconds": 5,

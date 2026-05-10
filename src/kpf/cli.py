@@ -178,15 +178,6 @@ History docs: https://github.com/jessegoodier/kpf#history-mode
     )
 
     config_group.add_argument(
-        "--multiline-command",
-        dest="multiline_command",
-        type=str_to_bool,
-        default=None,
-        metavar="BOOL",
-        help="Format direct command help message displays as one or multiple lines (true/false, default: from config)",
-    )
-
-    config_group.add_argument(
         "--auto-reconnect",
         dest="auto_reconnect",
         type=str_to_bool,
@@ -235,7 +226,6 @@ def merge_config_with_cli_args(config, args):
         "show_direct_command": "showDirectCommand",
         "show_context": "showDirectCommandIncludeContext",
         "show_kubeconfig": "showDirectCommandIncludeKubeconfig",
-        "multiline_command": "directCommandMultiLine",
         "auto_reconnect": "autoReconnect",
         "reconnect_attempts": "reconnectAttempts",
         "reconnect_delay": "reconnectDelaySeconds",
