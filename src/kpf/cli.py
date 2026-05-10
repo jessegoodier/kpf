@@ -496,7 +496,7 @@ def main():
                 sys.exit(0)
 
         # Apply the -0 flag if specified
-        if args.address_zero and port_forward_args:
+        if (args.address_zero or merged_config.get("alwaysListenAll", False)) and port_forward_args:
             # Check if --address is already specified to avoid duplicates/conflicts
             if "--address" not in port_forward_args:
                 port_forward_args.extend(["--address", "0.0.0.0"])
@@ -531,13 +531,15 @@ def history_main():
         sys.exit(1)
 
     try:
-        k8s_client = KubernetesClient()
-        selector = ServiceSelector(k8s_client, config=merged_config)
+        selector = ServiceSelector(config=merged_config)
         port_forward_args = selector._prompt_for_history_selection()
 
         if not port_forward_args:
             console.print("No history entry selected. Exiting.", style="dim")
             sys.exit(0)
+
+        if merged_config.get("alwaysListenAll", False) and "--address" not in port_forward_args:
+            port_forward_args.extend(["--address", "0.0.0.0"])
 
         run_port_forward(port_forward_args, config=merged_config)
 

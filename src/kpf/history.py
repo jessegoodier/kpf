@@ -21,6 +21,7 @@ class HistoryEntry:
     namespace: str
     context: str
     kubeconfig: str
+    listen_all: bool
     local_port: int
     remote_port: int
     use_count: int
@@ -39,6 +40,8 @@ class HistoryEntry:
             args.extend(["--context", self.context])
         if self.kubeconfig:
             args.extend(["--kubeconfig", self.kubeconfig])
+        if self.listen_all:
+            args.extend(["--address", "0.0.0.0"])
         return args
 
     @property
@@ -80,6 +83,7 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
             remote_port = data.get("remote_port")
             context = data.get("context", "")
             kubeconfig = data.get("kubeconfig", "")
+            listen_all = bool(data.get("listen_all", False))
             start_time = data.get("start_time", 0.0)
 
             if not (service and namespace and local_port is not None and remote_port is not None):
@@ -92,6 +96,7 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
                     "namespace": namespace,
                     "context": context,
                     "kubeconfig": kubeconfig,
+                    "listen_all": listen_all,
                     "local_port": local_port,
                     "remote_port": remote_port,
                     "use_count": 0,
@@ -101,10 +106,9 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
             grouped[key]["use_count"] += 1
             if float(start_time) > grouped[key]["last_used"]:
                 grouped[key]["last_used"] = float(start_time)
-                grouped[key]["context"] = (
-                    context  # keep context/kubeconfig from most recent session
-                )
+                grouped[key]["context"] = context
                 grouped[key]["kubeconfig"] = kubeconfig
+                grouped[key]["listen_all"] = listen_all
 
         except Exception:
             continue
@@ -120,6 +124,7 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
                 namespace=item["namespace"],
                 context=item["context"],
                 kubeconfig=item["kubeconfig"],
+                listen_all=item["listen_all"],
                 local_port=int(item["local_port"]),
                 remote_port=int(item["remote_port"]),
                 use_count=item["use_count"],

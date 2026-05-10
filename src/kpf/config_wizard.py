@@ -37,6 +37,16 @@ _OPTIONS = [
         ),
     ),
     _Option(
+        key="alwaysListenAll",
+        kind="bool",
+        default=False,
+        group="Port Handling",
+        description=(
+            "Always bind to 0.0.0.0 (all interfaces) instead of localhost. "
+            "Equivalent to passing --listen-all / -z on every invocation."
+        ),
+    ),
+    _Option(
         key="showDirectCommand",
         kind="bool",
         default=True,

@@ -23,6 +23,7 @@ class KpfConfig:
         "autoReconnect": True,
         "reconnectAttempts": 30,
         "reconnectDelaySeconds": 5,
+        "alwaysListenAll": False,  # always bind to 0.0.0.0 instead of localhost
         "saveCommandHistory": False,  # local history
         "saveHistoryLocation": "~/.config/kpf/command-history",
         "restartThrottleSeconds": 5,

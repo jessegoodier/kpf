@@ -200,6 +200,14 @@ def run_port_forward(
         except Exception:
             pass
 
+    # Detect listen_all from port_forward_args
+    listen_all = False
+    try:
+        addr_idx = port_forward_args.index("--address")
+        listen_all = port_forward_args[addr_idx + 1] == "0.0.0.0"
+    except (ValueError, IndexError):
+        pass
+
     # Resolve kubeconfig: explicit flag > KUBECONFIG env > default path
     kubeconfig = ""
     for i, flag in enumerate(kubectl_global_flags):
@@ -215,7 +223,7 @@ def run_port_forward(
 
     # Set session info in usage logger
     history_logger.set_session_info(
-        resource_name, namespace, context, kubeconfig, local_port, remote_port
+        resource_name, namespace, context, kubeconfig, listen_all, local_port, remote_port
     )
 
     # Create forwarder and watcher instances

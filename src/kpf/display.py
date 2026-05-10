@@ -20,9 +20,10 @@ from .kubernetes import KubernetesClient, ServiceInfo
 class ServiceSelector:
     """Interactive service selector with colored output."""
 
-    def __init__(self, k8s_client: KubernetesClient, config=None):
+    def __init__(self, k8s_client: Optional[KubernetesClient] = None, config=None):
         self.k8s_client = k8s_client
-        self._check_kubectl()
+        if k8s_client is not None:
+            self._check_kubectl()
         self.console = Console()
         # Simple compatibility mode for terminals (now default for stability)
         # Disable by setting env var KPF_TTY_COMPAT=0
