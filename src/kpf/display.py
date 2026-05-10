@@ -675,12 +675,14 @@ class ServiceSelector:
             )
             selected_style = self._selected_row_style() if is_selected else None
             listen_label = "0.0.0.0" if entry.listen_all else "lo"
+            ctx = entry.context or ""
+            ctx_display = ctx if len(ctx) <= 55 else ctx[:52] + "..."
             table.add_row(
                 index_display,
                 entry.service,
                 entry.namespace,
                 entry.port_label,
-                entry.context or "",
+                ctx_display,
                 listen_label,
                 str(entry.use_count),
                 entry.last_used_label,
