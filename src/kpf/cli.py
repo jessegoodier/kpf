@@ -166,6 +166,15 @@ Example usage:
     )
 
     config_group.add_argument(
+        "--show-kubeconfig",
+        dest="show_kubeconfig",
+        type=str_to_bool,
+        default=None,
+        metavar="BOOL",
+        help="Include --kubeconfig in direct command output when non-default (true/false, default: from config)",
+    )
+
+    config_group.add_argument(
         "--multiline-command",
         dest="multiline_command",
         type=str_to_bool,
@@ -222,6 +231,7 @@ def merge_config_with_cli_args(config, args):
         "auto_select_free_port": "autoSelectFreePort",
         "show_direct_command": "showDirectCommand",
         "show_context": "showDirectCommandIncludeContext",
+        "show_kubeconfig": "showDirectCommandIncludeKubeconfig",
         "multiline_command": "directCommandMultiLine",
         "auto_reconnect": "autoReconnect",
         "reconnect_attempts": "reconnectAttempts",

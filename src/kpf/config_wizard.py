@@ -67,6 +67,16 @@ _OPTIONS = [
         ),
     ),
     _Option(
+        key="showDirectCommandIncludeKubeconfig",
+        kind="bool",
+        default=True,
+        group="Display",
+        description=(
+            "Include --kubeconfig in the printed direct command when a non-default kubeconfig "
+            "is in use. Useful when you work with custom or per-project kubeconfig files."
+        ),
+    ),
+    _Option(
         key="directCommandMultiLine",
         kind="bool",
         default=True,

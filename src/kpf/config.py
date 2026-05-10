@@ -19,6 +19,7 @@ class KpfConfig:
         "autoSelectFreePort": True,  # When 9090 is in use, try 9091, 9092, ...
         "showDirectCommand": True,
         "showDirectCommandIncludeContext": True,
+        "showDirectCommandIncludeKubeconfig": True,
         "directCommandMultiLine": True,
         "autoReconnect": True,
         "reconnectAttempts": 30,

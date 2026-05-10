@@ -22,6 +22,7 @@ _kpf() {
     '--reconnect-attempts[Number of reconnection attempts]:attempts:'
     '--reconnect-delay[Delay between reconnection attempts in seconds]:delay:'
     '--show-context[Show Kubernetes context in output]'
+    '--show-kubeconfig[Include --kubeconfig in direct command output when non-default]'
     '--show-direct-command[Show the direct kubectl command]'
     '--create-config[Interactively create or update ~/.config/kpf/kpf.json]'
     '--show-config[Print the current effective configuration as JSON and exit]'
