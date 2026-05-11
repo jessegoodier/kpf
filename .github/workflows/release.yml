@@ -12,9 +12,15 @@ on:
           - patch
           - minor
           - major
+      update_homebrew:
+        description: 'Run Homebrew tap update'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   release:
@@ -63,3 +69,16 @@ jobs:
     with:
       ref: v${{ needs.release.outputs.version }}
     secrets: inherit
+
+  update-homebrew:
+    needs: release
+    if: ${{ inputs.update_homebrew }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Homebrew update workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run update-homebrew.yml \
+            --ref ${{ github.ref_name }} \
+            -f release_version=v${{ needs.release.outputs.version }}

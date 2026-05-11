@@ -5,7 +5,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    security-updates: "auto"
-    open-pull-requests-limit: 10 # Maximum number of open pull requests
-    commit-message:
-      prefix: "DBOT" # Prefix for the commit message
+
+  # Maintain GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
