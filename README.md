@@ -1,8 +1,8 @@
 # kpf - A TUI for port-forwarding with kubectl <!-- omit from toc -->
 
-This is a Python utility that (attempts to) dramatically improve the experience of port-forwarding with kubectl.
+`kpf` is a Python utility that (attempts to) dramatically improve the experience of port-forwarding with kubectl.
 
-It is essentially a wrapper around `kubectl port-forward` that adds an interactive service selection with automatic reconnects when the pods are restarted or your network connection is interrupted (computer goes to sleep, etc).
+It is essentially a wrapper around `kubectl port-forward` that adds interactive service selection with automatic reconnects when pods restart or your network connection is interrupted (computer goes to sleep, etc.).
 
 This should be compatible with the `kpf` alias that you may already have.
 
@@ -11,10 +11,10 @@ If you like this, check out <https://github.com/jessegoodier/kdebug>, a TUI for 
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Interactive Mode (Recommended)](#interactive-mode-recommended)
+  - [Interactive Mode](#interactive-mode)
   - [History Mode](#history-mode)
   - [Health Check Mode](#health-check-mode)
-  - [Legacy Mode](#legacy-mode)
+  - [Direct Command Mode](#direct-command-mode)
   - [Command Options](#command-options)
 - [Examples](#examples)
   - [Interactive Service Selection](#interactive-service-selection)
@@ -78,7 +78,7 @@ uv tool install .
 
 ## Usage
 
-### Interactive Mode (Recommended)
+### Interactive Mode
 
 **Warm Tip**: You can use the interactive mode to find the service you want, and it will output the command to connect to that service directly next time.
 
@@ -134,16 +134,17 @@ kpf -pAdl
 
 Enable history once, then use `kpfh` or press `h` anytime:
 
+By default, `kpf` does not have a settings file and does not record command history. You must enable this using the configuration wizard or by creating the `~/.config/kpf/kpf.json` file.
+
 ```bash
-# Enable history (one-time setup)
+kpf --create-config
+```
+
+or
+
+```bash
 mkdir -p ~/.config/kpf
 echo '{"saveCommandHistory": true}' > ~/.config/kpf/kpf.json
-
-# Jump straight to history
-kpfh
-
-# Or press h at the service list inside kpf
-kpf
 ```
 
 Entries are ranked by **frecency** — a blend of frequency and recency — so services you use often *and* recently float to the top. Selecting an entry replays the exact session (service, namespace, ports, and cluster context). Press `Esc` or `q` to return to the full service list without making a selection.
@@ -163,12 +164,12 @@ kpf --all --check
 kpf --all-ports --check
 ```
 
-### Legacy Mode
+### Direct Command Mode
 
-Direct port-forward (maintain expected behavior):
+Direct port-forward (maintains expected behavior for previous kpf aliases):
 
 ```bash
-# Traditional kubectl port-forward syntax
+# Traditional kubectl port-forward syntax can be used with kpf
 kpf svc/frontend 8080:8080 -n production
 kpf pod/my-pod 3000:3000
 ```
@@ -176,16 +177,16 @@ kpf pod/my-pod 3000:3000
 ### Command Options
 
 ```sh
-
 Example usage:
   kpf                                           # Interactive mode
-  kpf svc/frontend 8080:8080 -n production      # Direct port-forward (maintain expected behavior)
+  kpf svc/frontend 8080:8080 -n production      # Direct port-forward (maintains expected behavior)
   kpf -n production                             # Interactive selection in specific namespace
   kpf --all (or -A)                             # Show all services across all namespaces
-  kpf --all-ports (or -l)                       # Show all services with their ports
+  kpf --all-ports (or -l)                       # Include pods and controllers with ports defined
   kpf --check -n production                     # Interactive selection with endpoint status
   kpf --prompt-namespace (or -p)                # Interactive namespace selection
-  kpf -z                                        # Listen on 0.0.0.0 (all interfaces)
+  kpf --listen-all (or -z)                      # Listen on 0.0.0.0 (all interfaces)
+  kpfh                                          # Jump straight to frecency history
 ```
 
 ## Examples
@@ -286,9 +287,10 @@ If you create this file, it is suggested to only change the values you want to o
 ```json
 {
   "autoSelectFreePort": true,
+  "alwaysListenAll": false,
   "showDirectCommand": true,
   "showDirectCommandIncludeContext": true,
-  "directCommandMultiLine": true,
+  "showDirectCommandIncludeKubeconfig": true,
   "autoReconnect": true,
   "reconnectAttempts": 30,
   "reconnectDelaySeconds": 5,
@@ -310,20 +312,22 @@ echo '{"autoReconnect": false}' > ~/.config/kpf/kpf.json
 
 ### Configuration Options
 
-| Option                            | Type    | Default                             | Description                                                                  |
-| --------------------------------- | ------- | ----------------------------------- | ---------------------------------------------------------------------------- |
-| `autoSelectFreePort`              | boolean | `true`                              | When requested port is busy, automatically try next ports (9091, 9092, etc.) |
-| `showDirectCommand`               | boolean | `true`                              | Show the direct `kpf` command for future use                                 |
-| `showDirectCommandIncludeContext` | boolean | `true`                              | Include kubectl context in the command display                               |
-| `directCommandMultiLine`          | boolean | `true`                              | Format direct command across multiple lines for readability                  |
-| `autoReconnect`                   | boolean | `true`                              | Automatically reconnect when connection drops                                |
-| `reconnectAttempts`               | integer | `30`                                | Number of reconnection attempts before giving up                             |
-| `reconnectDelaySeconds`           | integer | `5`                                 | Delay in seconds between reconnection attempts                               |
-| `saveCommandHistory`             | boolean | `false`                             | Record session details locally; enables the `h` history menu in the TUI (not sent anywhere) |
-| `saveHistoryLocation`               | string  | `~/.config/kpf/command-history`       | Where to store usage detail logs                                             |
-| `networkWatchdogEnabled`          | boolean | `true`                              | Monitor K8s API connectivity to detect zombie connections                    |
-| `networkWatchdogInterval`         | integer | `5`                                 | Seconds between connectivity checks                                          |
-| `networkWatchdogFailureThreshold` | integer | `2`                                 | Consecutive failures before triggering restart                               |
+| Option                               | Type    | Default                         | Description                                                                 |
+| ------------------------------------ | ------- | ------------------------------- | --------------------------------------------------------------------------- |
+| `autoSelectFreePort`                 | boolean | `true`                          | When the requested local port is busy, automatically try the next free port |
+| `alwaysListenAll`                    | boolean | `false`                         | Always bind to `0.0.0.0` instead of localhost                              |
+| `showDirectCommand`                  | boolean | `true`                          | Show the direct `kpf` command for future use                                |
+| `showDirectCommandIncludeContext`    | boolean | `true`                          | Include kubectl context in the command display                              |
+| `showDirectCommandIncludeKubeconfig` | boolean | `true`                          | Include non-default kubeconfig paths in the command display                 |
+| `autoReconnect`                      | boolean | `true`                          | Automatically reconnect when connection drops                               |
+| `reconnectAttempts`                  | integer | `30`                            | Number of reconnection attempts before giving up                            |
+| `reconnectDelaySeconds`              | integer | `5`                             | Delay in seconds between reconnection attempts                              |
+| `saveCommandHistory`                 | boolean | `false`                         | Record session details locally; enables the `h` history menu in the TUI     |
+| `saveHistoryLocation`                | string  | `~/.config/kpf/command-history` | Where to store usage detail logs                                            |
+| `restartThrottleSeconds`             | integer | `5`                             | Minimum seconds between automatic restarts                                  |
+| `networkWatchdogEnabled`             | boolean | `true`                          | Monitor K8s API and local port connectivity to detect zombie connections    |
+| `networkWatchdogInterval`            | integer | `5`                             | Seconds between connectivity checks                                         |
+| `networkWatchdogFailureThreshold`    | integer | `2`                             | Consecutive failures before triggering restart                              |
 
 **Notes:**
 
