@@ -143,30 +143,21 @@ class PortForwarder:
                             if not kubeconfig or kubeconfig == default_kc:
                                 kubeconfig = None
 
-                        # Format as multiline if configured
-                        if self.config and self.config.get("directCommandMultiLine", True):
-                            formatted_cmd = "kpf"
-                            for i, part in enumerate(args):
-                                if i == 0:
-                                    formatted_cmd += f" {part}"
-                                elif part.startswith("-"):
-                                    formatted_cmd += f" \\\n  {part}"
-                                else:
-                                    formatted_cmd += f" {part}"
+                        formatted_cmd = "kpf"
+                        for i, part in enumerate(args):
+                            if i == 0:
+                                formatted_cmd += f" {part}"
+                            elif part.startswith("-"):
+                                formatted_cmd += f" \\\n  {part}"
+                            else:
+                                formatted_cmd += f" {part}"
 
-                            if context:
-                                formatted_cmd += f" \\\n  --context {context}"
-                            if kubeconfig:
-                                formatted_cmd += f" \\\n  --kubeconfig {kubeconfig}"
+                        if context:
+                            formatted_cmd += f" \\\n  --context {context}"
+                        if kubeconfig:
+                            formatted_cmd += f" \\\n  --kubeconfig {kubeconfig}"
 
-                            console.print(f"\nDirect command:\n[cyan]{formatted_cmd}[/cyan]\n")
-                        else:
-                            cmd_parts = ["kpf"] + args
-                            if context:
-                                cmd_parts.extend(["--context", context])
-                            if kubeconfig:
-                                cmd_parts.extend(["--kubeconfig", kubeconfig])
-                            console.print(f"\nDirect command: [cyan]{' '.join(cmd_parts)}[/cyan]\n")
+                        console.print(f"\nDirect command:\n[cyan]{formatted_cmd}[/cyan]\n")
 
                     if local_port:
                         console.print(

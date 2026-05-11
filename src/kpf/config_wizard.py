@@ -77,13 +77,6 @@ _OPTIONS = [
         ),
     ),
     _Option(
-        key="directCommandMultiLine",
-        kind="bool",
-        default=True,
-        group="Display",
-        description="Break the printed direct command across multiple lines for readability.",
-    ),
-    _Option(
         key="autoReconnect",
         kind="bool",
         default=True,
