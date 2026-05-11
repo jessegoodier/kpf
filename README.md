@@ -11,10 +11,10 @@ If you like this, check out <https://github.com/jessegoodier/kdebug>, a TUI for 
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Interactive Mode (Recommended)](#interactive-mode-recommended)
+  - [Interactive Mode](#interactive-mode)
   - [History Mode](#history-mode)
   - [Health Check Mode](#health-check-mode)
-  - [Legacy Mode](#legacy-mode)
+  - [Direct Command Mode](#direct-command-mode)
   - [Command Options](#command-options)
 - [Examples](#examples)
   - [Interactive Service Selection](#interactive-service-selection)
@@ -78,7 +78,7 @@ uv tool install .
 
 ## Usage
 
-### Interactive Mode (Recommended)
+### Interactive Mode
 
 **Warm Tip**: You can use the interactive mode to find the service you want, and it will output the command to connect to that service directly next time.
 
@@ -134,16 +134,17 @@ kpf -pAdl
 
 Enable history once, then use `kpfh` or press `h` anytime:
 
+By default, kpf does not have any settings file and does not record command history. You must enable this using the configuration wizard or creating the `~/.config/kpf/kpf.json` file.
+
 ```bash
-# Enable history (one-time setup)
+kpf --create-config
+```
+
+or
+
+```bash
 mkdir -p ~/.config/kpf
 echo '{"saveCommandHistory": true}' > ~/.config/kpf/kpf.json
-
-# Jump straight to history
-kpfh
-
-# Or press h at the service list inside kpf
-kpf
 ```
 
 Entries are ranked by **frecency** — a blend of frequency and recency — so services you use often *and* recently float to the top. Selecting an entry replays the exact session (service, namespace, ports, and cluster context). Press `Esc` or `q` to return to the full service list without making a selection.
@@ -163,12 +164,12 @@ kpf --all --check
 kpf --all-ports --check
 ```
 
-### Legacy Mode
+### Direct Command Mode
 
-Direct port-forward (maintain expected behavior):
+Direct port-forward (maintains expected behavior for previous kpf aliases):
 
 ```bash
-# Traditional kubectl port-forward syntax
+# Traditional kubectl port-forward syntax, can we used with kpf args
 kpf svc/frontend 8080:8080 -n production
 kpf pod/my-pod 3000:3000
 ```
