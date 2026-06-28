@@ -1,6 +1,6 @@
 [project]
 name = "kpf"
-version = "0.12.5"
+version = "0.12.6"
 description = "TUI for kubectl port-forward"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -107,7 +107,7 @@ addopts = [
 ]
 
 [tool.bumpversion]
-current_version = "0.12.5"
+current_version = "0.12.6"
 commit = true
 tag = true
 allow_dirty = false
