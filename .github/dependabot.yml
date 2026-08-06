@@ -9,3 +9,11 @@ updates:
     open-pull-requests-limit: 10 # Maximum number of open pull requests
     commit-message:
       prefix: "DBOT" # Prefix for the commit message
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "DBOT"
