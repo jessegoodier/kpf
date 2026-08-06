@@ -71,9 +71,9 @@ class TestCLIIntegration:
         """Test that all modules can be imported without errors."""
         try:
             # Verify version consistency
-            import tomllib
             from pathlib import Path
 
+            import tomllib
             from src.kpf import __version__
             from src.kpf.cli import main
             from src.kpf.display import ServiceSelector

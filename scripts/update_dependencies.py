@@ -6,10 +6,10 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
+import tomllib
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table

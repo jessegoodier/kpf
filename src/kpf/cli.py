@@ -7,7 +7,6 @@ import os
 import platform
 import subprocess
 import sys
-from typing import List, Optional
 
 from . import __version__
 from .config import get_config
@@ -240,12 +239,12 @@ def merge_config_with_cli_args(config, args):
 
 
 def handle_prompt_mode(
-    namespace: Optional[str] = None,
+    namespace: str | None = None,
     show_all: bool = False,
     show_all_ports: bool = False,
     check_endpoints: bool = False,
     config=None,
-) -> List[str]:
+) -> list[str]:
     """Handle interactive service selection."""
     k8s_client = KubernetesClient()
     selector = ServiceSelector(k8s_client, config=config)

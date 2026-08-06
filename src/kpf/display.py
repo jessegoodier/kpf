@@ -5,7 +5,6 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
 
 from rich import box
 from rich.console import Console, Group
@@ -20,7 +19,7 @@ from .kubernetes import KubernetesClient, ServiceInfo
 class ServiceSelector:
     """Interactive service selector with colored output."""
 
-    def __init__(self, k8s_client: Optional[KubernetesClient] = None, config=None):
+    def __init__(self, k8s_client: KubernetesClient | None = None, config=None):
         self.k8s_client = k8s_client
         if k8s_client is not None:
             self._check_kubectl()
@@ -29,7 +28,7 @@ class ServiceSelector:
         # Disable by setting env var KPF_TTY_COMPAT=0
         self.compat_mode = os.environ.get("KPF_TTY_COMPAT") != "0"
         self._history_enabled = False
-        self._history_folder: Optional[Path] = None
+        self._history_folder: Path | None = None
         if config and config.get("saveCommandHistory", False):
             folder = config.get("saveHistoryLocation", "~/.config/kpf/command-history")
             self._history_folder = Path(folder).expanduser()
@@ -125,10 +124,10 @@ class ServiceSelector:
 
     def select_service_in_namespace(
         self,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         include_all_ports: bool = False,
         check_endpoints: bool = False,
-    ) -> List[str]:
+    ) -> list[str]:
         """Select a service interactively within a specific namespace."""
         if not namespace:
             namespace = self.k8s_client.get_current_namespace()
@@ -162,7 +161,7 @@ class ServiceSelector:
 
     def select_service_all_namespaces(
         self, include_all_ports: bool = False, check_endpoints: bool = False
-    ) -> List[str]:
+    ) -> list[str]:
         """Select a service interactively across all namespaces."""
         if include_all_ports:
             self.console.print("\n[bold cyan]Getting ports across all namespaces...[/bold cyan]")
@@ -200,11 +199,11 @@ class ServiceSelector:
 
     def _build_services_table(
         self,
-        resources: List[ServiceInfo],
+        resources: list[ServiceInfo],
         show_namespace: bool = False,
         check_endpoints: bool = False,
         include_all_ports: bool = False,
-        selected_index: Optional[int] = None,
+        selected_index: int | None = None,
         row_index_offset: int = 0,
     ) -> Table:
         """Build services table with a polished look and optional selected row highlight."""
@@ -305,7 +304,7 @@ class ServiceSelector:
 
     def _display_services_table(
         self,
-        resources: List[ServiceInfo],
+        resources: list[ServiceInfo],
         show_namespace: bool = False,
         check_endpoints: bool = False,
         include_all_ports: bool = False,
@@ -324,13 +323,13 @@ class ServiceSelector:
 
     def _prompt_for_service_selection(
         self,
-        resources: List[ServiceInfo],
-        namespace: Optional[str] = None,
+        resources: list[ServiceInfo],
+        namespace: str | None = None,
         *,
-        show_namespace: Optional[bool] = None,
-        include_all_ports: Optional[bool] = None,
-        check_endpoints: Optional[bool] = None,
-    ) -> List[str]:
+        show_namespace: bool | None = None,
+        include_all_ports: bool | None = None,
+        check_endpoints: bool | None = None,
+    ) -> list[str]:
         """Prompt user to select a service and return port-forward arguments."""
         # Resolve layout flags up-front so they can be used in both interactive and fallback paths
         show_namespace_flag = namespace is None if show_namespace is None else show_namespace
@@ -339,7 +338,7 @@ class ServiceSelector:
         try:
             current_index = 1  # Preserved when returning from history menu
             while True:  # Outer loop: re-enters service selection after a history roundtrip
-                selection: Optional[int] = None
+                selection: int | None = None
                 show_history = False
 
                 # Only attempt interactive navigation in a TTY
@@ -495,9 +494,7 @@ class ServiceSelector:
             self.console.print("\n[yellow]Service selection cancelled (Ctrl+C)[/yellow]")
             return []
 
-    def _build_port_table(
-        self, resource: ServiceInfo, selected_index: Optional[int] = None
-    ) -> Table:
+    def _build_port_table(self, resource: ServiceInfo, selected_index: int | None = None) -> Table:
         """Build port selection table with optional selected row highlight."""
         port_table = Table(
             title=f"Available ports for {resource.name}",
@@ -544,11 +541,11 @@ class ServiceSelector:
 
         return port_table
 
-    def _prompt_for_port_selection(self, resource: ServiceInfo) -> List[str]:
+    def _prompt_for_port_selection(self, resource: ServiceInfo) -> list[str]:
         """Prompt user to select a port when multiple are available."""
         try:
             # First, try an interactive keyboard navigation if available
-            selection: Optional[int] = None
+            selection: int | None = None
 
             # Only attempt interactive navigation in a TTY
             if sys.stdin.isatty() and sys.stdout.isatty():
@@ -640,7 +637,7 @@ class ServiceSelector:
             return []
 
     def _build_history_table(
-        self, entries: List[HistoryEntry], selected_index: Optional[int] = None
+        self, entries: list[HistoryEntry], selected_index: int | None = None
     ) -> Table:
         """Build frecency-ranked history table with optional selected row highlight."""
         table = Table(
@@ -691,7 +688,7 @@ class ServiceSelector:
 
         return table
 
-    def _prompt_for_history_selection(self) -> Optional[List[str]]:
+    def _prompt_for_history_selection(self) -> list[str] | None:
         """Show the frecency-ranked history menu. Returns port-forward args or None if cancelled."""
         entries = load_history(self._history_folder)
 
@@ -702,7 +699,7 @@ class ServiceSelector:
             return None
 
         try:
-            selection: Optional[int] = None
+            selection: int | None = None
 
             if sys.stdin.isatty() and sys.stdout.isatty():
                 try:
@@ -840,7 +837,7 @@ class ServiceSelector:
             self.console.print("\n[yellow]Port input cancelled (Ctrl+C)[/yellow]")
             sys.exit(0)
 
-    def select_namespace(self) -> Optional[str]:
+    def select_namespace(self) -> str | None:
         """Select a namespace interactively."""
         self.console.print("\n[bold cyan]Getting namespaces...[/bold cyan]")
 
@@ -854,7 +851,7 @@ class ServiceSelector:
         return self._prompt_for_namespace_selection(namespaces)
 
     def _build_namespace_table(
-        self, namespaces: List[str], selected_index: Optional[int] = None, row_index_offset: int = 0
+        self, namespaces: list[str], selected_index: int | None = None, row_index_offset: int = 0
     ) -> Table:
         """Build namespace selection table."""
         table = Table(
@@ -896,11 +893,11 @@ class ServiceSelector:
 
         return table
 
-    def _prompt_for_namespace_selection(self, namespaces: List[str]) -> Optional[str]:
+    def _prompt_for_namespace_selection(self, namespaces: list[str]) -> str | None:
         """Prompt user to select a namespace."""
         try:
             # First, try an interactive keyboard navigation if available
-            selection: Optional[int] = None
+            selection: int | None = None
 
             # Only attempt interactive navigation in a TTY
             if sys.stdin.isatty() and sys.stdout.isatty():

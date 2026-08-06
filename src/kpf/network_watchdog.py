@@ -4,7 +4,7 @@
 import socket
 import threading
 import urllib.parse
-from typing import Callable, Optional
+from collections.abc import Callable
 
 
 class NetworkWatchdog(threading.Thread):
@@ -21,9 +21,9 @@ class NetworkWatchdog(threading.Thread):
         restart_event: threading.Event,
         interval: int = 5,
         failure_threshold: int = 2,
-        debug_callback: Optional[Callable[[str], None]] = None,
-        local_port: Optional[int] = None,
-        kubectl_global_flags: Optional[list] = None,
+        debug_callback: Callable[[str], None] | None = None,
+        local_port: int | None = None,
+        kubectl_global_flags: list | None = None,
     ):
         """Initialize the network watchdog.
 
@@ -45,7 +45,7 @@ class NetworkWatchdog(threading.Thread):
         self.local_port = local_port
         self.kubectl_global_flags = kubectl_global_flags or []
         self.consecutive_failures = 0
-        self._api_server_host: Optional[str] = None
+        self._api_server_host: str | None = None
         self._api_server_port: int = 443
 
     def _debug(self, message: str, rate_limit: bool = False):
@@ -53,7 +53,7 @@ class NetworkWatchdog(threading.Thread):
         if self.debug_callback:
             self.debug_callback(message, rate_limit)
 
-    def _get_api_server_address(self) -> tuple[Optional[str], int]:
+    def _get_api_server_address(self) -> tuple[str | None, int]:
         """Get the K8s API server host and port from kubectl config.
 
         Returns:
@@ -123,7 +123,7 @@ class NetworkWatchdog(threading.Thread):
                     f"Network watchdog: API server unreachable ({host}:{port}), error code: {result}"
                 )
                 return False
-        except socket.timeout:
+        except TimeoutError:
             self._debug(f"Network watchdog: Connection timeout to {host}:{port}")
             return False
         except socket.gaierror as e:
@@ -163,7 +163,7 @@ class NetworkWatchdog(threading.Thread):
                     f"Network watchdog: Local port {self.local_port} not accepting connections (error: {result})"
                 )
                 return False
-        except socket.timeout:
+        except TimeoutError:
             self._debug(f"Network watchdog: Timeout connecting to local port {self.local_port}")
             return False
         except Exception as e:

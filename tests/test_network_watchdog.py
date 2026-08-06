@@ -131,7 +131,7 @@ class TestNetworkWatchdog:
     def test_check_connectivity_timeout(self, mock_socket_class):
         """Test connectivity check timeout."""
         mock_socket = MagicMock()
-        mock_socket.connect_ex.side_effect = socket.timeout("Connection timed out")
+        mock_socket.connect_ex.side_effect = TimeoutError("Connection timed out")
         mock_socket_class.return_value = mock_socket
 
         shutdown_event = threading.Event()

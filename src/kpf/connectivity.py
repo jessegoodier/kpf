@@ -2,7 +2,6 @@ import socket
 import ssl
 import time
 from enum import Enum
-from typing import Tuple
 
 import requests
 import urllib3
@@ -130,7 +129,7 @@ class ConnectivityChecker:
                         self.debug_print(
                             f"Port-forward health check failed on port {local_port} [red](result: {result})[/red]"
                         )
-            except (OSError, socket.error):
+            except OSError:
                 pass
 
             time.sleep(0.5)
@@ -140,7 +139,7 @@ class ConnectivityChecker:
         )
         return False
 
-    def _test_socket_connectivity(self, local_port: int) -> Tuple[bool, str]:
+    def _test_socket_connectivity(self, local_port: int) -> tuple[bool, str]:
         """Test basic socket connectivity to the port."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -167,7 +166,7 @@ class ConnectivityChecker:
                     self.debug_print(f"Socket connectivity test failed (code: {result})")
                     return False, f"connection_error_{result}"
 
-        except (OSError, socket.error) as e:
+        except OSError as e:
             self.debug_print(f"Socket connectivity test failed with exception: {e}")
             return False, f"socket_exception_{type(e).__name__}"
 
@@ -194,7 +193,7 @@ class ConnectivityChecker:
 
         return False
 
-    def _test_http_connectivity(self, local_port: int) -> Tuple[ConnectivityTestResult, str]:
+    def _test_http_connectivity(self, local_port: int) -> tuple[ConnectivityTestResult, str]:
         """Test HTTP connectivity to the port."""
         current_time = time.time()
 

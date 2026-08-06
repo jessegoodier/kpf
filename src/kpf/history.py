@@ -12,7 +12,6 @@ import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 
 @dataclass
@@ -28,7 +27,7 @@ class HistoryEntry:
     last_used: float  # Unix timestamp
     frecency_score: float
 
-    def to_port_forward_args(self) -> List[str]:
+    def to_port_forward_args(self) -> list[str]:
         """Return kubectl port-forward args to replay this session."""
         args = [
             f"svc/{self.service}",
@@ -65,7 +64,7 @@ class HistoryEntry:
         return f"{self.local_port}:{self.remote_port}"
 
 
-def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
+def load_history(folder: Path, limit: int = 20) -> list[HistoryEntry]:
     """Load and rank history entries from session JSON files using frecency scoring."""
     if not folder.exists():
         return []
@@ -114,7 +113,7 @@ def load_history(folder: Path, limit: int = 20) -> List[HistoryEntry]:
             continue
 
     now = time.time()
-    entries: List[HistoryEntry] = []
+    entries: list[HistoryEntry] = []
     for item in grouped.values():
         age_hours = max(0.0, (now - item["last_used"]) / 3600)
         score = item["use_count"] / (1.0 + math.log2(age_hours + 1))

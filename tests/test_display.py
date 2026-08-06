@@ -5,7 +5,6 @@ import subprocess
 from unittest.mock import Mock, patch
 
 import pytest
-
 from src.kpf.display import ServiceSelector
 from src.kpf.kubernetes import ServiceInfo
 

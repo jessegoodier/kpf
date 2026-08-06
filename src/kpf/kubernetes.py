@@ -3,7 +3,7 @@
 import json
 import subprocess
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
 
 
 @dataclass
@@ -12,7 +12,7 @@ class ServiceInfo:
 
     name: str
     namespace: str
-    ports: List[Dict[str, Any]]
+    ports: list[dict[str, Any]]
     has_endpoints: bool
     service_type: str = "service"
 
@@ -33,7 +33,7 @@ class ServiceInfo:
                 port_str = str(port["port"])
                 if "targetPort" in port and port["targetPort"] != port["port"]:
                     port_str += f"->{port['targetPort']}"
-                if "name" in port and port["name"]:
+                if port.get("name"):
                     port_str += f" ({port['name']})"
                 port_strs.append(port_str)
 
@@ -91,7 +91,7 @@ class KubernetesClient:
         except Exception:
             return ""
 
-    def get_all_namespaces(self) -> List[str]:
+    def get_all_namespaces(self) -> list[str]:
         """Get all available namespaces."""
         try:
             result = subprocess.run(
@@ -112,7 +112,7 @@ class KubernetesClient:
 
     def get_services_in_namespace(
         self, namespace: str, check_endpoints: bool = True
-    ) -> List[ServiceInfo]:
+    ) -> list[ServiceInfo]:
         """Get all services in a specific namespace."""
         try:
             # Get services
@@ -153,7 +153,7 @@ class KubernetesClient:
         except json.JSONDecodeError as e:
             raise RuntimeError(f"Failed to parse services JSON: {e}")
 
-    def get_all_services(self, check_endpoints: bool = True) -> Dict[str, List[ServiceInfo]]:
+    def get_all_services(self, check_endpoints: bool = True) -> dict[str, list[ServiceInfo]]:
         """Get all services across all namespaces."""
         try:
             namespaces = self.get_all_namespaces()
@@ -208,7 +208,7 @@ class KubernetesClient:
         except (subprocess.CalledProcessError, json.JSONDecodeError):
             return False
 
-    def get_pods_with_ports(self, namespace: str) -> List[ServiceInfo]:
+    def get_pods_with_ports(self, namespace: str) -> list[ServiceInfo]:
         """Get pods with exposed ports in a namespace."""
         try:
             result = subprocess.run(
@@ -254,7 +254,7 @@ class KubernetesClient:
             # Return empty list if we can't get pods
             return []
 
-    def get_deployments_with_ports(self, namespace: str) -> List[ServiceInfo]:
+    def get_deployments_with_ports(self, namespace: str) -> list[ServiceInfo]:
         """Get deployments with exposed ports in a namespace."""
         try:
             result = subprocess.run(

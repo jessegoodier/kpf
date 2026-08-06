@@ -262,7 +262,6 @@ class TestRunPortForward:
             # debug.print uses console.print, and preprends [DEBUG] usually if using the real class,
             # but here we rely on run_port_forward passing debug_mode=True to the orchestrator.
             # The orchestrator sets up debug.
-            pass
 
     @patch("src.kpf.main.NetworkWatchdog")
     @patch("src.kpf.main.validate_service_and_endpoints")
@@ -1069,7 +1068,6 @@ class TestConnectivityTesting:
     """Test enhanced connectivity testing functionality."""
 
     # Global state setup/teardown no longer needed as we use ConnectivityChecker instance
-    pass
 
     def test_test_socket_connectivity_success(self):
         """Test socket connectivity test with successful connection."""
@@ -1163,7 +1161,6 @@ class TestConnectivityTesting:
     def test_test_http_connectivity_connection_error(self, mock_get):
         """Test HTTP connectivity test with connection error."""
         import requests
-
         from src.kpf.connectivity import ConnectivityChecker
 
         checker = ConnectivityChecker(run_http_health_checks=True)
@@ -1178,7 +1175,6 @@ class TestConnectivityTesting:
     def test_test_http_connectivity_timeout(self, mock_get):
         """Test HTTP connectivity test with timeout."""
         import requests
-
         from src.kpf.connectivity import ConnectivityChecker
 
         checker = ConnectivityChecker(run_http_health_checks=True)

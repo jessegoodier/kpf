@@ -3,7 +3,6 @@
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-
 from src.kpf.cli import create_parser, handle_prompt_mode, main, merge_config_with_cli_args
 
 
