@@ -7,13 +7,13 @@ Perfect for testing kubectl port-forward functionality with kpf.
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
 
 # Track when the container started
 START_TIME = time.time()
-START_DATETIME = datetime.now(timezone.utc)
+START_DATETIME = datetime.now(UTC)
 
 
 class UptimeHandler(BaseHTTPRequestHandler):
@@ -33,7 +33,7 @@ class UptimeHandler(BaseHTTPRequestHandler):
             "uptime_seconds": uptime_seconds,
             "uptime_human": self._format_uptime(uptime_seconds),
             "started_at": START_DATETIME.isoformat(),
-            "current_time": datetime.now(timezone.utc).isoformat(),
+            "current_time": datetime.now(UTC).isoformat(),
             "container_name": "kpf-test-app",
             "version": "1.0.0",
         }
@@ -210,7 +210,7 @@ app_uptime_seconds {uptime_seconds}
 
     def log_message(self, format, *args):
         """Log requests with timestamp."""
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
         print(f"[{timestamp}] {format % args}")
 
 

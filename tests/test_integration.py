@@ -25,6 +25,7 @@ class TestCLIIntegration:
             [sys.executable, "-m", "src.kpf.cli", "--help"],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         assert result.returncode == 0
@@ -39,6 +40,7 @@ class TestCLIIntegration:
             [sys.executable, "-m", "src.kpf.cli", "--version"],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         assert result.returncode == 0
@@ -71,9 +73,9 @@ class TestCLIIntegration:
         """Test that all modules can be imported without errors."""
         try:
             # Verify version consistency
+            import tomllib
             from pathlib import Path
 
-            import tomllib
             from src.kpf import __version__
             from src.kpf.cli import main
             from src.kpf.display import ServiceSelector
@@ -242,6 +244,7 @@ class TestErrorHandling:
             capture_output=True,
             text=True,
             timeout=15,  # Should fail fast, not timeout
+            check=False,
         )
 
         assert result.returncode == 1

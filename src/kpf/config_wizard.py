@@ -206,7 +206,7 @@ def run_config_wizard(config) -> None:
         try:
             with open(config_path) as f:
                 existing_raw = json.load(f)
-        except Exception:
+        except OSError, json.JSONDecodeError, TypeError:
             pass
 
     console.print()
@@ -291,5 +291,5 @@ def run_config_wizard(config) -> None:
             json.dump(changed, f, indent=2)
             f.write("\n")
         console.print(f"\n[green]Saved to {config_path}[/green]")
-    except Exception as e:
+    except OSError as e:
         console.print(f"[red]Error saving config: {e}[/red]")

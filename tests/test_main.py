@@ -814,6 +814,7 @@ class TestArgumentValidation:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
 
         assert result.returncode == 1
@@ -1058,6 +1059,7 @@ class TestServiceValidation:
             capture_output=True,
             text=True,
             timeout=15,
+            check=False,
         )
 
         assert result.returncode == 1
@@ -1161,6 +1163,7 @@ class TestConnectivityTesting:
     def test_test_http_connectivity_connection_error(self, mock_get):
         """Test HTTP connectivity test with connection error."""
         import requests
+
         from src.kpf.connectivity import ConnectivityChecker
 
         checker = ConnectivityChecker(run_http_health_checks=True)
@@ -1175,6 +1178,7 @@ class TestConnectivityTesting:
     def test_test_http_connectivity_timeout(self, mock_get):
         """Test HTTP connectivity test with timeout."""
         import requests
+
         from src.kpf.connectivity import ConnectivityChecker
 
         checker = ConnectivityChecker(run_http_health_checks=True)
@@ -1202,7 +1206,7 @@ class TestConnectivityTesting:
         mock_get.return_value = mock_response
 
         # First call
-        result1, description1 = checker._test_http_connectivity(8080)
+        result1, _description1 = checker._test_http_connectivity(8080)
         assert result1 == ConnectivityTestResult.SUCCESS
 
         # Second call should be rate limited
@@ -1615,6 +1619,7 @@ class TestContextAndKubeconfig:
             capture_output=True,
             text=True,
             timeout=15,
+            check=False,
         )
 
         assert result.returncode == 1

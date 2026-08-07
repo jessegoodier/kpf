@@ -17,17 +17,17 @@
 ## Common Commands
 
 - **Run Tests**: `just test` or `uv run pytest`
-- **Format Code**: `just format` (runs `ruff` and `isort`)
-- **Lint Code**: `just lint` (runs `ruff check` and `isort --check-only`)
+- **Format Code**: `just format` (runs `ruff check --fix` and `ruff format`)
+- **Lint Code**: `just lint` (runs `ruff check` and `ruff format --check`)
 - **Clean Build**: `just clean`
 - **Check All**: `just check-clean` (verifies formatting and linting)
 
 ## Code Style & Conventions
 
 - **Language**: Python 3.14+
-- **Formatting**: Enforced by `ruff` and `isort`.
+- **Formatting**: Enforced by `ruff` (including import sorting).
 - **Line Length**: 100 characters (defined in `pyproject.toml`).
-- **Imports**: Sorted by `isort` (profile: black).
+- **Imports**: Sorted by ruff's isort rules.
 - **Type Hints**: Encouraged.
 
 ## Testing Instructions

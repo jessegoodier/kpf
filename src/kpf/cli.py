@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import importlib.resources
 import locale
@@ -286,7 +284,7 @@ def _debug_display_terminal_capabilities():
         console.print(
             f"[dim]Rich Console Size:[/dim] [green]{console_size.width}×{console_size.height}[/green]"
         )
-    except Exception:
+    except OSError, ValueError, AttributeError:
         pass
     console.print(
         f"[dim]stdin isatty:[/dim] [green]{getattr(sys.stdin, 'isatty', lambda: False)()}[/green]"
@@ -360,7 +358,7 @@ def _debug_display_terminal_capabilities():
         colors_value = colors.stdout.strip() or colors.stderr.strip()
         if colors_value:
             console.print(f"[dim]tput colors:[/dim] [green]{colors_value}[/green]")
-    except Exception:
+    except OSError, ValueError:
         pass
 
     # What box style will be used by our tables
@@ -383,7 +381,7 @@ def _debug_display_terminal_capabilities():
         for name, ch in samples.items():
             width = wcswidth(ch)
             console.print(f"  [dim]{name}[/dim]: '{ch}' -> [green]{width}[/green]")
-    except Exception:
+    except ImportError, OSError, ValueError:
         console.print("[dim]wcwidth:[/dim] [yellow]unavailable[/yellow]")
 
     console.print("[bold cyan]══════════════════════════════════════════════[/bold cyan]\n")
@@ -401,7 +399,7 @@ def _output_completion_script(shell: str) -> None:
         completions_pkg = importlib.resources.files("kpf.completions")
         script = (completions_pkg / filename).read_text()
         print(script)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         console.print(f"Error reading completion script: {e}", style="red")
         sys.exit(1)
 
@@ -498,10 +496,12 @@ def main():
                 sys.exit(0)
 
         # Apply the -0 flag if specified
-        if (args.address_zero or merged_config.get("alwaysListenAll", False)) and port_forward_args:
-            # Check if --address is already specified to avoid duplicates/conflicts
-            if "--address" not in port_forward_args:
-                port_forward_args.extend(["--address", "0.0.0.0"])
+        if (
+            (args.address_zero or merged_config.get("alwaysListenAll", False))
+            and port_forward_args
+            and "--address" not in port_forward_args
+        ):
+            port_forward_args.extend(["--address", "0.0.0.0"])
 
         # Run the port-forward utility (should only reach here if port_forward_args is set)
         if port_forward_args:
@@ -515,7 +515,7 @@ def main():
     except KeyboardInterrupt:
         console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")
         sys.exit(0)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         console.print(f"Error: {e}", style="red")
         sys.exit(1)
 
@@ -548,7 +548,7 @@ def history_main():
     except KeyboardInterrupt:
         console.print("\nOperation cancelled by user (Ctrl+C)", style="yellow")
         sys.exit(0)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         console.print(f"Error: {e}", style="red")
         sys.exit(1)
 

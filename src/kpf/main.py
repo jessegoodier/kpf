@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import re
 import signal
@@ -90,7 +88,7 @@ def get_watcher_args(port_forward_args, kubectl_global_flags=None):
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=5)
             namespace = result.stdout.strip() or "default"
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        except subprocess.CalledProcessError, subprocess.TimeoutExpired:
             namespace = "default"
         debug.print(f"No namespace specified, using current context namespace: '{namespace}'")
 
@@ -126,7 +124,6 @@ def run_port_forward(
         config: KpfConfig instance (optional)
         run_http_health_checks: Enable HTTP connectivity health checks (optional, default: False)
     """
-    global _sigint_count  # Keep existing sigint global but remove _debug_enabled global
     debug.enabled = debug_mode
 
     if debug_mode:
@@ -197,7 +194,7 @@ def run_port_forward(
 
             k8s = KubernetesClient()
             context = k8s.get_current_context()
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     # Detect listen_all from port_forward_args
@@ -205,7 +202,7 @@ def run_port_forward(
     try:
         addr_idx = port_forward_args.index("--address")
         listen_all = port_forward_args[addr_idx + 1] == "0.0.0.0"
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         pass
 
     # Resolve kubeconfig: explicit flag > KUBECONFIG env > default path

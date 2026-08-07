@@ -129,7 +129,7 @@ class EndpointWatcher:
                     )
                     time.sleep(2)
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 console.print(f"[red][Watcher] An error occurred: {e}[/red]")
                 self.terminate_process()
 
@@ -159,5 +159,5 @@ class EndpointWatcher:
                 proc.wait(timeout=0.5)
             except subprocess.TimeoutExpired:
                 pass
-        except Exception as e:
+        except OSError as e:
             self.debug_print(f"Error killing process: {e}")

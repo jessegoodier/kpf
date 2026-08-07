@@ -182,22 +182,22 @@ class PortForwarder:
                     time.sleep(2)
 
                 # Test if port-forward is healthy (skip if health checks disabled)
-                if not self.no_health_check:
-                    if not self.connectivity_checker.test_port_forward_health(local_port):
-                        console.print("[red]Port-forward failed to start properly[/red]")
-                        console.print(
-                            "[yellow]This may indicate the service is not running or the port mapping is incorrect[/yellow]"
-                        )
-                        if proc:
-                            self.debug_print(
-                                f"Terminating failed port-forward process PID: {proc.pid}"
-                            )
-                            self._kill_proc(proc)
+                if (
+                    not self.no_health_check
+                    and not self.connectivity_checker.test_port_forward_health(local_port)
+                ):
+                    console.print("[red]Port-forward failed to start properly[/red]")
+                    console.print(
+                        "[yellow]This may indicate the service is not running or the port mapping is incorrect[/yellow]"
+                    )
+                    if proc:
+                        self.debug_print(f"Terminating failed port-forward process PID: {proc.pid}")
+                        self._kill_proc(proc)
 
-                        # Instead of shutting down immediately, set restart event to try again
-                        console.print("[yellow]Will retry port-forward in a moment...[/yellow]")
-                        self.restart_event.set()
-                        continue
+                    # Instead of shutting down immediately, set restart event to try again
+                    console.print("[yellow]Will retry port-forward in a moment...[/yellow]")
+                    self.restart_event.set()
+                    continue
 
                 console.print("\n🚀 [green]port-forward started[/green] 🚀")
 
@@ -350,7 +350,7 @@ class PortForwarder:
 
                 self.restart_event.clear()  # Reset the event for the next cycle
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 console.print(f"[red][Port-Forwarder] An error occurred: {e}[/red]")
                 self.terminate_process()
                 self.shutdown_event.set()
@@ -379,5 +379,5 @@ class PortForwarder:
                 proc.wait(timeout=0.5)
             except subprocess.TimeoutExpired:
                 pass
-        except Exception as e:
+        except OSError as e:
             self.debug_print(f"Error killing process: {e}")
