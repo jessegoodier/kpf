@@ -6,10 +6,10 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
-import tomllib
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -336,7 +336,7 @@ def main() -> None:
     console.print(Panel.fit("Fleet Manager dependency update", style="bold magenta"))
 
     for tool in ("uv", "npm", "npx"):
-        if subprocess.run(["which", tool], capture_output=True).returncode != 0:
+        if subprocess.run(["which", tool], capture_output=True, check=False).returncode != 0:
             console.print(f"[bold red]Required tool not found:[/bold red] {tool}")
             raise SystemExit(1)
 

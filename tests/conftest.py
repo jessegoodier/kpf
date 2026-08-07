@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 
 import pytest
+
 from src.kpf.kubernetes import KubernetesClient, ServiceInfo
 
 

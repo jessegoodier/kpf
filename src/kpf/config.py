@@ -4,7 +4,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from rich.console import Console
 
@@ -15,7 +15,7 @@ class KpfConfig:
     """Configuration manager for kpf following XDG Base Directory Specification."""
 
     # Default configuration values
-    DEFAULTS = {
+    DEFAULTS: ClassVar[dict[str, Any]] = {
         "autoSelectFreePort": True,  # When 9090 is in use, try 9091, 9092, ...
         "showDirectCommand": True,
         "showDirectCommandIncludeContext": True,
@@ -100,7 +100,7 @@ class KpfConfig:
         except json.JSONDecodeError as e:
             console.print(f"[red]Error: Invalid JSON in config file {config_path}: {e}[/red]")
             console.print("[yellow]Using default configuration[/yellow]")
-        except Exception as e:
+        except OSError as e:
             console.print(
                 f"[yellow]Warning: Could not load config from {config_path}: {e}[/yellow]"
             )

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Network watchdog to detect zombie connections after laptop sleep/wake."""
 
 import socket
@@ -91,7 +90,7 @@ class NetworkWatchdog(threading.Thread):
                     f"Network watchdog: API server is {self._api_server_host}:{self._api_server_port}"
                 )
                 return self._api_server_host, self._api_server_port
-        except Exception as e:
+        except (OSError, ValueError, subprocess.SubprocessError) as e:
             self._debug(f"Network watchdog: Failed to get API server address: {e}")
 
         return None, 443
@@ -129,7 +128,7 @@ class NetworkWatchdog(threading.Thread):
         except socket.gaierror as e:
             self._debug(f"Network watchdog: DNS resolution failed for {host}: {e}")
             return False
-        except Exception as e:
+        except (OSError, ValueError) as e:
             self._debug(f"Network watchdog: Connection error to {host}:{port}: {e}")
             return False
 
@@ -166,7 +165,7 @@ class NetworkWatchdog(threading.Thread):
         except TimeoutError:
             self._debug(f"Network watchdog: Timeout connecting to local port {self.local_port}")
             return False
-        except Exception as e:
+        except (OSError, ValueError) as e:
             self._debug(f"Network watchdog: Error checking local port {self.local_port}: {e}")
             return False
 

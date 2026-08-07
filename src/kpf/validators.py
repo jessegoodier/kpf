@@ -72,7 +72,7 @@ def validate_context(kubectl_global_flags):
         if kubeconfig:
             cmd.extend(["--kubeconfig", kubeconfig])
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, check=False)
             if result.returncode != 0:
                 console.print(f"[red]Error: Context '{context}' not found[/red]")
                 error_msg = result.stderr.strip() if result.stderr else ""
@@ -96,7 +96,7 @@ def extract_local_port(port_forward_args):
             try:
                 local_port_str, _ = arg.split(":", 1)
                 return int(local_port_str)
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 continue
     return None
 
@@ -144,7 +144,7 @@ def find_next_free_port(start_port: int, max_attempts: int = 10):
         port = start_port + offset
         if port > 65535:
             return None
-        is_available, error_reason = is_port_available(port)
+        is_available, _error_reason = is_port_available(port)
         # Only use ports that are truly available (not permission issues)
         if is_available:
             return port
@@ -181,7 +181,7 @@ def validate_port_format(port_forward_args):
 
                 return True
 
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 console.print(
                     f"[red]Error: Invalid port format in '{arg}'. Expected format: 'local_port:remote_port' (e.g., 8080:80)[/red]"
                 )
@@ -203,6 +203,7 @@ def validate_kubectl_command(port_forward_args):
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -265,7 +266,7 @@ def validate_kubectl_command(port_forward_args):
         console.print("[red]Error: kubectl command not found[/red]")
         console.print("[yellow]Please install kubectl and ensure it's in your PATH[/yellow]")
         return False
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError, ValueError) as e:
         console.print(f"[red]Error: Failed to validate kubectl command: {e}[/red]")
         return False
 
@@ -300,7 +301,7 @@ def validate_service_and_endpoints(
             try:
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=5)
                 namespace = result.stdout.strip() or "default"
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            except subprocess.CalledProcessError, subprocess.TimeoutExpired:
                 namespace = "default"
 
         # Find resource
@@ -362,7 +363,9 @@ def validate_service_and_endpoints(
                     "json",
                 ]
             )
-            result = subprocess.run(cmd_service, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                cmd_service, capture_output=True, text=True, timeout=10, check=False
+            )
 
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
@@ -411,7 +414,9 @@ def validate_service_and_endpoints(
                     "json",
                 ]
             )
-            result = subprocess.run(cmd_endpoints, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                cmd_endpoints, capture_output=True, text=True, timeout=10, check=False
+            )
 
             if result.returncode != 0:
                 console.print(f"[red]Error: No endpoints found for service '{resource_name}'[/red]")
@@ -468,7 +473,7 @@ def validate_service_and_endpoints(
                 + kubectl_global_flags
                 + ["get", normalized_type, resource_name, "-n", namespace]
             )
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
 
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
@@ -487,7 +492,7 @@ def validate_service_and_endpoints(
         console.print("[red]Error: Service validation timed out[/red]")
         console.print("[yellow]This may indicate kubectl is not responding[/yellow]")
         return False
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, json.JSONDecodeError) as e:
         console.print(f"[red]Error: Failed to validate service: {e}[/red]")
         return False
 

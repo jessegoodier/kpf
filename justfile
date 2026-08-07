@@ -19,15 +19,13 @@ install-dev:
     uv pip install -e '.[dev]'
 
 # Code quality
-# Format code with ruff and isort
+# Format code with ruff (includes import sorting)
 format:
-    uvx isort .
     uvx ruff check . --fix
     uvx ruff format .
 
 # Run linting checks
 lint:
-    uvx isort . --check-only
     uvx ruff check .
     uvx ruff format --check .
 

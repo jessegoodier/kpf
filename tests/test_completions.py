@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Tests to ensure shell completions stay in sync with CLI arguments."""
 
 import re
@@ -249,7 +248,7 @@ class TestCompletionFunctionality:
         for test_args in test_cases:
             try:
                 # Use parse_known_args to avoid SystemExit on -v/--version
-                args, _ = parser.parse_known_args(test_args)
+                _args, _ = parser.parse_known_args(test_args)
                 # If we got here, parsing succeeded
             except SystemExit as e:
                 # Version flag causes SystemExit(0), which is expected

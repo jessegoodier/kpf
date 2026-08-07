@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import socket
 import subprocess
@@ -357,7 +355,12 @@ class ServiceSelector:
                                 "↑/↓ j/k=navigate  Enter=select  Esc=back  q=quit  digits=jump"
                             )
 
-                        def build_view():
+                        def build_view(
+                            current_index: int,
+                            *,
+                            max_index: int = max_index,
+                            help_text: str = help_text,
+                        ):
                             # Calculate a scrolling window so the selected row stays a few lines above bottom
                             terminal_height = self.console.size.height
                             overhead_lines = 8  # title, headers, borders, and help/legend
@@ -395,7 +398,7 @@ class ServiceSelector:
                             return Group(*renders)
 
                         with Live(
-                            build_view(),
+                            build_view(current_index),
                             console=self.console,
                             transient=True,
                             auto_refresh=False,
@@ -406,18 +409,18 @@ class ServiceSelector:
                                 if ch in (key.UP, "k"):
                                     current_index = max(1, current_index - 1)
                                     typed_number = ""
-                                    live.update(build_view(), refresh=True)
+                                    live.update(build_view(current_index), refresh=True)
                                 elif ch in (key.DOWN, "j"):
                                     current_index = min(max_index, current_index + 1)
                                     typed_number = ""
-                                    live.update(build_view(), refresh=True)
+                                    live.update(build_view(current_index), refresh=True)
                                 elif ch in (key.BACKSPACE, "\x7f", "\b"):
                                     typed_number = typed_number[:-1]
                                     if typed_number:
                                         preview = int(typed_number)
                                         if 1 <= preview <= max_index:
                                             current_index = preview
-                                    live.update(build_view(), refresh=True)
+                                    live.update(build_view(current_index), refresh=True)
                                 elif ch in (key.ENTER, "\r", "\n"):
                                     selection = current_index
                                     break
@@ -434,11 +437,11 @@ class ServiceSelector:
                                         typed_number, ch, max_index, current_index
                                     )
                                     if updated:
-                                        live.update(build_view(), refresh=True)
+                                        live.update(build_view(current_index), refresh=True)
                                 else:
                                     # ignore other keys
                                     pass
-                    except Exception:
+                    except Exception:  # noqa: BLE001
                         selection = None
 
                 # History menu requested — open it, then loop back if cancelled
@@ -605,7 +608,7 @@ class ServiceSelector:
                             else:
                                 # ignore other keys
                                 pass
-                except Exception:
+                except Exception:  # noqa: BLE001
                     selection = None
 
             # Fall back to numeric selection if interactive not used or cancelled
@@ -754,7 +757,7 @@ class ServiceSelector:
                                     live.update(build_view(), refresh=True)
                             else:
                                 pass
-                except Exception:
+                except Exception:  # noqa: BLE001
                     selection = None
 
             if selection is None:
@@ -981,7 +984,7 @@ class ServiceSelector:
                             else:
                                 # ignore other keys
                                 pass
-                except Exception:
+                except Exception:  # noqa: BLE001
                     selection = None
 
             # Fall back to numeric selection if interactive not used or cancelled

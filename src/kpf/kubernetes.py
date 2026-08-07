@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import json
 import subprocess
 from dataclasses import dataclass
@@ -50,7 +48,7 @@ class KubernetesClient:
         """Check if kubectl is available."""
         try:
             subprocess.run(["kubectl", "version"], capture_output=True, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
+        except subprocess.CalledProcessError, FileNotFoundError:
             raise RuntimeError("kubectl is not available or not configured properly")
 
     def get_current_namespace(self) -> str:
@@ -88,7 +86,7 @@ class KubernetesClient:
                 check=False,
             )
             return result.stdout.strip() if result.returncode == 0 else ""
-        except Exception:
+        except OSError, subprocess.SubprocessError:
             return ""
 
     def get_all_namespaces(self) -> list[str]:
@@ -205,7 +203,7 @@ class KubernetesClient:
 
             return False
 
-        except (subprocess.CalledProcessError, json.JSONDecodeError):
+        except subprocess.CalledProcessError, json.JSONDecodeError:
             return False
 
     def get_pods_with_ports(self, namespace: str) -> list[ServiceInfo]:
@@ -250,7 +248,7 @@ class KubernetesClient:
 
             return sorted(pods_with_ports, key=lambda p: p.name)
 
-        except (subprocess.CalledProcessError, json.JSONDecodeError):
+        except subprocess.CalledProcessError, json.JSONDecodeError:
             # Return empty list if we can't get pods
             return []
 
@@ -296,6 +294,6 @@ class KubernetesClient:
 
             return sorted(deployments_with_ports, key=lambda d: d.name)
 
-        except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError):
+        except subprocess.CalledProcessError, json.JSONDecodeError, KeyError:
             # Return empty list if we can't get deployments
             return []

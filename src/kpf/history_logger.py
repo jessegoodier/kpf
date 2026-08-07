@@ -2,7 +2,7 @@
 
 import json
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -25,7 +25,7 @@ class HistoryLogger:
 
         self.session_data = {
             "start_time": time.time(),
-            "start_time_iso": datetime.now().isoformat(),
+            "start_time_iso": datetime.now(UTC).isoformat(),
             "service": None,
             "namespace": None,
             "context": None,
@@ -91,7 +91,7 @@ class HistoryLogger:
 
         self.session_data["exit_reason"] = exit_reason
         self.session_data["end_time"] = time.time()
-        self.session_data["end_time_iso"] = datetime.now().isoformat()
+        self.session_data["end_time_iso"] = datetime.now(UTC).isoformat()
         self.session_data["duration_seconds"] = (
             self.session_data["end_time"] - self.session_data["start_time"]
         )
@@ -107,13 +107,13 @@ class HistoryLogger:
             self.folder.mkdir(parents=True, exist_ok=True)
 
             # Use timestamp for filename
-            filename = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filename = f"session_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.json"
             filepath = self.folder / filename
 
             with open(filepath, "w") as f:
                 json.dump(self.session_data, f, indent=2)
 
-        except Exception as e:
+        except OSError as e:
             # Don't crash on logging errors, just print warning
             from rich.console import Console
 

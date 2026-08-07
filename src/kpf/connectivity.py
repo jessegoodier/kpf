@@ -272,7 +272,7 @@ class ConnectivityChecker:
                     self.debug_print(f"HTTP connectivity test [red]SSL error: {url} -> {e}[/red]")
                 continue  # Try next URL
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 # Check if this is a non-HTTP protocol error
                 if self._is_non_http_protocol_error(e):
                     non_http_detected = True

@@ -5,6 +5,7 @@ import subprocess
 from unittest.mock import Mock, patch
 
 import pytest
+
 from src.kpf.display import ServiceSelector
 from src.kpf.kubernetes import ServiceInfo
 
@@ -291,9 +292,11 @@ class TestServiceSelector:
 
     def test_check_kubectl_not_found(self, mock_k8s_client):
         """Test _check_kubectl when kubectl is not found."""
-        with patch("subprocess.run", side_effect=FileNotFoundError):
-            with pytest.raises(RuntimeError, match="kubectl command not found"):
-                ServiceSelector(mock_k8s_client)
+        with (
+            patch("subprocess.run", side_effect=FileNotFoundError),
+            pytest.raises(RuntimeError, match="kubectl command not found"),
+        ):
+            ServiceSelector(mock_k8s_client)
 
     def test_check_kubectl_failed(self, mock_k8s_client):
         """Test _check_kubectl when kubectl command fails."""

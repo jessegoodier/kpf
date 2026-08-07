@@ -109,7 +109,7 @@ def load_history(folder: Path, limit: int = 20) -> list[HistoryEntry]:
                 grouped[key]["kubeconfig"] = kubeconfig
                 grouped[key]["listen_all"] = listen_all
 
-        except Exception:
+        except Exception:  # noqa: BLE001, S112
             continue
 
     now = time.time()

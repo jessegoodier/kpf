@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Tests for the network watchdog module."""
 
 import socket
@@ -80,7 +79,7 @@ class TestNetworkWatchdog:
     @patch("subprocess.run")
     def test_get_api_server_address_failure(self, mock_run):
         """Test handling of kubectl config failure."""
-        mock_run.side_effect = Exception("kubectl not found")
+        mock_run.side_effect = FileNotFoundError("kubectl not found")
 
         shutdown_event = threading.Event()
         restart_event = threading.Event()
